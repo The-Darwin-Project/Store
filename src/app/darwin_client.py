@@ -170,7 +170,7 @@ class DarwinClient:
         if not self.url:
             return
         
-        endpoint = f"{self.url.rstrip('/')}/telemetry"
+        endpoint = f"{self.url.rstrip('/')}/telemetry/"
         
         response = requests.post(
             endpoint,

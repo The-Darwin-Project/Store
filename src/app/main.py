@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Configuration from environment
 SERVICE_NAME = os.getenv("SERVICE_NAME", "darwin-store")
 SERVICE_VERSION = os.getenv("SERVICE_VERSION", "1.0.0")
-DARWIN_URL = os.getenv("DARWIN_URL", "http://darwin-blackboard:8000")
+DARWIN_URL = os.getenv("DARWIN_URL", "http://darwin-blackboard-brain:8000")
 
 # Darwin telemetry client (initialized on startup)
 darwin_client: Optional[DarwinClient] = None
