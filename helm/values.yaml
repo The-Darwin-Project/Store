@@ -5,7 +5,7 @@
 # -- Image configuration
 image:
   repository: ghcr.io/the-darwin-project/store
-  tag: "latest" # Updated by CI to commit SHA
+  tag: "061523a" # Updated by CI to commit SHA
   pullPolicy: IfNotPresent
 
 # -- Image pull secrets (if using private registry)
