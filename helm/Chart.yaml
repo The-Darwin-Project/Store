@@ -1,0 +1,16 @@
+# Store/helm/Chart.yaml
+apiVersion: v2
+name: darwin-store
+description: Darwin Store - Self-aware vulnerable application for Darwin demos
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - darwin
+  - chaos
+  - store
+  - demo
+
+maintainers:
+  - name: Tal Hason

@@ -1,4 +1,18 @@
+# Store/requirements.txt
+# Darwin Store - Python dependencies
+
+# Web framework
 fastapi
 uvicorn[standard]
+
+# Data validation
+pydantic
+
+# HTTP client (for telemetry)
 requests
+
+# System metrics
 psutil
+
+# Database (for future Postgres integration)
+psycopg2-binary

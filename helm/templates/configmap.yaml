@@ -1,0 +1,20 @@
+# Store/helm/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  labels:
+    app: darwin-store
+    app.kubernetes.io/name: darwin-store
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  # Darwin BlackBoard connection
+  {{- if .Values.darwin.enabled }}
+  DARWIN_URL: {{ .Values.darwin.url | quote }}
+  {{- else }}
+  DARWIN_URL: ""
+  {{- end }}
+  
+  # Service metadata (sent in telemetry)
+  SERVICE_NAME: {{ .Values.app.name | quote }}
+  SERVICE_VERSION: {{ .Values.app.version | quote }}

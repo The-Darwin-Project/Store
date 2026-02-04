@@ -1,0 +1,41 @@
+# Store/helm/templates/service.yaml
+---
+# Store API Service (port 8080)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-store
+  labels:
+    app: darwin-store
+    app.kubernetes.io/name: darwin-store
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.store.type }}
+  ports:
+    - port: {{ .Values.service.store.port }}
+      targetPort: store
+      protocol: TCP
+      name: http
+  selector:
+    app: darwin-store
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+# Chaos Controller Service (port 9000)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-chaos
+  labels:
+    app: darwin-chaos
+    app.kubernetes.io/name: darwin-chaos
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.chaos.type }}
+  ports:
+    - port: {{ .Values.service.chaos.port }}
+      targetPort: chaos
+      protocol: TCP
+      name: http
+  selector:
+    app: darwin-store
+    app.kubernetes.io/instance: {{ .Release.Name }}

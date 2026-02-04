@@ -1,5 +1,100 @@
+# Store/helm/values.yaml
+# Darwin Store - Helm values
+# Target Platform: OpenShift 4.x / Red Hat UBI 9
+
+# -- Image configuration
+image:
+  repository: darwin-store
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# -- Image pull secrets (if using private registry)
+imagePullSecrets: []
+
+# -- Replica count (1 for PoC)
+replicaCount: 1
+
+# -- Service configuration
+service:
+  store:
+    type: ClusterIP
+    port: 8080
+  chaos:
+    type: ClusterIP
+    port: 9000
+
+# -- Darwin BlackBoard connection
+darwin:
+  url: "http://darwin-blackboard:8000"
+  enabled: true
+
+# -- Application metadata (sent in telemetry)
+app:
+  name: "darwin-store"
+  version: "1.0.0"
+
+# -- Postgres configuration
 postgres:
-  image: {repo: postgres, tag: latest}
+  # Image settings
+  image:
+    repository: postgres
+    tag: "15"
+
+  # Replica count
   replicas: 1
-chaos: {enabled: true}
-darwin: {url: "http://darwin-brain:8000"}
+
+  # Persistence settings
+  # NOTE: Empty storageClass uses cluster default - verify with `oc get sc`
+  # Set enabled: false for emptyDir (no data survives pod restart)
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 1Gi
+    accessMode: ReadWriteOnce
+
+  # Authentication
+  # Use existingSecret for production, password fallback for dev
+  auth:
+    existingSecret: ""
+    password: "darwin"
+
+  # Resource limits
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+# -- Store app resource limits
+resources:
+  requests:
+    memory: 128Mi
+    cpu: 100m
+  limits:
+    memory: 256Mi
+    cpu: 500m
+
+# -- Pod-level security context
+# OpenShift assigns arbitrary UID from namespace range
+# Do NOT set runAsUser - let OpenShift assign it
+podSecurityContext:
+  fsGroup: 1001
+
+# -- Container-level security context
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false # App needs /tmp for chaos state
+  capabilities:
+    drop:
+      - ALL
+
+# -- Node selector
+nodeSelector: {}
+
+# -- Tolerations
+tolerations: []
+
+# -- Affinity rules
+affinity: {}

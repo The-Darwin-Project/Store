@@ -6,5 +6,5 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 COPY src src
-# Run App + Chaos
-CMD ["sh", "-c", "uvicorn src.app.main:app --port 8080 & uvicorn src.chaos.main:app --port 9000"]
+# Run App + Chaos (both processes, wait for either to exit)
+CMD ["sh", "-c", "uvicorn src.app.main:app --host 0.0.0.0 --port 8080 & uvicorn src.chaos.main:app --host 0.0.0.0 --port 9000 & wait"]

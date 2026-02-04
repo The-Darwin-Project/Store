@@ -1,2 +1,417 @@
-<h1>🔥 Chaos Controller</h1>
-<button onclick="fetch('/api/attack', {method:'POST'})">Attack</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darwin Chaos Controller</title>
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --accent: #e94560;
+            --accent-hover: #ff6b6b;
+            --text-primary: #eee;
+            --text-secondary: #aaa;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --danger: #ef4444;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        
+        .status-panel {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .status-panel h2 {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+        
+        .status-item {
+            background: var(--bg-card);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .status-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .status-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .status-value.active {
+            color: var(--danger);
+        }
+        
+        .status-value.inactive {
+            color: var(--success);
+        }
+        
+        .attack-panel {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .attack-panel h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .attack-panel p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .attack-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        button:hover {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.reset {
+            background: var(--bg-card);
+            border: 1px solid var(--text-secondary);
+        }
+        
+        button.reset:hover {
+            background: var(--danger);
+            border-color: var(--danger);
+        }
+        
+        input[type="number"] {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            width: 120px;
+        }
+        
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .input-group label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .log-panel {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .log-panel h2 {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+        }
+        
+        #log {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            max-height: 200px;
+            overflow-y: auto;
+            color: var(--text-secondary);
+        }
+        
+        .log-entry {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .log-entry.success {
+            color: var(--success);
+        }
+        
+        .log-entry.error {
+            color: var(--danger);
+        }
+        
+        .log-time {
+            color: var(--text-secondary);
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Chaos Controller</h1>
+            <p class="subtitle">Darwin Store Fault Injection</p>
+        </header>
+        
+        <div class="status-panel">
+            <h2>Current Status</h2>
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-label">CPU Load</div>
+                    <div class="status-value" id="status-cpu">OFF</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Latency</div>
+                    <div class="status-value" id="status-latency">0ms</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Error Rate</div>
+                    <div class="status-value" id="status-errors">0%</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Requests</div>
+                    <div class="status-value" id="status-requests">0</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="attack-panel">
+            <h3>CPU Attack</h3>
+            <p>Toggle CPU burn to spike container resource usage.</p>
+            <div class="attack-controls">
+                <button onclick="attackCPU()">Toggle CPU Burn</button>
+            </div>
+        </div>
+        
+        <div class="attack-panel">
+            <h3>Latency Injection</h3>
+            <p>Add artificial delay to all Store API requests.</p>
+            <div class="attack-controls">
+                <div class="input-group">
+                    <label for="latency-input">Delay:</label>
+                    <input type="number" id="latency-input" value="500" min="0" max="30000">
+                    <label>ms</label>
+                </div>
+                <button onclick="attackLatency()">Set Latency</button>
+            </div>
+        </div>
+        
+        <div class="attack-panel">
+            <h3>Error Injection</h3>
+            <p>Return 500 errors probabilistically for Store requests.</p>
+            <div class="attack-controls">
+                <div class="input-group">
+                    <label for="error-input">Rate:</label>
+                    <input type="number" id="error-input" value="50" min="0" max="100">
+                    <label>%</label>
+                </div>
+                <button onclick="attackErrors()">Set Error Rate</button>
+            </div>
+        </div>
+        
+        <div class="attack-panel">
+            <h3>Reset All</h3>
+            <p>Clear all chaos state and return to normal operation.</p>
+            <div class="attack-controls">
+                <button class="reset" onclick="resetAll()">Reset All Chaos</button>
+            </div>
+        </div>
+        
+        <div class="log-panel">
+            <h2>Activity Log</h2>
+            <div id="log"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Utility functions
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
+            logEl.insertBefore(entry, logEl.firstChild);
+            
+            // Keep only last 50 entries
+            while (logEl.children.length > 50) {
+                logEl.removeChild(logEl.lastChild);
+            }
+        }
+        
+        async function apiCall(endpoint, method = 'POST') {
+            try {
+                const response = await fetch(endpoint, { method });
+                const data = await response.json();
+                return { success: true, data };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+        
+        function updateStatus(chaos) {
+            const cpuEl = document.getElementById('status-cpu');
+            cpuEl.textContent = chaos.cpu_load ? 'ON' : 'OFF';
+            cpuEl.className = `status-value ${chaos.cpu_load ? 'active' : 'inactive'}`;
+            
+            const latencyEl = document.getElementById('status-latency');
+            latencyEl.textContent = `${chaos.latency_ms}ms`;
+            latencyEl.className = `status-value ${chaos.latency_ms > 0 ? 'active' : 'inactive'}`;
+            
+            const errorsEl = document.getElementById('status-errors');
+            const errorPct = Math.round(chaos.error_rate * 100);
+            errorsEl.textContent = `${errorPct}%`;
+            errorsEl.className = `status-value ${chaos.error_rate > 0 ? 'active' : 'inactive'}`;
+            
+            document.getElementById('status-requests').textContent = chaos.request_count || 0;
+        }
+        
+        // Attack functions
+        async function attackCPU() {
+            log('Toggling CPU attack...');
+            const result = await apiCall('/api/attack/cpu');
+            if (result.success) {
+                log(`CPU attack: ${result.data.status}`, 'success');
+                refreshStatus();
+            } else {
+                log(`Failed: ${result.error}`, 'error');
+            }
+        }
+        
+        async function attackLatency() {
+            const ms = parseInt(document.getElementById('latency-input').value) || 0;
+            log(`Setting latency to ${ms}ms...`);
+            const result = await apiCall(`/api/attack/latency?ms=${ms}`);
+            if (result.success) {
+                log(`Latency set to ${ms}ms`, 'success');
+                refreshStatus();
+            } else {
+                log(`Failed: ${result.error}`, 'error');
+            }
+        }
+        
+        async function attackErrors() {
+            const pct = parseInt(document.getElementById('error-input').value) || 0;
+            const rate = pct / 100;
+            log(`Setting error rate to ${pct}%...`);
+            const result = await apiCall(`/api/attack/errors?rate=${rate}`);
+            if (result.success) {
+                log(`Error rate set to ${pct}%`, 'success');
+                refreshStatus();
+            } else {
+                log(`Failed: ${result.error}`, 'error');
+            }
+        }
+        
+        async function resetAll() {
+            log('Resetting all chaos...');
+            const result = await apiCall('/api/reset');
+            if (result.success) {
+                log('All chaos reset', 'success');
+                refreshStatus();
+            } else {
+                log(`Failed: ${result.error}`, 'error');
+            }
+        }
+        
+        async function refreshStatus() {
+            const result = await apiCall('/api/status', 'GET');
+            if (result.success && result.data.chaos) {
+                updateStatus(result.data.chaos);
+            }
+        }
+        
+        // Initial load and auto-refresh
+        refreshStatus();
+        setInterval(refreshStatus, 2000);
+        log('Chaos Controller initialized', 'success');
+    </script>
+</body>
+</html>
