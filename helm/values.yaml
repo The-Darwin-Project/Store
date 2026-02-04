@@ -4,8 +4,8 @@
 
 # -- Image configuration
 image:
-  repository: darwin-store
-  tag: "latest"
+  repository: ghcr.io/the-darwin-project/store
+  tag: "latest" # Updated by CI to commit SHA
   pullPolicy: IfNotPresent
 
 # -- Image pull secrets (if using private registry)
@@ -50,7 +50,7 @@ postgres:
     enabled: true
     storageClass: ""
     size: 1Gi
-    accessMode: ReadWriteOnce
+    accessMode: ReadWriteMany
 
   # Authentication
   # Use existingSecret for production, password fallback for dev
