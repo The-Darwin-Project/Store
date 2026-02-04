@@ -1,0 +1,69 @@
+# Store/helm/templates/route.yaml
+{{- if .Values.route.store.enabled }}
+---
+# Store API Route
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ .Release.Name }}-store
+  labels:
+    app: darwin-store
+    app.kubernetes.io/name: darwin-store
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  {{- with .Values.route.store.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.route.store.host }}
+  host: {{ .Values.route.store.host }}
+  {{- end }}
+  port:
+    targetPort: http
+  to:
+    kind: Service
+    name: {{ .Release.Name }}-store
+    weight: 100
+  {{- if .Values.route.tls.enabled }}
+  tls:
+    termination: {{ .Values.route.tls.termination }}
+    {{- if eq .Values.route.tls.termination "edge" }}
+    insecureEdgeTerminationPolicy: {{ .Values.route.tls.insecureEdgeTerminationPolicy }}
+    {{- end }}
+  {{- end }}
+  wildcardPolicy: None
+{{- end }}
+{{- if .Values.route.chaos.enabled }}
+---
+# Chaos Controller Route
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ .Release.Name }}-chaos
+  labels:
+    app: darwin-chaos
+    app.kubernetes.io/name: darwin-chaos
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  {{- with .Values.route.chaos.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.route.chaos.host }}
+  host: {{ .Values.route.chaos.host }}
+  {{- end }}
+  port:
+    targetPort: http
+  to:
+    kind: Service
+    name: {{ .Release.Name }}-chaos
+    weight: 100
+  {{- if .Values.route.tls.enabled }}
+  tls:
+    termination: {{ .Values.route.tls.termination }}
+    {{- if eq .Values.route.tls.termination "edge" }}
+    insecureEdgeTerminationPolicy: {{ .Values.route.tls.insecureEdgeTerminationPolicy }}
+    {{- end }}
+  {{- end }}
+  wildcardPolicy: None
+{{- end }}

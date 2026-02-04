@@ -23,6 +23,21 @@ service:
     type: ClusterIP
     port: 9000
 
+# -- Route configuration (OpenShift)
+route:
+  store:
+    enabled: true
+    # host: darwin-store.apps.example.com  # Leave empty for auto-generated
+    annotations: {}
+  chaos:
+    enabled: true
+    # host: darwin-chaos.apps.example.com  # Leave empty for auto-generated
+    annotations: {}
+  tls:
+    enabled: true
+    termination: edge # edge, passthrough, or reencrypt
+    insecureEdgeTerminationPolicy: Redirect # Allow, Redirect, or None
+
 # -- Darwin BlackBoard connection
 darwin:
   url: "http://darwin-blackboard:8000"
