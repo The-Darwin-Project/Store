@@ -12,9 +12,12 @@ import os
 import asyncio
 import random
 import logging
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Request, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .routes.products import router as products_router
@@ -84,7 +87,17 @@ app.add_middleware(ChaosMiddleware)
 app.include_router(products_router)
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
+async def index():
+    """Serve the Store UI."""
+    static_dir = Path(__file__).parent / "static"
+    index_file = static_dir / "index.html"
+    if index_file.exists():
+        return HTMLResponse(content=index_file.read_text())
+    return HTMLResponse(content="<h1>Darwin Store</h1><p>Static files not found</p>")
+
+
+@app.get("/health")
 async def health():
     """Health check endpoint."""
     return {"status": "store_online", "service": SERVICE_NAME, "version": SERVICE_VERSION}
@@ -115,3 +128,9 @@ async def shutdown_event():
     if darwin_client:
         darwin_client.stop()
         logger.info("Darwin telemetry stopped")
+
+
+# Mount static files (must be after routes)
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")

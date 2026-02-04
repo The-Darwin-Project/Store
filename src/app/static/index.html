@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darwin Store</title>
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --accent: #e94560;
+            --accent-hover: #ff6b6b;
+            --text-primary: #eee;
+            --text-secondary: #aaa;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --danger: #ef4444;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        
+        .panel {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .panel h2 {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+        }
+        
+        /* Form Styles */
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .form-group label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .form-group.flex-grow {
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        input[type="text"],
+        input[type="number"] {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            width: 100%;
+        }
+        
+        input[type="number"] {
+            width: 100px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        button:hover {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: var(--bg-card);
+            border: 1px solid var(--text-secondary);
+        }
+        
+        button.secondary:hover {
+            background: var(--bg-primary);
+        }
+        
+        button.danger {
+            background: var(--danger);
+        }
+        
+        button.danger:hover {
+            background: #dc2626;
+        }
+        
+        button.small {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+        
+        /* Table Styles */
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        th {
+            background: var(--bg-card);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        tr:hover td {
+            background: rgba(255,255,255,0.02);
+        }
+        
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+        
+        .price {
+            color: var(--success);
+            font-weight: 500;
+        }
+        
+        .stock {
+            font-weight: 500;
+        }
+        
+        .stock.low {
+            color: var(--warning);
+        }
+        
+        .stock.out {
+            color: var(--danger);
+        }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .modal h3 {
+            margin-bottom: 1.5rem;
+            font-size: 1.25rem;
+        }
+        
+        .modal .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .modal .form-group input {
+            width: 100%;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+        
+        /* Log Styles */
+        .log-panel {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .log-panel h2 {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+        }
+        
+        #log {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            max-height: 150px;
+            overflow-y: auto;
+            color: var(--text-secondary);
+        }
+        
+        .log-entry {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .log-entry.success {
+            color: var(--success);
+        }
+        
+        .log-entry.error {
+            color: var(--danger);
+        }
+        
+        .log-time {
+            color: var(--text-secondary);
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Darwin Store</h1>
+            <p class="subtitle">Product Management</p>
+        </header>
+        
+        <!-- Add Product Form -->
+        <div class="panel">
+            <h2>Add Product</h2>
+            <form id="add-form" class="form-row">
+                <div class="form-group flex-grow">
+                    <label for="add-name">Name</label>
+                    <input type="text" id="add-name" placeholder="Product name" required>
+                </div>
+                <div class="form-group">
+                    <label for="add-price">Price ($)</label>
+                    <input type="number" id="add-price" step="0.01" min="0" value="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="add-stock">Stock</label>
+                    <input type="number" id="add-stock" min="0" value="0" required>
+                </div>
+                <button type="submit">Add Product</button>
+            </form>
+        </div>
+        
+        <!-- Product Table -->
+        <div class="panel">
+            <h2>Product Inventory</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-table">
+                        <tr>
+                            <td colspan="4" class="empty-state">No products yet. Add one above!</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Activity Log -->
+        <div class="log-panel">
+            <h2>Activity Log</h2>
+            <div id="log"></div>
+        </div>
+    </div>
+    
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal">
+            <h3>Edit Product</h3>
+            <form id="edit-form">
+                <input type="hidden" id="edit-id">
+                <div class="form-group">
+                    <label for="edit-name">Name</label>
+                    <input type="text" id="edit-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-price">Price ($)</label>
+                    <input type="number" id="edit-price" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-stock">Stock</label>
+                    <input type="number" id="edit-stock" min="0" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="secondary" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Utility: Log messages
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
+            logEl.insertBefore(entry, logEl.firstChild);
+            
+            while (logEl.children.length > 50) {
+                logEl.removeChild(logEl.lastChild);
+            }
+        }
+        
+        // API helper with error handling
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const options = { 
+                method, 
+                headers: { 'Content-Type': 'application/json' } 
+            };
+            if (body) options.body = JSON.stringify(body);
+            
+            const response = await fetch(endpoint, options);
+            
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({ detail: response.statusText }));
+                throw new Error(error.detail || 'Request failed');
+            }
+            
+            if (response.status === 204) return null;
+            return response.json();
+        }
+        
+        // CRUD operations
+        async function loadProducts() {
+            try {
+                const products = await apiCall('/products');
+                renderProducts(products);
+            } catch (error) {
+                log(`Failed to load products: ${error.message}`, 'error');
+            }
+        }
+        
+        async function createProduct(data) {
+            try {
+                const product = await apiCall('/products', 'POST', data);
+                log(`Created product: ${product.name}`, 'success');
+                loadProducts();
+            } catch (error) {
+                log(`Failed to create product: ${error.message}`, 'error');
+            }
+        }
+        
+        async function updateProduct(id, data) {
+            try {
+                const product = await apiCall(`/products/${id}`, 'PUT', data);
+                log(`Updated product: ${product.name}`, 'success');
+                loadProducts();
+            } catch (error) {
+                log(`Failed to update product: ${error.message}`, 'error');
+            }
+        }
+        
+        async function deleteProduct(id, name) {
+            if (!confirm(`Delete "${name}"?`)) return;
+            
+            try {
+                await apiCall(`/products/${id}`, 'DELETE');
+                log(`Deleted product: ${name}`, 'success');
+                loadProducts();
+            } catch (error) {
+                log(`Failed to delete product: ${error.message}`, 'error');
+            }
+        }
+        
+        // Render product table
+        function renderProducts(products) {
+            const tbody = document.getElementById('product-table');
+            
+            if (!products || products.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No products yet. Add one above!</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = products.map(p => {
+                const stockClass = p.stock === 0 ? 'out' : p.stock < 10 ? 'low' : '';
+                return `
+                    <tr data-id="${p.id}">
+                        <td>${escapeHtml(p.name)}</td>
+                        <td class="price">$${p.price.toFixed(2)}</td>
+                        <td class="stock ${stockClass}">${p.stock}</td>
+                        <td class="actions">
+                            <button class="small secondary" onclick="openEditModal('${p.id}', '${escapeHtml(p.name)}', ${p.price}, ${p.stock})">Edit</button>
+                            <button class="small danger" onclick="deleteProduct('${p.id}', '${escapeHtml(p.name)}')">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Edit modal functions
+        function openEditModal(id, name, price, stock) {
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-name').value = name;
+            document.getElementById('edit-price').value = price;
+            document.getElementById('edit-stock').value = stock;
+            document.getElementById('edit-modal').classList.add('active');
+        }
+        
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.remove('active');
+        }
+        
+        // Form handlers
+        document.getElementById('add-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('add-name').value.trim();
+            const price = parseFloat(document.getElementById('add-price').value) || 0;
+            const stock = parseInt(document.getElementById('add-stock').value) || 0;
+            
+            if (!name) {
+                log('Product name is required', 'error');
+                return;
+            }
+            
+            await createProduct({ name, price, stock });
+            
+            // Reset form
+            document.getElementById('add-name').value = '';
+            document.getElementById('add-price').value = '0';
+            document.getElementById('add-stock').value = '0';
+        });
+        
+        document.getElementById('edit-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const name = document.getElementById('edit-name').value.trim();
+            const price = parseFloat(document.getElementById('edit-price').value) || 0;
+            const stock = parseInt(document.getElementById('edit-stock').value) || 0;
+            
+            if (!name) {
+                log('Product name is required', 'error');
+                return;
+            }
+            
+            await updateProduct(id, { name, price, stock });
+            closeEditModal();
+        });
+        
+        // Close modal on overlay click
+        document.getElementById('edit-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'edit-modal') {
+                closeEditModal();
+            }
+        });
+        
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeEditModal();
+            }
+        });
+        
+        // Initial load and auto-refresh
+        loadProducts();
+        setInterval(loadProducts, 5000);
+        log('Darwin Store initialized', 'success');
+    </script>
+</body>
+</html>
