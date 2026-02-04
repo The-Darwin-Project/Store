@@ -12,6 +12,7 @@ import os
 import asyncio
 import random
 import logging
+from typing import Optional
 
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -29,7 +30,7 @@ SERVICE_VERSION = os.getenv("SERVICE_VERSION", "1.0.0")
 DARWIN_URL = os.getenv("DARWIN_URL", "http://darwin-blackboard:8000")
 
 # Darwin telemetry client (initialized on startup)
-darwin_client: DarwinClient | None = None
+darwin_client: Optional[DarwinClient] = None
 
 
 class ChaosMiddleware(BaseHTTPMiddleware):

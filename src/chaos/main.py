@@ -15,6 +15,7 @@ import time
 import logging
 from pathlib import Path
 from dataclasses import asdict
+from typing import Optional
 
 from fastapi import FastAPI, Query
 from fastapi.staticfiles import StaticFiles
@@ -28,7 +29,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # CPU burn thread management
-_cpu_thread: threading.Thread | None = None
+_cpu_thread: Optional[threading.Thread] = None
 _cpu_stop_flag = threading.Event()
 
 
