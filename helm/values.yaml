@@ -78,11 +78,11 @@ postgres:
   # Resource limits
   resources:
     requests:
-      memory: 256Mi
-      cpu: 100m
+      memory: 128Mi
+      cpu: 10m
     limits:
-      memory: 512Mi
-      cpu: 500m
+      memory: 256Mi
+      cpu: 50m
 
 # -- Store app resource limits
 resources:
