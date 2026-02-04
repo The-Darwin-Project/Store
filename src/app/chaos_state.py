@@ -26,6 +26,7 @@ RETRY_DELAY = 0.01  # 10ms
 class ChaosState:
     """Chaos injection state - shared across processes via file."""
     cpu_load: bool = False
+    memory_load_mb: int = 0  # Memory allocated in MB
     latency_ms: int = 0
     error_rate: float = 0.0  # Injected error probability (0.0-1.0)
     request_count: int = 0

@@ -89,8 +89,9 @@ class DarwinClient:
     
     def _collect_metrics(self) -> Metrics:
         """Collect current system metrics."""
-        # psutil.cpu_percent captures container-wide CPU (not just this process)
-        cpu = psutil.cpu_percent(interval=0.1)
+        # psutil.cpu_percent captures container-wide CPU
+        # Use 1 second interval for accurate reading (captures spikes better)
+        cpu = psutil.cpu_percent(interval=1.0)
         memory = psutil.virtual_memory().percent
         error_rate = get_error_rate()
         
