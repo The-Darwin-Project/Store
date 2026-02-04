@@ -46,7 +46,7 @@ spec:
               value: "postgresql://postgres:{{ .Values.postgres.auth.password }}@{{ .Release.Name }}-postgres-svc:5432/postgres"
           livenessProbe:
             httpGet:
-              path: /
+              path: /health
               port: store
             initialDelaySeconds: 10
             periodSeconds: 10
@@ -54,7 +54,7 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /
+              path: /health
               port: store
             initialDelaySeconds: 5
             periodSeconds: 5
