@@ -1,0 +1,5 @@
+postgres:
+  image: {repo: postgres, tag: latest}
+  replicas: 1
+chaos: {enabled: true}
+darwin: {url: "http://darwin-brain:8000"}
