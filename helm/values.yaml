@@ -10,7 +10,7 @@ image:
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: []
 # -- Replica count (scaled to 1)
-replicaCount: 2
+replicaCount: 1
 # -- Service configuration
 service:
   store:
@@ -107,6 +107,6 @@ livenessProbe:
   failureThreshold: 3
 readinessProbe:
   initialDelaySeconds: 5
-  periodSeconds: 30
+  periodSeconds: 10
   timeoutSeconds: 3
   failureThreshold: 3
