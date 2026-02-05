@@ -5,15 +5,12 @@
 # -- Image configuration
 image:
   repository: ghcr.io/the-darwin-project/store
-  tag: "0accd7b" # Updated by CI to commit SHA
+  tag: "ce08aa3" # Updated by CI to commit SHA
   pullPolicy: IfNotPresent
-
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: []
-
 # -- Replica count (1 for PoC)
 replicaCount: 1
-
 # -- Service configuration
 service:
   store:
@@ -22,7 +19,6 @@ service:
   chaos:
     type: ClusterIP
     port: 9000
-
 # -- Route configuration (OpenShift)
 route:
   store:
@@ -37,29 +33,24 @@ route:
     enabled: true
     termination: edge # edge, passthrough, or reencrypt
     insecureEdgeTerminationPolicy: Redirect # Allow, Redirect, or None
-
 # -- Darwin BlackBoard connection
 # Service name follows pattern: {release-name}-brain (from BlackBoard Helm chart)
 # ArgoCD app name "darwin-blackboard" becomes release name, so service is "darwin-blackboard-brain"
 darwin:
   url: "http://darwin-blackboard-brain:8000"
   enabled: true
-
 # -- Application metadata (sent in telemetry)
 app:
   name: "darwin-store"
   version: "1.0.0"
-
 # -- Postgres configuration
 postgres:
   # Image settings
   image:
     repository: postgres
     tag: "15"
-
   # Replica count
   replicas: 1
-
   # Persistence settings
   # NOTE: Empty storageClass uses cluster default - verify with `oc get sc`
   # Set enabled: false for emptyDir (no data survives pod restart)
@@ -68,13 +59,11 @@ postgres:
     storageClass: ""
     size: 1Gi
     accessMode: ReadWriteMany
-
   # Authentication
   # Use existingSecret for production, password fallback for dev
   auth:
     existingSecret: ""
     password: "darwin"
-
   # Resource limits
   resources:
     requests:
@@ -83,7 +72,6 @@ postgres:
     limits:
       memory: 2Gi
       cpu: 1
-
 # -- Store app resource limits
 resources:
   requests:
@@ -92,13 +80,11 @@ resources:
   limits:
     memory: 256Mi
     cpu: 500m
-
 # -- Pod-level security context
 # OpenShift assigns arbitrary UID from namespace range
 # Do NOT set runAsUser - let OpenShift assign it
 podSecurityContext:
   fsGroup: 1001
-
 # -- Container-level security context
 containerSecurityContext:
   allowPrivilegeEscalation: false
@@ -106,12 +92,9 @@ containerSecurityContext:
   capabilities:
     drop:
       - ALL
-
 # -- Node selector
 nodeSelector: {}
-
 # -- Tolerations
 tolerations: []
-
 # -- Affinity rules
 affinity: {}
