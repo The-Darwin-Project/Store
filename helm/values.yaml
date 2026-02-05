@@ -10,7 +10,7 @@ image:
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: []
 # -- Replica count (scaled to 3)
-replicaCount: 2
+replicaCount: 3
 # -- Service configuration
 service:
   store:
@@ -98,3 +98,15 @@ nodeSelector: {}
 tolerations: []
 # -- Affinity rules
 affinity: {}
+
+# -- Liveness and Readiness Probes
+livenessProbe:
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+readinessProbe:
+  initialDelaySeconds: 5
+  periodSeconds: 30
+  timeoutSeconds: 3
+  failureThreshold: 3
