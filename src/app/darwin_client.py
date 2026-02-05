@@ -93,7 +93,7 @@ class DarwinClient:
             gitops=gitops
         )
     
-    def _build_gitops_metadata(self) -> GitOpsMetadata | None:
+    def _build_gitops_metadata(self) -> Optional[GitOpsMetadata]:
         """Build GitOps metadata from environment variables."""
         if not GITOPS_REPO:
             return None
