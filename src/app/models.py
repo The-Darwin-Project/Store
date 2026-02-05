@@ -84,3 +84,4 @@ class TelemetryPayload(BaseModel):
     metrics: Metrics
     topology: Topology = Field(default_factory=Topology)
     gitops: Optional[GitOpsMetadata] = Field(default=None, description="GitOps coordinates for this service")
+    pod_ips: list[str] = Field(default_factory=list, description="Pod IP addresses for IP-to-name correlation")

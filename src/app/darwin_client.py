@@ -8,6 +8,7 @@ Runs as a background thread, pushing telemetry every 5 seconds.
 
 import os
 import re
+import socket
 import time
 import logging
 import threading
@@ -84,13 +85,15 @@ class DarwinClient:
         metrics = self._collect_metrics()
         dependencies = self._discover_topology()
         gitops = self._build_gitops_metadata()
+        pod_ips = self._collect_pod_ips()
         
         return TelemetryPayload(
             service=self.service,
             version=self.version,
             metrics=metrics,
             topology=Topology(dependencies=dependencies),
-            gitops=gitops
+            gitops=gitops,
+            pod_ips=pod_ips
         )
     
     def _build_gitops_metadata(self) -> Optional[GitOpsMetadata]:
@@ -102,6 +105,37 @@ class DarwinClient:
             repo=GITOPS_REPO,
             helm_path=HELM_PATH
         )
+    
+    def _collect_pod_ips(self) -> list[str]:
+        """
+        Collect pod IP addresses for IP-to-name correlation.
+        
+        Uses HOSTNAME env var (reliable in K8s) with socket fallback.
+        This allows the BlackBoard to correlate IP-based dependency targets
+        with named services, eliminating duplicate nodes in the graph.
+        """
+        ips = []
+        
+        # Primary: HOSTNAME env var (set by K8s to pod name, resolvable via DNS)
+        hostname = os.getenv("HOSTNAME")
+        if hostname:
+            try:
+                ip = socket.gethostbyname(hostname)
+                if ip and not ip.startswith("127."):
+                    ips.append(ip)
+            except socket.gaierror:
+                pass
+        
+        # Fallback: socket.gethostname()
+        if not ips:
+            try:
+                ip = socket.gethostbyname(socket.gethostname())
+                if ip and not ip.startswith("127."):
+                    ips.append(ip)
+            except socket.gaierror:
+                pass
+        
+        return ips
     
     def _collect_metrics(self) -> Metrics:
         """Collect current system metrics."""
