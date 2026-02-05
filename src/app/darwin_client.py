@@ -16,8 +16,12 @@ from typing import Optional
 import psutil
 import requests
 
-from .models import TelemetryPayload, Metrics, Dependency, Topology
+from .models import TelemetryPayload, Metrics, Dependency, Topology, GitOpsMetadata
 from .chaos_state import get_error_rate
+
+# GitOps metadata from environment (set in Dockerfile or Helm)
+GITOPS_REPO = os.getenv("GITOPS_REPO")  # e.g., "The-Darwin-Project/Store"
+HELM_PATH = os.getenv("HELM_PATH")      # e.g., "helm/values.yaml"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -76,15 +80,27 @@ class DarwinClient:
                 time.sleep(0.1)
     
     def _build_payload(self) -> TelemetryPayload:
-        """Build the telemetry payload with current metrics and topology."""
+        """Build the telemetry payload with current metrics, topology, and GitOps metadata."""
         metrics = self._collect_metrics()
         dependencies = self._discover_topology()
+        gitops = self._build_gitops_metadata()
         
         return TelemetryPayload(
             service=self.service,
             version=self.version,
             metrics=metrics,
-            topology=Topology(dependencies=dependencies)
+            topology=Topology(dependencies=dependencies),
+            gitops=gitops
+        )
+    
+    def _build_gitops_metadata(self) -> GitOpsMetadata | None:
+        """Build GitOps metadata from environment variables."""
+        if not GITOPS_REPO:
+            return None
+        
+        return GitOpsMetadata(
+            repo=GITOPS_REPO,
+            helm_path=HELM_PATH
         )
     
     def _collect_metrics(self) -> Metrics:

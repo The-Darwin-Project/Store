@@ -49,6 +49,16 @@ class Metrics(BaseModel):
     error_rate: float = Field(ge=0, le=100)
 
 
+class GitOpsMetadata(BaseModel):
+    """
+    GitOps coordinates for self-describing services.
+    
+    Allows SysAdmin to discover where to make changes for this service.
+    """
+    repo: Optional[str] = Field(None, description="GitHub repo (e.g., 'The-Darwin-Project/Store')")
+    helm_path: Optional[str] = Field(None, description="Path to Helm values.yaml within repo")
+
+
 class TelemetryPayload(BaseModel):
     """
     Full telemetry payload sent to Darwin BlackBoard.
@@ -62,6 +72,10 @@ class TelemetryPayload(BaseModel):
         "dependencies": [
           { "target": "postgres-primary", "type": "db", "env_var": "DB_HOST" }
         ]
+      },
+      "gitops": {
+        "repo": "The-Darwin-Project/Store",
+        "helm_path": "helm/values.yaml"
       }
     }
     """
@@ -69,3 +83,4 @@ class TelemetryPayload(BaseModel):
     version: str
     metrics: Metrics
     topology: Topology = Field(default_factory=Topology)
+    gitops: Optional[GitOpsMetadata] = Field(default=None, description="GitOps coordinates for this service")

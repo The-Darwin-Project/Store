@@ -4,6 +4,16 @@
 
 FROM registry.access.redhat.com/ubi9/ubi:latest
 
+# =============================================================================
+# GitOps Metadata - Self-describing service coordinates
+# These are passed to Darwin Blackboard via telemetry
+# =============================================================================
+ARG GITOPS_REPO="The-Darwin-Project/Store"
+ARG HELM_PATH="helm/values.yaml"
+
+ENV GITOPS_REPO=${GITOPS_REPO}
+ENV HELM_PATH=${HELM_PATH}
+
 # Install system packages as root
 USER 0
 RUN dnf install -y python3 python3-pip && dnf clean all
