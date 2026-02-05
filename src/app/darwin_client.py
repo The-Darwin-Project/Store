@@ -137,11 +137,86 @@ class DarwinClient:
         
         return ips
     
+    # State for cgroup CPU calculation
+    _last_cpu_usage: float = 0.0
+    _last_cpu_time: float = 0.0
+    
+    def _get_cgroup_cpu_percent(self) -> float:
+        """
+        Get CPU usage from cgroup stats for accurate container metrics.
+        
+        Falls back to psutil if cgroup stats aren't available.
+        Uses cumulative CPU time delta for smooth, consistent readings.
+        """
+        try:
+            # Try cgroup v2 first (modern containers)
+            cpu_stat_path = "/sys/fs/cgroup/cpu.stat"
+            if os.path.exists(cpu_stat_path):
+                with open(cpu_stat_path, "r") as f:
+                    for line in f:
+                        if line.startswith("usage_usec"):
+                            cpu_usec = float(line.split()[1])
+                            break
+                    else:
+                        raise ValueError("usage_usec not found")
+                
+                current_time = time.time()
+                
+                # First reading - initialize and return psutil as fallback
+                if self._last_cpu_time == 0:
+                    self._last_cpu_usage = cpu_usec
+                    self._last_cpu_time = current_time
+                    return psutil.cpu_percent(interval=0.1)
+                
+                # Calculate CPU percentage from delta
+                time_delta = current_time - self._last_cpu_time
+                if time_delta > 0:
+                    # Convert microseconds to seconds, divide by time delta
+                    # Multiply by 100 for percentage, divide by number of CPUs
+                    cpu_delta = (cpu_usec - self._last_cpu_usage) / 1_000_000
+                    cpu_count = os.cpu_count() or 1
+                    cpu_percent = (cpu_delta / time_delta / cpu_count) * 100
+                    
+                    # Update state for next reading
+                    self._last_cpu_usage = cpu_usec
+                    self._last_cpu_time = current_time
+                    
+                    return min(cpu_percent, 100.0)  # Cap at 100%
+            
+            # Try cgroup v1 (older containers)
+            cpuacct_path = "/sys/fs/cgroup/cpu/cpuacct.usage"
+            if os.path.exists(cpuacct_path):
+                with open(cpuacct_path, "r") as f:
+                    cpu_ns = float(f.read().strip())
+                
+                current_time = time.time()
+                
+                if self._last_cpu_time == 0:
+                    self._last_cpu_usage = cpu_ns
+                    self._last_cpu_time = current_time
+                    return psutil.cpu_percent(interval=0.1)
+                
+                time_delta = current_time - self._last_cpu_time
+                if time_delta > 0:
+                    cpu_delta = (cpu_ns - self._last_cpu_usage) / 1_000_000_000
+                    cpu_count = os.cpu_count() or 1
+                    cpu_percent = (cpu_delta / time_delta / cpu_count) * 100
+                    
+                    self._last_cpu_usage = cpu_ns
+                    self._last_cpu_time = current_time
+                    
+                    return min(cpu_percent, 100.0)
+        
+        except Exception as e:
+            logger.debug(f"Cgroup CPU read failed, using psutil: {e}")
+        
+        # Fallback to psutil (non-blocking for smoother readings)
+        return psutil.cpu_percent(interval=0.1)
+    
     def _collect_metrics(self) -> Metrics:
         """Collect current system metrics."""
-        # psutil.cpu_percent captures container-wide CPU
-        # Use 1 second interval for accurate reading (captures spikes better)
-        cpu = psutil.cpu_percent(interval=1.0)
+        # Use cgroup stats for accurate container CPU (avoids psutil spikiness)
+        cpu = self._get_cgroup_cpu_percent()
         memory = psutil.virtual_memory().percent
         error_rate = get_error_rate()
         
