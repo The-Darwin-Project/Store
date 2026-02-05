@@ -9,8 +9,8 @@ image:
   pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: []
-# -- Replica count (scaled to 2)
-replicaCount: 2
+# -- Replica count (scaled to 3)
+replicaCount: 3
 # -- Service configuration
 service:
   store:
