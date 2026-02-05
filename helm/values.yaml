@@ -110,3 +110,6 @@ readinessProbe:
   periodSeconds: 30
   timeoutSeconds: 3
   failureThreshold: 3
+config:
+  reset_chaos_state: true
+  chaos_mode: "disabled"
