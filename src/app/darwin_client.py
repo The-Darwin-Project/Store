@@ -21,8 +21,9 @@ from .models import TelemetryPayload, Metrics, Dependency, Topology, GitOpsMetad
 from .chaos_state import get_error_rate
 
 # GitOps metadata from environment (set in Dockerfile or Helm)
-GITOPS_REPO = os.getenv("GITOPS_REPO")  # e.g., "The-Darwin-Project/Store"
-HELM_PATH = os.getenv("HELM_PATH")      # e.g., "helm/values.yaml"
+GITOPS_REPO = os.getenv("GITOPS_REPO")      # e.g., "The-Darwin-Project/Store"
+GITOPS_REPO_URL = os.getenv("GITOPS_REPO_URL")  # e.g., "https://github.com/The-Darwin-Project/Store.git"
+HELM_PATH = os.getenv("HELM_PATH")          # e.g., "helm/values.yaml"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -103,6 +104,7 @@ class DarwinClient:
         
         return GitOpsMetadata(
             repo=GITOPS_REPO,
+            repo_url=GITOPS_REPO_URL,
             helm_path=HELM_PATH
         )
     

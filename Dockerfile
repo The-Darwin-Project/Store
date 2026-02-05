@@ -9,9 +9,11 @@ FROM registry.access.redhat.com/ubi9/ubi:latest
 # These are passed to Darwin Blackboard via telemetry
 # =============================================================================
 ARG GITOPS_REPO="The-Darwin-Project/Store"
+ARG GITOPS_REPO_URL="https://github.com/The-Darwin-Project/Store.git"
 ARG HELM_PATH="helm/values.yaml"
 
 ENV GITOPS_REPO=${GITOPS_REPO}
+ENV GITOPS_REPO_URL=${GITOPS_REPO_URL}
 ENV HELM_PATH=${HELM_PATH}
 
 # Install system packages as root
