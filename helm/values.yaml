@@ -5,7 +5,7 @@
 # -- Image configuration
 image:
   repository: ghcr.io/the-darwin-project/store
-  tag: "previous_stable"
+  tag: "previous"
   pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: [name: ghcr-secret]
