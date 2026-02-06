@@ -6,7 +6,7 @@
 # Forcing GitOps sync
 image:
   repository: ghcr.io/the-darwin-project/store
-  tag: "previous"
+  tag: "previous" # Rollback to previous version
   pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: [{name: ghcr-secret}]
