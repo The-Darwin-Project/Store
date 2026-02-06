@@ -5,10 +5,10 @@
 # -- Image configuration
 image:
   repository: ghcr.io/the-darwin-project/store
-  tag: "previous-stable"
+  tag: "352bcc2"
   pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
-imagePullSecrets: [name: ghcr-secret]
+imagePullSecrets: [{name: ghcr-secret}]
 # -- Replica count (scaled to 2)
 replicaCount: 1
 # -- Service configuration
@@ -98,7 +98,6 @@ nodeSelector: {}
 tolerations: []
 # -- Affinity rules
 affinity: {}
-
 # -- Liveness and Readiness Probes
 livenessProbe:
   initialDelaySeconds: 10
