@@ -18,6 +18,7 @@ spec:
       labels:
         app: darwin-store
         app.kubernetes.io/instance: {{ .Release.Name }}
+        gemini-cli-force-sync: "true"
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
