@@ -6,10 +6,10 @@
 # Forcing GitOps sync
 image:
   repository: ghcr.io/the-darwin-project/store
-  tag: "3363aa7"
+  tag: "7c1e2f5"
   pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
-imagePullSecrets: [{ name: ghcr-secret }]
+imagePullSecrets: [{name: ghcr-secret}]
 # -- Replica count
 replicaCount: 1
 # -- Service configuration
@@ -43,7 +43,7 @@ darwin:
 # -- Application metadata (sent in telemetry)
 app:
   name: "darwin-store"
-  version: "52" 
+  version: "52"
 # -- Postgres configuration
 postgres:
   # Image settings
