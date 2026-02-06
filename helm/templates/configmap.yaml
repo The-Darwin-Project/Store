@@ -18,3 +18,6 @@ data:
   # Service metadata (sent in telemetry)
   SERVICE_NAME: {{ .Values.app.name | quote }}
   SERVICE_VERSION: {{ .Values.app.version | quote }}
+
+  # Chaos mode
+  CHAOS_MODE: {{ .Values.chaos_mode | quote }}

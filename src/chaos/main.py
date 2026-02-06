@@ -10,6 +10,7 @@ Provides endpoints to inject chaos into the Darwin Store:
 Runs on port 9000, separate from Store (port 8080).
 """
 
+import os
 import threading
 import time
 import logging
@@ -17,7 +18,7 @@ from pathlib import Path
 from dataclasses import asdict
 from typing import Optional
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 
@@ -212,6 +213,9 @@ async def attack_errors(rate: float = Query(0.5, ge=0.0, le=1.0)):
     Args:
         rate: Probability of error (0.0 to 1.0, where 1.0 = 100% errors)
     """
+    if os.environ.get("CHAOS_MODE", "enabled").lower() == "disabled":
+        raise HTTPException(status_code=403, detail="Chaos mode is disabled")
+    
     set_chaos(error_rate=rate)
     return {"status": "error_rate_set", "error_rate": rate}
 
