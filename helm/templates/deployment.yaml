@@ -19,6 +19,8 @@ spec:
         app: darwin-store
         app.kubernetes.io/instance: {{ .Release.Name }}
         gemini-cli-force-sync: "true"
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
