@@ -6,7 +6,7 @@
 # Forcing GitOps sync
 image:
   repository: ghcr.io/the-darwin-project/store
-  tag: "previous"
+  tag: "last-known-good"
   pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: [{name: ghcr-secret}]
