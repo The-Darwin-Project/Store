@@ -3,7 +3,6 @@
 # Target Platform: OpenShift 4.x / Red Hat UBI 9
 
 # -- Image configuration
-# Forcing GitOps sync
 image:
   repository: ghcr.io/the-darwin-project/store
   tag: "352bcc2"
