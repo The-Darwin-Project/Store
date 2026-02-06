@@ -5,7 +5,7 @@
 # -- Image configuration
 image:
   repository: ghcr.io/the-darwin-project/store
-  tag: "previous-working-version"
+  tag: "last-known-good"
   pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: []
@@ -42,7 +42,7 @@ darwin:
 # -- Application metadata (sent in telemetry)
 app:
   name: "darwin-store"
-  version: "previous-working-version"
+  version: "last-known-good"
 # -- Postgres configuration
 postgres:
   # Image settings
