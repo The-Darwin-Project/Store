@@ -76,10 +76,10 @@ postgres:
 resources:
   requests:
     memory: 128Mi
-    cpu: 100m
+    cpu: 750m
   limits:
     memory: 256Mi
-    cpu: 500m
+    cpu: 1000m
 # -- Pod-level security context
 # OpenShift assigns arbitrary UID from namespace range
 # Do NOT set runAsUser - let OpenShift assign it
