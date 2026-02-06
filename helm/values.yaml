@@ -26,7 +26,7 @@ route:
     enabled: true
     # host: darwin-store.apps.example.com  # Leave empty for auto-generated
     annotations:
-      gemini-cli/force-sync: "2026-02-06T01:49:00Z"
+      gemini-cli/force-sync: "2026-02-06T03:40:00Z"
   chaos:
     enabled: true
     # host: darwin-chaos.apps.example.com  # Leave empty for auto-generated
