@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the content of the local src directory to the working directory
 COPY src/ /app/
 
-# Command to run on container start
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
-
-# Another dummy comment to trigger CI/CD
+# Run Store app (port 8080) + Chaos controller (port 9000)
+# NOTE: The chaos process is the test subject's fault injection interface.
+# Do NOT remove it -- it is intentional, not a CPU load source.
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8080 & uvicorn chaos.main:app --host 0.0.0.0 --port 9000 & wait"]
