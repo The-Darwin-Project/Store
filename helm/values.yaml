@@ -42,7 +42,7 @@ darwin:
 # -- Application metadata (sent in telemetry)
 app:
   name: "darwin-store"
-  version: "previous-stable"
+  version: "6da2588"
 # -- Postgres configuration
 postgres:
   # Image settings
