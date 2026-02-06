@@ -134,3 +134,5 @@ async def shutdown_event():
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+# Trigger CI
