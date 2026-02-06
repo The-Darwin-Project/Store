@@ -6,7 +6,7 @@
 # Forcing GitOps sync
 image:
   repository: ghcr.io/the-darwin-project/store
-  tag: "last_known_good"
+  tag: "v6da2588"
   pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: [{name: ghcr-secret}]
@@ -44,7 +44,7 @@ darwin:
 # -- Application metadata (sent in telemetry)
 app:
   name: "darwin-store"
-  version: "last_known_good" # -- Postgres configuration
+  version: "v6da2588" # -- Postgres configuration
 postgres:
   # Image settings
   image:
