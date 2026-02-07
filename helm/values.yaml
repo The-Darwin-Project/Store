@@ -9,7 +9,8 @@ image:
   tag: "7c1e2f5"
   pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
-imagePullSecrets: [{name: ghcr-secret}]
+imagePullSecrets: 
+  name: ghcr-secret
 # -- Replica count
 replicaCount: 1
 # -- Service configuration
