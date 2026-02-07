@@ -111,7 +111,7 @@ readinessProbe:
   timeoutSeconds: 3
   failureThreshold: 3
 config:
-  reset_chaos_state: true
-  chaos_mode: "disabled"
+  reset_chaos_state: false
+  chaos_mode: "enabled"
   archAware:
     enabled: false
