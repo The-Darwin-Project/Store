@@ -80,37 +80,62 @@ kubectl get pods -l app=darwin-store
 
 ### Chaos API (Port 9000)
 
-| Endpoint                      | Method | Description               |
-|-------------------------------|--------|---------------------------|
-| `/`                           | GET    | Chaos UI                  |
-| `/api/status`                 | GET    | Current chaos state       |
-| `/api/attack/cpu`             | POST   | Toggle CPU burn           |
-| `/api/attack/latency?ms=500`  | POST   | Set latency (ms)          |
-| `/api/attack/errors?rate=0.5` | POST   | Set error rate (0-1)      |
-| `/api/reset`                  | POST   | Reset all chaos           |
+All chaos mutations go through a single settings endpoint. Pydantic validates all inputs.
 
-## Chaos Attacks
+| Endpoint         | Method | Description                          |
+|------------------|--------|--------------------------------------|
+| `/`              | GET    | Chaos UI                             |
+| `/api/status`    | GET    | Current chaos state + thread/memory info |
+| `/api/settings`  | POST   | Update chaos settings (JSON body)    |
+
+#### `POST /api/settings` Body Fields
+
+All fields are optional. Only provided fields are applied.
+
+| Field         | Type  | Range       | Description                    |
+|---------------|-------|-------------|--------------------------------|
+| `cpu_threads` | int   | 0-8         | CPU burn threads (0 = off)     |
+| `memory_mb`   | int   | 0-200       | Memory allocation in MB        |
+| `latency_ms`  | int   | 0-30000     | Latency injected per request   |
+| `error_rate`  | float | 0.0-1.0     | Probability of 500 error       |
+| `reset`       | bool  | true/false  | Reset all settings to defaults |
+
+## Chaos Examples
 
 ### CPU Attack
 
-Starts a busy-loop thread that burns CPU cycles. The CPU usage is visible to the Darwin BlackBoard via telemetry.
+Starts busy-loop threads that burn CPU cycles. Visible to Darwin BlackBoard via telemetry.
 
 ```bash
-curl -X POST http://localhost:9000/api/attack/cpu
-# {"status":"cpu_attack_started","cpu_load":true}
+# Start 4 CPU burn threads
+curl -X POST http://localhost:9000/api/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"cpu_threads": 4}'
 
-# Toggle off
-curl -X POST http://localhost:9000/api/attack/cpu
-# {"status":"cpu_attack_stopped","cpu_load":false}
+# Stop CPU burn
+curl -X POST http://localhost:9000/api/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"cpu_threads": 0}'
+```
+
+### Memory Pressure
+
+Allocates memory in 10MB chunks. Capped at 200MB (container limit safety margin).
+
+```bash
+curl -X POST http://localhost:9000/api/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"memory_mb": 100}'
 ```
 
 ### Latency Injection
 
-Adds artificial delay to all Store API requests.
+Adds artificial delay to all Store API requests (requires `CHAOS_MODE=enabled`).
 
 ```bash
-curl -X POST "http://localhost:9000/api/attack/latency?ms=1000"
-# {"status":"latency_set","latency_ms":1000}
+curl -X POST http://localhost:9000/api/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"latency_ms": 1000}'
 
 # Verify (should take >1s)
 time curl http://localhost:8080/products
@@ -118,15 +143,23 @@ time curl http://localhost:8080/products
 
 ### Error Injection
 
-Returns HTTP 500 errors probabilistically.
+Returns HTTP 500 errors probabilistically (requires `CHAOS_MODE=enabled`).
 
 ```bash
-curl -X POST "http://localhost:9000/api/attack/errors?rate=0.5"
-# {"status":"error_rate_set","error_rate":0.5}
+curl -X POST http://localhost:9000/api/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"error_rate": 0.5}'
 
 # 50% of requests will return 500
 curl http://localhost:8080/products
-# {"error": "Chaos injection - simulated failure"}
+```
+
+### Reset All
+
+```bash
+curl -X POST http://localhost:9000/api/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"reset": true}'
 ```
 
 ## Telemetry Schema
@@ -166,6 +199,7 @@ The Store pushes telemetry to Darwin BlackBoard every 5 seconds:
 | `SERVICE_VERSION`| `1.0.0`                         | Service version in telemetry|
 | `DARWIN_URL`     | `http://darwin-blackboard:8000` | BlackBoard URL              |
 | `DATABASE_URL`   | (none)                          | Postgres connection string  |
+| `CHAOS_MODE`     | `disabled`                      | Gates ChaosMiddleware latency/error injection. Set to `enabled` to activate. CPU/memory attacks are unaffected. |
 
 ### Helm Values
 
@@ -179,6 +213,6 @@ See `helm/values.yaml` for all configurable options:
 
 ## Cross-Process State
 
-The Store and Chaos Controller run as separate uvicorn processes in the same container. They share state via a file-backed JSON store at `/tmp/chaos_state.json` with `fcntl` file locking.
+The Store and Chaos Controller run as separate uvicorn processes in the same container. They share state via a file-backed JSON store at `/tmp/chaos_state.json` using atomic `tempfile` + `os.replace` writes (POSIX rename atomicity). Reads use retry with exponential backoff for concurrent access safety.
 
 This is a PoC pattern. For production, use Redis or shared memory.

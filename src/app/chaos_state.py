@@ -1,4 +1,8 @@
 # Store/src/app/chaos_state.py
+# @ai-rules:
+# 1. [Cross-process]: State is shared via /tmp/chaos_state.json between two OS processes (Store :8080, Chaos :9000).
+# 2. [Atomic writes]: All writes use tempfile+rename pattern. Never write directly to STATE_FILE.
+# 3. [Field rename]: cpu_threads is int (0-8), NOT bool. Old state files with cpu_load will fail ChaosState(**data) — _read_state catches TypeError.
 """
 File-backed chaos state for cross-process sharing.
 
@@ -25,7 +29,7 @@ RETRY_DELAY = 0.01  # 10ms
 @dataclass
 class ChaosState:
     """Chaos injection state - shared across processes via file."""
-    cpu_load: bool = False
+    cpu_threads: int = 0     # Active CPU burn threads (0 = off, 1-8)
     memory_load_mb: int = 0  # Memory allocated in MB
     latency_ms: int = 0
     error_rate: float = 0.0  # Injected error probability (0.0-1.0)

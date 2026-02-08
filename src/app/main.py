@@ -1,4 +1,8 @@
 # Store/src/app/main.py
+# @ai-rules:
+# 1. [CHAOS_MODE]: Env var gates ChaosMiddleware. "disabled" = middleware short-circuits. Only affects latency/error injection.
+# 2. [Middleware order]: ChaosMiddleware must be added before routes. It wraps all incoming requests.
+# 3. [Telemetry]: DarwinClient runs as a daemon thread, not async. Do not await it.
 """
 Darwin Store - FastAPI application entry point.
 
@@ -31,6 +35,7 @@ logger = logging.getLogger(__name__)
 SERVICE_NAME = os.getenv("SERVICE_NAME", "darwin-store")
 SERVICE_VERSION = os.getenv("SERVICE_VERSION", "1.0.0")
 DARWIN_URL = os.getenv("DARWIN_URL", "http://darwin-blackboard-brain:8000")
+CHAOS_MODE = os.getenv("CHAOS_MODE", "disabled")
 
 # Darwin telemetry client (initialized on startup)
 darwin_client: Optional[DarwinClient] = None
@@ -47,6 +52,12 @@ class ChaosMiddleware(BaseHTTPMiddleware):
     """
     
     async def dispatch(self, request: Request, call_next):
+        # Gate: skip chaos injection when CHAOS_MODE is disabled.
+        # NOTE: Only gates latency/error injection (middleware).
+        # CPU/memory attacks are direct resource consumption in the chaos process.
+        if CHAOS_MODE == "disabled":
+            return await call_next(request)
+
         # Read current chaos state from shared file
         chaos = get_chaos()
         
@@ -118,6 +129,8 @@ async def startup_event():
         logger.info(f"Darwin telemetry started: {SERVICE_NAME} -> {DARWIN_URL}")
     else:
         logger.warning("DARWIN_URL not set, telemetry disabled")
+    
+    logger.info(f"Chaos mode: {CHAOS_MODE}")
 
 
 @app.on_event("shutdown")
