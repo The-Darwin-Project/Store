@@ -6,7 +6,7 @@
 # Forcing GitOps sync
 image:
   repository: ghcr.io/the-darwin-project/store
-  tag: "f554cbe"
+  tag: "4daf8da"
   pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
 imagePullSecrets:
