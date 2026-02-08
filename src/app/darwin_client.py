@@ -143,14 +143,70 @@ class DarwinClient:
     _last_cpu_usage: float = 0.0
     _last_cpu_time: float = 0.0
     
+    # Cache for container CPU limit (read once)
+    _cpu_limit_cores: float = 0.0
+
+    def _get_cpu_limit_cores(self) -> float:
+        """
+        Get the container's CPU limit in cores from cgroup.
+        
+        Reads cgroup v2 cpu.max or cgroup v1 cpu.cfs_quota_us/cpu.cfs_period_us.
+        Falls back to os.cpu_count() if no limit is set (unlimited container).
+        """
+        if self._cpu_limit_cores > 0:
+            return self._cpu_limit_cores
+
+        try:
+            # cgroup v2: cpu.max contains "quota period" (e.g., "100000 100000" = 1 core)
+            cpu_max_path = "/sys/fs/cgroup/cpu.max"
+            if os.path.exists(cpu_max_path):
+                with open(cpu_max_path, "r") as f:
+                    parts = f.read().strip().split()
+                    if parts[0] == "max":
+                        # No limit set
+                        self._cpu_limit_cores = float(os.cpu_count() or 1)
+                    else:
+                        quota = float(parts[0])
+                        period = float(parts[1]) if len(parts) > 1 else 100000.0
+                        self._cpu_limit_cores = quota / period
+                    return self._cpu_limit_cores
+
+            # cgroup v1: cpu.cfs_quota_us / cpu.cfs_period_us
+            quota_path = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
+            period_path = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
+            if os.path.exists(quota_path) and os.path.exists(period_path):
+                with open(quota_path, "r") as f:
+                    quota = float(f.read().strip())
+                with open(period_path, "r") as f:
+                    period = float(f.read().strip())
+                if quota < 0:
+                    # No limit set (-1)
+                    self._cpu_limit_cores = float(os.cpu_count() or 1)
+                else:
+                    self._cpu_limit_cores = quota / period
+                return self._cpu_limit_cores
+
+        except Exception as e:
+            logger.debug(f"Failed to read CPU limit from cgroup: {e}")
+
+        # Fallback: host CPU count (inaccurate for limited containers)
+        self._cpu_limit_cores = float(os.cpu_count() or 1)
+        return self._cpu_limit_cores
+
     def _get_cgroup_cpu_percent(self) -> float:
         """
-        Get CPU usage from cgroup stats for accurate container metrics.
+        Get CPU usage as percentage of the container's CPU limit.
         
-        Falls back to psutil if cgroup stats aren't available.
-        Uses cumulative CPU time delta for smooth, consistent readings.
+        Reads cgroup usage_usec (v2) or cpuacct.usage (v1) and divides
+        by the container's CPU limit (not the host's core count).
+        
+        Example: container with 100m limit using 100m = 100%.
+        Previous bug: divided by os.cpu_count() (host cores, e.g. 64),
+        so 100m usage on a 64-core host showed as 0.15% instead of 100%.
         """
         try:
+            cpu_limit = self._get_cpu_limit_cores()
+
             # Try cgroup v2 first (modern containers)
             cpu_stat_path = "/sys/fs/cgroup/cpu.stat"
             if os.path.exists(cpu_stat_path):
@@ -170,20 +226,16 @@ class DarwinClient:
                     self._last_cpu_time = current_time
                     return psutil.cpu_percent(interval=0.1)
                 
-                # Calculate CPU percentage from delta
+                # Calculate CPU percentage relative to container limit
                 time_delta = current_time - self._last_cpu_time
                 if time_delta > 0:
-                    # Convert microseconds to seconds, divide by time delta
-                    # Multiply by 100 for percentage, divide by number of CPUs
                     cpu_delta = (cpu_usec - self._last_cpu_usage) / 1_000_000
-                    cpu_count = os.cpu_count() or 1
-                    cpu_percent = (cpu_delta / time_delta / cpu_count) * 100
+                    cpu_percent = (cpu_delta / time_delta / cpu_limit) * 100
                     
-                    # Update state for next reading
                     self._last_cpu_usage = cpu_usec
                     self._last_cpu_time = current_time
                     
-                    return min(cpu_percent, 100.0)  # Cap at 100%
+                    return min(cpu_percent, 100.0)
             
             # Try cgroup v1 (older containers)
             cpuacct_path = "/sys/fs/cgroup/cpu/cpuacct.usage"
@@ -201,8 +253,7 @@ class DarwinClient:
                 time_delta = current_time - self._last_cpu_time
                 if time_delta > 0:
                     cpu_delta = (cpu_ns - self._last_cpu_usage) / 1_000_000_000
-                    cpu_count = os.cpu_count() or 1
-                    cpu_percent = (cpu_delta / time_delta / cpu_count) * 100
+                    cpu_percent = (cpu_delta / time_delta / cpu_limit) * 100
                     
                     self._last_cpu_usage = cpu_ns
                     self._last_cpu_time = current_time
