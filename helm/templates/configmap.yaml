@@ -25,4 +25,4 @@ data:
   HELM_PATH: "helm/values.yaml"
 
   # Chaos mode
-  CHAOS_MODE: {{ .Values.chaos_mode | quote }}
+  CHAOS_MODE: {{ .Values.config.chaos_mode | quote }}
