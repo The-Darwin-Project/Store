@@ -485,7 +485,7 @@
         }
         
         async function refreshStatus() {
-            const result = await apiCall('/api/status', 'GET');
+            const result = await apiCall('/api/status', { method: 'GET' });
             if (result.success && result.data.chaos) {
                 updateStatus(
                     result.data.chaos, 
