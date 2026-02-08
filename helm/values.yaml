@@ -77,10 +77,10 @@ postgres:
 # -- Store app resource limits
 resources:
   requests:
-    memory: 96Mi
+    memory: 120Mi
     cpu: 150m
   limits:
-    memory: 256Mi
+    memory: 320Mi
     cpu: 300m
 # -- Pod-level security context
 # OpenShift assigns arbitrary UID from namespace range
