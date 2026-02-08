@@ -12,7 +12,7 @@ image:
 imagePullSecrets:
   - name: ghcr-secret
 # -- Replica count
-replicaCount: 4
+replicaCount: 2
 # -- Service configuration
 service:
   store:
