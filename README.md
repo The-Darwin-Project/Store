@@ -4,33 +4,18 @@ A self-aware vulnerable application for Darwin demos. The Store reports its topo
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────┐
-│           Darwin Store Pod              │
-│                                         │
-│  ┌─────────────┐   ┌─────────────────┐  │
-│  │ Store API   │   │ Chaos Controller│  │
-│  │ :8080       │   │ :9000           │  │
-│  │             │   │                 │  │
-│  │ - Products  │   │ - CPU Attack    │  │
-│  │ - Health    │   │ - Latency       │  │
-│  │             │   │ - Errors        │  │
-│  └──────┬──────┘   └────────┬────────┘  │
-│         │                   │           │
-│         └───────┬───────────┘           │
-│                 │                       │
-│         ┌───────▼───────┐               │
-│         │ /tmp/chaos_   │               │
-│         │  state.json   │               │
-│         └───────────────┘               │
-│                                         │
-│  ┌─────────────────────────────────┐    │
-│  │     DarwinClient (Thread)       │    │
-│  │  - Collects metrics (psutil)    │    │
-│  │  - Discovers topology (env)     │    │
-│  │  - Streams to BlackBoard        │    │
-│  └─────────────────────────────────┘    │
-└─────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Darwin_Store_Pod [Darwin Store Pod]
+        StoreAPI["Store API<br/>:8080<br/>- Products<br/>- Health"]
+        ChaosController["Chaos Controller<br/>:9000<br/>- CPU Attack<br/>- Latency<br/>- Errors"]
+        ChaosState["/tmp/chaos_state.json"]
+        DarwinClient["DarwinClient (Thread)<br/>- Collects metrics (psutil)<br/>- Discovers topology (env)<br/>- Streams to BlackBoard"]
+
+        StoreAPI -- data --> ChaosState
+        ChaosController -- updates --> ChaosState
+        ChaosState -- reads --> DarwinClient
+    end
 ```
 
 ## Quick Start
@@ -84,29 +69,30 @@ kubectl get pods -l app=darwin-store
 
 ### Store API (Port 8080)
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Health check |
-| `/products` | GET | List all products |
-| `/products/{id}` | GET | Get product by ID |
-| `/products` | POST | Create product |
-| `/products/{id}` | PUT | Update product |
-| `/products/{id}` | DELETE | Delete product |
+| Endpoint           | Method | Description       |
+|--------------------|--------|------------------|
+| `/`                | GET    | Health check     |
+| `/products`        | GET    | List all products|
+| `/products/{id}`   | GET    | Get product by ID|
+| `/products`        | POST   | Create product   |
+| `/products/{id}`   | PUT    | Update product   |
+| `/products/{id}`   | DELETE | Delete product   |
 
 ### Chaos API (Port 9000)
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Chaos UI |
-| `/api/status` | GET | Current chaos state |
-| `/api/attack/cpu` | POST | Toggle CPU burn |
-| `/api/attack/latency?ms=500` | POST | Set latency (ms) |
-| `/api/attack/errors?rate=0.5` | POST | Set error rate (0-1) |
-| `/api/reset` | POST | Reset all chaos |
+| Endpoint                      | Method | Description               |
+|-------------------------------|--------|---------------------------|
+| `/`                           | GET    | Chaos UI                  |
+| `/api/status`                 | GET    | Current chaos state       |
+| `/api/attack/cpu`             | POST   | Toggle CPU burn           |
+| `/api/attack/latency?ms=500`  | POST   | Set latency (ms)          |
+| `/api/attack/errors?rate=0.5` | POST   | Set error rate (0-1)      |
+| `/api/reset`                  | POST   | Reset all chaos           |
 
 ## Chaos Attacks
 
 ### CPU Attack
+
 Starts a busy-loop thread that burns CPU cycles. The CPU usage is visible to the Darwin BlackBoard via telemetry.
 
 ```bash
@@ -119,6 +105,7 @@ curl -X POST http://localhost:9000/api/attack/cpu
 ```
 
 ### Latency Injection
+
 Adds artificial delay to all Store API requests.
 
 ```bash
@@ -130,6 +117,7 @@ time curl http://localhost:8080/products
 ```
 
 ### Error Injection
+
 Returns HTTP 500 errors probabilistically.
 
 ```bash
@@ -172,12 +160,12 @@ The Store pushes telemetry to Darwin BlackBoard every 5 seconds:
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SERVICE_NAME` | `darwin-store` | Service name in telemetry |
-| `SERVICE_VERSION` | `1.0.0` | Service version in telemetry |
-| `DARWIN_URL` | `http://darwin-blackboard:8000` | BlackBoard URL |
-| `DATABASE_URL` | (none) | Postgres connection string |
+| Variable         | Default                         | Description                 |
+|------------------|---------------------------------|-----------------------------|
+| `SERVICE_NAME`   | `darwin-store`                  | Service name in telemetry   |
+| `SERVICE_VERSION`| `1.0.0`                         | Service version in telemetry|
+| `DARWIN_URL`     | `http://darwin-blackboard:8000` | BlackBoard URL              |
+| `DATABASE_URL`   | (none)                          | Postgres connection string  |
 
 ### Helm Values
 
