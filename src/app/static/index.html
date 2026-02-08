@@ -324,6 +324,10 @@
                     <label for="add-name">Name</label>
                     <input type="text" id="add-name" placeholder="Product name" required>
                 </div>
+                <div class="form-group flex-grow">
+                    <label for="add-sku">SKU</label>
+                    <input type="text" id="add-sku" placeholder="Product SKU" required>
+                </div>
                 <div class="form-group">
                     <label for="add-price">Price ($)</label>
                     <input type="number" id="add-price" step="0.01" min="0" value="0" required>
@@ -344,6 +348,7 @@
                     <thead>
                         <tr>
                             <th>Name</th>
+                            <th>SKU</th>
                             <th>Price</th>
                             <th>Stock</th>
                             <th>Actions</th>
@@ -374,6 +379,10 @@
                 <div class="form-group">
                     <label for="edit-name">Name</label>
                     <input type="text" id="edit-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-sku">SKU</label>
+                    <input type="text" id="edit-sku" required>
                 </div>
                 <div class="form-group">
                     <label for="edit-price">Price ($)</label>
@@ -472,7 +481,7 @@
             const tbody = document.getElementById('product-table');
             
             if (!products || products.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No products yet. Add one above!</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No products yet. Add one above!</td></tr>';
                 return;
             }
             
@@ -481,10 +490,11 @@
                 return `
                     <tr data-id="${p.id}">
                         <td>${escapeHtml(p.name)}</td>
+                        <td>${escapeHtml(p.sku)}</td>
                         <td class="price">$${p.price.toFixed(2)}</td>
                         <td class="stock ${stockClass}">${p.stock}</td>
                         <td class="actions">
-                            <button class="small secondary" onclick="openEditModal('${p.id}', '${escapeHtml(p.name)}', ${p.price}, ${p.stock})">Edit</button>
+                            <button class="small secondary" onclick="openEditModal('${p.id}', '${escapeHtml(p.name)}', '${escapeHtml(p.sku)}', ${p.price}, ${p.stock})">Edit</button>
                             <button class="small danger" onclick="deleteProduct('${p.id}', '${escapeHtml(p.name)}')">Delete</button>
                         </td>
                     </tr>
@@ -500,9 +510,10 @@
         }
         
         // Edit modal functions
-        function openEditModal(id, name, price, stock) {
+        function openEditModal(id, name, sku, price, stock) {
             document.getElementById('edit-id').value = id;
             document.getElementById('edit-name').value = name;
+            document.getElementById('edit-sku').value = sku;
             document.getElementById('edit-price').value = price;
             document.getElementById('edit-stock').value = stock;
             document.getElementById('edit-modal').classList.add('active');
@@ -516,18 +527,20 @@
         document.getElementById('add-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('add-name').value.trim();
+            const sku = document.getElementById('add-sku').value.trim();
             const price = parseFloat(document.getElementById('add-price').value) || 0;
             const stock = parseInt(document.getElementById('add-stock').value) || 0;
             
-            if (!name) {
-                log('Product name is required', 'error');
+            if (!name || !sku) {
+                log('Product name and SKU are required', 'error');
                 return;
             }
             
-            await createProduct({ name, price, stock });
+            await createProduct({ name, sku, price, stock });
             
             // Reset form
             document.getElementById('add-name').value = '';
+            document.getElementById('add-sku').value = '';
             document.getElementById('add-price').value = '0';
             document.getElementById('add-stock').value = '0';
         });
@@ -536,15 +549,16 @@
             e.preventDefault();
             const id = document.getElementById('edit-id').value;
             const name = document.getElementById('edit-name').value.trim();
+            const sku = document.getElementById('edit-sku').value.trim();
             const price = parseFloat(document.getElementById('edit-price').value) || 0;
             const stock = parseInt(document.getElementById('edit-stock').value) || 0;
             
-            if (!name) {
-                log('Product name is required', 'error');
+            if (!name || !sku) {
+                log('Product name and SKU are required', 'error');
                 return;
             }
             
-            await updateProduct(id, { name, price, stock });
+            await updateProduct(id, { name, sku, price, stock });
             closeEditModal();
         });
         

@@ -32,7 +32,8 @@ async def create_product(product: ProductCreate) -> Product:
     new_product = Product(
         name=product.name,
         price=product.price,
-        stock=product.stock
+        stock=product.stock,
+        sku=product.sku
     )
     _products[new_product.id] = new_product
     return new_product
@@ -48,7 +49,8 @@ async def update_product(product_id: str, product: ProductCreate) -> Product:
         id=product_id,
         name=product.name,
         price=product.price,
-        stock=product.stock
+        stock=product.stock,
+        sku=product.sku
     )
     _products[product_id] = updated
     return updated

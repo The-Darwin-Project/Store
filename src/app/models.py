@@ -12,6 +12,7 @@ class Product(BaseModel):
     name: str
     price: float = Field(ge=0)
     stock: int = Field(ge=0, default=0)
+    sku: str
 
 
 class ProductCreate(BaseModel):
@@ -19,6 +20,7 @@ class ProductCreate(BaseModel):
     name: str
     price: float = Field(ge=0)
     stock: int = Field(ge=0, default=0)
+    sku: str
 
 
 class Dependency(BaseModel):
