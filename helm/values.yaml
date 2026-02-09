@@ -11,7 +11,7 @@ image:
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: []
 # -- Replica count
-replicaCount: 6
+replicaCount: 3
 # -- Service configuration
 service:
   store:
