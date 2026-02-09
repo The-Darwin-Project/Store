@@ -13,6 +13,7 @@ class Product(BaseModel):
     price: float = Field(ge=0)
     stock: int = Field(ge=0, default=0)
     sku: str
+    image_data: Optional[str] = None
 
 
 class ProductCreate(BaseModel):
@@ -21,6 +22,7 @@ class ProductCreate(BaseModel):
     price: float = Field(ge=0)
     stock: int = Field(ge=0, default=0)
     sku: str
+    image_data: Optional[str] = None
 
 
 class Dependency(BaseModel):

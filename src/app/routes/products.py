@@ -1,64 +1,107 @@
 # Store/src/app/routes/products.py
 """Product CRUD endpoints for Darwin Store."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from typing import Optional
+import uuid
 
 from ..models import Product, ProductCreate
 
 router = APIRouter(prefix="/products", tags=["products"])
 
-# In-memory product store for PoC (no actual Postgres connection yet)
-_products: dict[str, Product] = {}
-
-
 @router.get("", response_model=list[Product])
-async def list_products() -> list[Product]:
+async def list_products(request: Request) -> list[Product]:
     """List all products in the store."""
-    return list(_products.values())
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, name, price, stock, sku, image_data FROM products")
+            products = [Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5]) for row in cur.fetchall()]
+            return products
+    finally:
+        pool.putconn(conn)
 
 
 @router.get("/{product_id}", response_model=Product)
-async def get_product(product_id: str) -> Product:
+async def get_product(product_id: str, request: Request) -> Product:
     """Get a single product by ID."""
-    if product_id not in _products:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return _products[product_id]
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, name, price, stock, sku, image_data FROM products WHERE id = %s", (product_id,))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Product not found")
+            return Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5])
+    finally:
+        pool.putconn(conn)
 
 
 @router.post("", response_model=Product, status_code=201)
-async def create_product(product: ProductCreate) -> Product:
+async def create_product(product: ProductCreate, request: Request) -> Product:
     """Create a new product."""
+    new_id = uuid.uuid4()
     new_product = Product(
+        id=str(new_id),
         name=product.name,
         price=product.price,
         stock=product.stock,
-        sku=product.sku
+        sku=product.sku,
+        image_data=product.image_data
     )
-    _products[new_product.id] = new_product
-    return new_product
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO products (id, name, price, stock, sku, image_data) VALUES (%s, %s, %s, %s, %s, %s)",
+                (new_product.id, new_product.name, new_product.price, new_product.stock, new_product.sku, new_product.image_data)
+            )
+            conn.commit()
+            return new_product
+    finally:
+        pool.putconn(conn)
 
 
 @router.put("/{product_id}", response_model=Product)
-async def update_product(product_id: str, product: ProductCreate) -> Product:
+async def update_product(product_id: str, product: ProductCreate, request: Request) -> Product:
     """Update an existing product."""
-    if product_id not in _products:
-        raise HTTPException(status_code=404, detail="Product not found")
-    
     updated = Product(
         id=product_id,
         name=product.name,
         price=product.price,
         stock=product.stock,
-        sku=product.sku
+        sku=product.sku,
+        image_data=product.image_data
     )
-    _products[product_id] = updated
-    return updated
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE products SET name = %s, price = %s, stock = %s, sku = %s, image_data = %s WHERE id = %s",
+                (updated.name, updated.price, updated.stock, updated.sku, updated.image_data, product_id)
+            )
+            conn.commit()
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Product not found")
+            return updated
+    finally:
+        pool.putconn(conn)
 
 
 @router.delete("/{product_id}", status_code=204)
-async def delete_product(product_id: str) -> None:
+async def delete_product(product_id: str, request: Request) -> None:
     """Delete a product by ID."""
-    if product_id not in _products:
-        raise HTTPException(status_code=404, detail="Product not found")
-    del _products[product_id]
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM products WHERE id = %s", (product_id,))
+            conn.commit()
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Product not found")
+    finally:
+        pool.putconn(conn)

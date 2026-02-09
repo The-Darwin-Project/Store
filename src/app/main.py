@@ -18,6 +18,9 @@ import random
 import logging
 from pathlib import Path
 from typing import Optional
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from psycopg2.pool import SimpleConnectionPool
 
 from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
@@ -36,9 +39,16 @@ SERVICE_NAME = os.getenv("SERVICE_NAME", "darwin-store")
 SERVICE_VERSION = os.getenv("SERVICE_VERSION", "1.0.0")
 DARWIN_URL = os.getenv("DARWIN_URL", "http://darwin-blackboard-brain:8000")
 CHAOS_MODE = os.getenv("CHAOS_MODE", "disabled")
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("DB_NAME", "darwin")
+DB_USER = os.getenv("DB_USER", "darwin")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "darwin")
+
 
 # Darwin telemetry client (initialized on startup)
 darwin_client: Optional[DarwinClient] = None
+db_pool: Optional[SimpleConnectionPool] = None
 
 
 class ChaosMiddleware(BaseHTTPMiddleware):
@@ -116,9 +126,10 @@ async def health():
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize Darwin telemetry client on startup."""
-    global darwin_client
+    """Initialize Darwin telemetry client and database connection on startup."""
+    global darwin_client, db_pool
     
+    # Initialize Darwin Client
     if DARWIN_URL:
         darwin_client = DarwinClient(
             service=SERVICE_NAME,
@@ -132,15 +143,46 @@ async def startup_event():
     
     logger.info(f"Chaos mode: {CHAOS_MODE}")
 
+    # Initialize Database Connection
+    db_dsn = f"dbname={DB_NAME} user={DB_USER} password={DB_PASSWORD} host={DB_HOST} port={DB_PORT}"
+    db_pool = SimpleConnectionPool(1, 10, dsn=db_dsn)
+    app.state.db_pool = db_pool
+    
+    conn = None
+    try:
+        conn = db_pool.getconn()
+        with conn.cursor() as cur:
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS products (
+                    id UUID PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    price REAL NOT NULL,
+                    stock INTEGER NOT NULL,
+                    sku VARCHAR(255) NOT NULL UNIQUE,
+                    image_data TEXT
+                )
+            ''')
+            conn.commit()
+            logger.info("Database initialized and 'products' table created or verified.")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+    finally:
+        if conn:
+            db_pool.putconn(conn)
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Stop Darwin telemetry client on shutdown."""
-    global darwin_client
+    """Stop Darwin telemetry client and close database connections on shutdown."""
+    global darwin_client, db_pool
     
     if darwin_client:
         darwin_client.stop()
         logger.info("Darwin telemetry stopped")
+    
+    if db_pool:
+        db_pool.closeall()
+        logger.info("Database connection pool closed.")
 
 
 # Mount static files (must be after routes)
