@@ -47,6 +47,16 @@ spec:
           env:
             - name: DATABASE_URL
               value: "postgresql://postgres:{{ .Values.postgres.auth.password }}@{{ .Release.Name }}-postgres-svc:5432/postgres"
+            - name: DB_HOST
+              value: "{{ .Release.Name }}-postgres-svc"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: {{ .Values.postgres.auth.password | quote }}
+            - name: DB_NAME
+              value: "postgres"
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
             httpGet:
