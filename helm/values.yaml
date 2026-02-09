@@ -6,7 +6,7 @@
 # Retrying GitOps sync - Nudge 3
 image:
   repository: ghcr.io/the-darwin-project/store
-  tag: "3be8199"
+  tag: "da38ed2"
   pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: []
@@ -43,7 +43,7 @@ darwin:
 # -- Application metadata (sent in telemetry)
 app:
   name: "darwin-store"
-  version: "56"
+  version: "55"
 # -- Postgres configuration
 postgres:
   # Image settings
