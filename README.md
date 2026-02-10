@@ -75,7 +75,8 @@ kubectl get pods -l app=darwin-store
 | `/products`        | GET    | List all products|
 | `/products/{id}`   | GET    | Get product by ID|
 | `/products`        | POST   | Create product   |
-| `/products/{id}`   | PUT    | Update product   |
+| `/products/{id}`   | PUT    | Full replace product (all fields required) |
+| `/products/{id}`   | PATCH  | Partial update product (only provided fields) |
 | `/products/{id}`   | DELETE | Delete product   |
 
 ### Chaos API (Port 9000)

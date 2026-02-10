@@ -1,4 +1,8 @@
 # Store/src/app/models.py
+# @ai-rules:
+# 1. [Pattern]: Product schemas follow Create/Update/Read split -- ProductCreate for POST, ProductUpdate for PATCH, Product for responses.
+# 2. [Constraint]: ProductUpdate fields must ALL be Optional to support partial updates via model_dump(exclude_unset=True).
+# 3. [Gotcha]: Do not confuse Optional default=None with "field not sent". Use exclude_unset=True at call site.
 """Pydantic schemas for Darwin Store telemetry and product data."""
 
 from pydantic import BaseModel, Field
@@ -22,6 +26,15 @@ class ProductCreate(BaseModel):
     price: float = Field(ge=0)
     stock: int = Field(ge=0, default=0)
     sku: str
+    image_data: Optional[str] = None
+
+
+class ProductUpdate(BaseModel):
+    """Schema for partial product updates (PATCH). Only provided fields are applied."""
+    name: Optional[str] = None
+    price: Optional[float] = Field(default=None, ge=0)
+    stock: Optional[int] = Field(default=None, ge=0)
+    sku: Optional[str] = None
     image_data: Optional[str] = None
 
 

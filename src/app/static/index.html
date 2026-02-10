@@ -495,7 +495,7 @@
         
         async function updateProduct(id, data) {
             try {
-                const product = await apiCall(`/products/${id}`, 'PUT', data);
+                const product = await apiCall(`/products/${id}`, 'PATCH', data);
                 log(`Updated product: ${product.name}`, 'success');
                 loadProducts();
             } catch (error) {
