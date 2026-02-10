@@ -44,6 +44,7 @@ DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "darwin")
 DB_USER = os.getenv("DB_USER", "darwin")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "darwin")
+DARWIN_READ_TIMEOUT = float(os.getenv("DARWIN_READ_TIMEOUT", "5.0"))
 
 
 # Darwin telemetry client (initialized on startup)
@@ -134,7 +135,8 @@ async def startup_event():
         darwin_client = DarwinClient(
             service=SERVICE_NAME,
             url=DARWIN_URL,
-            version=SERVICE_VERSION
+            version=SERVICE_VERSION,
+            read_timeout=DARWIN_READ_TIMEOUT
         )
         darwin_client.start()
         logger.info(f"Darwin telemetry started: {SERVICE_NAME} -> {DARWIN_URL}")

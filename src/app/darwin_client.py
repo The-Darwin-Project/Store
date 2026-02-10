@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 class DarwinClient:
     """Self-reporting client that streams telemetry to Darwin BlackBoard."""
     
-    def __init__(self, service: str, url: str, version: str = "1.0.0"):
+    def __init__(self, service: str, url: str, version: str = "1.0.0", read_timeout: float = 5.0):
         """
         Initialize the Darwin client.
         
@@ -40,10 +40,12 @@ class DarwinClient:
             service: Service name (e.g., "darwin-store")
             url: Darwin BlackBoard URL (e.g., "http://darwin-blackboard:8000")
             version: Service version for telemetry
+            read_timeout: Read timeout for telemetry requests
         """
         self.service = service
         self.url = url
         self.version = version
+        self.read_timeout = read_timeout
         self._stop_flag = threading.Event()
         self._thread: Optional[threading.Thread] = None
     
@@ -354,7 +356,7 @@ class DarwinClient:
         response = requests.post(
             endpoint,
             json=payload.model_dump(),
-            timeout=5.0
+            timeout=self.read_timeout
         )
         
         if response.status_code >= 400:

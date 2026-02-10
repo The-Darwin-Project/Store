@@ -40,6 +40,7 @@ route:
 darwin:
   url: "http://darwin-blackboard-brain:8000"
   enabled: true
+  readTimeout: 10.0
 # -- Application metadata (sent in telemetry)
 app:
   name: "darwin-store"

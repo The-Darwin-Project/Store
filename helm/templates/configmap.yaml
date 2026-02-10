@@ -26,3 +26,6 @@ data:
 
   # Chaos mode
   CHAOS_MODE: {{ .Values.config.chaos_mode | quote }}
+
+  # Darwin client read timeout
+  DARWIN_READ_TIMEOUT: {{ .Values.darwin.readTimeout | quote }}
