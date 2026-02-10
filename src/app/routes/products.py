@@ -72,26 +72,24 @@ async def create_product(product: ProductCreate, request: Request) -> Product:
 @router.put("/{product_id}", response_model=Product)
 async def update_product(product_id: str, product: ProductCreate, request: Request) -> Product:
     """Update an existing product."""
-    updated = Product(
-        id=product_id,
-        name=product.name,
-        price=product.price,
-        stock=product.stock,
-        sku=product.sku,
-        image_data=product.image_data
-    )
     pool = request.app.state.db_pool
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE products SET name = %s, price = %s, stock = %s, sku = %s, image_data = %s WHERE id = %s",
-                (updated.name, updated.price, updated.stock, updated.sku, updated.image_data, product_id)
+                """
+                UPDATE products
+                SET name = %s, price = %s, stock = %s, sku = %s, image_data = COALESCE(%s, image_data)
+                WHERE id = %s
+                RETURNING id, name, price, stock, sku, image_data
+                """,
+                (product.name, product.price, product.stock, product.sku, product.image_data, product_id)
             )
+            row = cur.fetchone()
             conn.commit()
-            if cur.rowcount == 0:
+            if not row:
                 raise HTTPException(status_code=404, detail="Product not found")
-            return updated
+            return Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5])
     finally:
         pool.putconn(conn)
 
