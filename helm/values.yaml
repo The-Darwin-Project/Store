@@ -3,7 +3,7 @@
 # Target Platform: OpenShift 4.x / Red Hat UBI 9
 
 # -- Image configuration
-# Retrying GitOps sync - Nudge 3
+# Retrying GitOps sync - Nudge 4
 image:
   repository: ghcr.io/the-darwin-project/store
   tag: "f57d8d7"
@@ -44,7 +44,7 @@ darwin:
 # -- Application metadata (sent in telemetry)
 app:
   name: "darwin-store"
-  version: "55"
+  version: "55.1"
 # -- Postgres configuration
 postgres:
   # Image settings
