@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 class DarwinClient:
     """Self-reporting client that streams telemetry to Darwin BlackBoard."""
     
-    def __init__(self, service: str, url: str, version: str = "1.0.0", read_timeout: float = 5.0):
+    def __init__(self, service: str, url: str, version: str = "1.0.0", read_timeout: float = 30.0):
         """
         Initialize the Darwin client.
         
@@ -268,11 +268,63 @@ class DarwinClient:
         # Fallback to psutil (non-blocking for smoother readings)
         return psutil.cpu_percent(interval=0.1)
     
+    def _get_cgroup_memory_percent(self) -> float:
+        """
+        Get memory usage as a percentage of the container's memory limit.
+        Reads from cgroup v2 (memory.current / memory.max) or
+        cgroup v1 (memory.usage_in_bytes / memory.limit_in_bytes).
+        Falls back to psutil if cgroup files are not available.
+        """
+        try:
+            # cgroup v2
+            usage_path_v2 = "/sys/fs/cgroup/memory.current"
+            limit_path_v2 = "/sys/fs/cgroup/memory.max"
+
+            if os.path.exists(usage_path_v2) and os.path.exists(limit_path_v2):
+                with open(usage_path_v2, "r") as f:
+                    usage = int(f.read().strip())
+                with open(limit_path_v2, "r") as f:
+                    limit_str = f.read().strip()
+                    if limit_str == "max":
+                        # No limit set, fallback to psutil
+                        return psutil.virtual_memory().percent
+                    limit = int(limit_str)
+                
+                if limit > 0:
+                    return (usage / limit) * 100.0
+                else:
+                    return 0.0
+
+            # cgroup v1
+            usage_path_v1 = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
+            limit_path_v1 = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+
+            if os.path.exists(usage_path_v1) and os.path.exists(limit_path_v1):
+                with open(usage_path_v1, "r") as f:
+                    usage = int(f.read().strip())
+                with open(limit_path_v1, "r") as f:
+                    limit = int(f.read().strip())
+
+                # Check for ridiculously high limit values (effectively no limit)
+                if limit > 2**60:
+                    return psutil.virtual_memory().percent
+
+                if limit > 0:
+                    return (usage / limit) * 100.0
+                else:
+                    return 0.0
+
+        except (IOError, ValueError, FileNotFoundError) as e:
+            logger.debug(f"Cgroup memory read failed, using psutil: {e}")
+
+        # Fallback to psutil
+        return psutil.virtual_memory().percent
+
     def _collect_metrics(self) -> Metrics:
         """Collect current system metrics."""
         # Use cgroup stats for accurate container CPU (avoids psutil spikiness)
         cpu = self._get_cgroup_cpu_percent()
-        memory = psutil.virtual_memory().percent
+        memory = self._get_cgroup_memory_percent()
         error_rate = get_error_rate()
         
         return Metrics(
