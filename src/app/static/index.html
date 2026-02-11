@@ -424,6 +424,82 @@
             opacity: 0.7;
         }
 
+        /* Cart Styles */
+        .cart-icon-wrapper {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            margin-left: 1rem;
+            vertical-align: middle;
+        }
+        .cart-icon-wrapper svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--text-primary);
+            transition: fill 0.2s ease;
+        }
+        .cart-icon-wrapper:hover svg {
+            fill: var(--accent);
+        }
+        .cart-badge {
+            position: absolute;
+            top: -6px;
+            right: -10px;
+            background: var(--accent);
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 700;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .cart-badge.hidden {
+            display: none;
+        }
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+        .cart-qty-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .cart-qty-controls button {
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            font-size: 1rem;
+            line-height: 1;
+            border-radius: 6px;
+        }
+        .cart-total-row td {
+            font-weight: 700;
+            font-size: 1.1rem;
+            border-top: 2px solid var(--accent);
+        }
+        .btn-add-cart {
+            background: var(--bg-card);
+            border: 1px solid var(--success);
+            color: var(--success);
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 0.5rem;
+            width: 100%;
+        }
+        .btn-add-cart:hover {
+            background: var(--success);
+            color: #000;
+        }
+
         /* Bootstrap Modal Overrides for Dark Theme */
         .modal-content {
             background-color: #343a40;
@@ -443,7 +519,13 @@
 <body>
     <div class="container">
         <header>
-            <h1>Darwin Store</h1>
+            <div class="header-row">
+                <h1>Darwin Store</h1>
+                <span class="cart-icon-wrapper" onclick="switchTab('cart')" title="View Cart">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.16 14.26l.04-.12.96-1.74h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0 0 20.12 3H5.21l-.94-2H1v2h2l3.6 7.59-1.35 2.44C4.52 14.37 5.48 16 7 16h12v-2H7.42c-.14 0-.25-.11-.25-.25z"/></svg>
+                    <span class="cart-badge hidden" id="cart-badge">0</span>
+                </span>
+            </div>
             <p class="subtitle">Product Management</p>
         </header>
 
@@ -455,6 +537,9 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="inventory-tab" type="button" role="tab" onclick="switchTab('inventory')">Inventory</button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="cart-tab" type="button" role="tab" onclick="switchTab('cart')">Cart</button>
+            </li>
         </ul>
 
         <!-- Tab Content -->
@@ -463,6 +548,30 @@
             <div class="tab-pane active" id="catalog">
                 <div class="catalog-grid" id="catalog-grid">
                     <div class="empty-state" style="grid-column: 1 / -1;">No products yet.</div>
+                </div>
+            </div>
+
+            <!-- Cart Tab -->
+            <div class="tab-pane" id="cart">
+                <div class="panel">
+                    <h2>Shopping Cart</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Price</th>
+                                    <th>Quantity</th>
+                                    <th>Subtotal</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cart-table">
+                                <tr><td colspan="5" class="empty-state">Your cart is empty.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="cart-total" style="text-align: right; margin-top: 1rem; font-size: 1.25rem; font-weight: 700;"></div>
                 </div>
             </div>
 
@@ -700,6 +809,10 @@
                 const badgeClass = p.stock > 0 ? 'in-stock' : 'out-of-stock';
                 const badgeText = p.stock > 0 ? 'In Stock' : 'Out of Stock';
 
+                const addBtnHtml = p.stock > 0
+                    ? `<button class="btn-add-cart" onclick="addToCart('${p.id}', '${escapeHtml(p.name).replace(/'/g, "\\'")}', ${p.price})">Add to Cart</button>`
+                    : '';
+
                 return `
                     <div class="catalog-card">
                         ${imageHtml}
@@ -707,6 +820,7 @@
                             <h3>${escapeHtml(p.name)}</h3>
                             <div class="card-price">$${p.price.toFixed(2)}</div>
                             <span class="stock-badge ${badgeClass}">${badgeText}</span>
+                            ${addBtnHtml}
                         </div>
                     </div>
                 `;
@@ -869,8 +983,107 @@
             }
         });
 
+        // ---- Shopping Cart Logic ----
+
+        function getCart() {
+            try {
+                return JSON.parse(localStorage.getItem('darwin_cart')) || [];
+            } catch {
+                return [];
+            }
+        }
+
+        function saveCart(cart) {
+            localStorage.setItem('darwin_cart', JSON.stringify(cart));
+        }
+
+        function addToCart(productId, name, price) {
+            const cart = getCart();
+            const existing = cart.find(item => item.id === productId);
+            if (existing) {
+                existing.qty += 1;
+            } else {
+                cart.push({ id: productId, name, price, qty: 1 });
+            }
+            saveCart(cart);
+            renderCartCount();
+            renderCart();
+            log(`Added "${name}" to cart`, 'success');
+        }
+
+        function updateCartQty(productId, delta) {
+            const cart = getCart();
+            const item = cart.find(i => i.id === productId);
+            if (!item) return;
+            item.qty += delta;
+            if (item.qty <= 0) {
+                removeFromCart(productId);
+                return;
+            }
+            saveCart(cart);
+            renderCart();
+            renderCartCount();
+        }
+
+        function removeFromCart(productId) {
+            let cart = getCart();
+            const removed = cart.find(i => i.id === productId);
+            cart = cart.filter(i => i.id !== productId);
+            saveCart(cart);
+            renderCart();
+            renderCartCount();
+            if (removed) log(`Removed "${removed.name}" from cart`, 'success');
+        }
+
+        function renderCart() {
+            const cart = getCart();
+            const tbody = document.getElementById('cart-table');
+            const totalDiv = document.getElementById('cart-total');
+
+            if (!cart.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Your cart is empty.</td></tr>';
+                totalDiv.textContent = '';
+                return;
+            }
+
+            let grandTotal = 0;
+            tbody.innerHTML = cart.map(item => {
+                const subtotal = item.price * item.qty;
+                grandTotal += subtotal;
+                return `
+                    <tr>
+                        <td>${escapeHtml(item.name)}</td>
+                        <td class="price">$${item.price.toFixed(2)}</td>
+                        <td>
+                            <div class="cart-qty-controls">
+                                <button class="small secondary" onclick="updateCartQty('${item.id}', -1)">-</button>
+                                <span>${item.qty}</span>
+                                <button class="small secondary" onclick="updateCartQty('${item.id}', 1)">+</button>
+                            </div>
+                        </td>
+                        <td class="price">$${subtotal.toFixed(2)}</td>
+                        <td><button class="small danger" onclick="removeFromCart('${item.id}')">Remove</button></td>
+                    </tr>
+                `;
+            }).join('');
+
+            totalDiv.innerHTML = `Grand Total: <span class="price">$${grandTotal.toFixed(2)}</span>`;
+        }
+
+        function renderCartCount() {
+            const cart = getCart();
+            const badge = document.getElementById('cart-badge');
+            const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
+            badge.textContent = totalItems;
+            badge.classList.toggle('hidden', totalItems === 0);
+        }
+
+        // ---- End Shopping Cart Logic ----
+
         // Initial load and auto-refresh
         loadProducts();
+        renderCart();
+        renderCartCount();
         setInterval(loadProducts, 5000);
         log('Darwin Store initialized', 'success');
     </script>
