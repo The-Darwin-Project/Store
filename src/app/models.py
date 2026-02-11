@@ -8,6 +8,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from uuid import uuid4
+from datetime import datetime
 
 
 class Product(BaseModel):
@@ -39,6 +40,35 @@ class ProductUpdate(BaseModel):
     sku: Optional[str] = None
     image_data: Optional[str] = None
     description: Optional[str] = None
+
+
+class OrderItemCreate(BaseModel):
+    """Schema for an item in an order creation request."""
+    product_id: str
+    quantity: int = Field(ge=1)
+
+
+class OrderCreate(BaseModel):
+    """Schema for creating a new order from cart items."""
+    items: list[OrderItemCreate] = Field(min_length=1)
+
+
+class OrderItem(BaseModel):
+    """Schema for an order item in responses."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    order_id: str
+    product_id: str
+    quantity: int
+    price_at_purchase: float
+
+
+class Order(BaseModel):
+    """Schema for an order in responses."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    created_at: Optional[datetime] = None
+    total_amount: float
+    status: str = "pending"
+    items: list[OrderItem] = Field(default_factory=list)
 
 
 class Dependency(BaseModel):

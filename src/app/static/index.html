@@ -572,6 +572,9 @@
                         </table>
                     </div>
                     <div id="cart-total" style="text-align: right; margin-top: 1rem; font-size: 1.25rem; font-weight: 700;"></div>
+                    <div id="checkout-section" style="text-align: right; margin-top: 1rem; display: none;">
+                        <button onclick="checkout()" id="checkout-btn">Checkout</button>
+                    </div>
                 </div>
             </div>
 
@@ -703,6 +706,18 @@
                     </div>
                   </div>
                 </div>    
+    <!-- Order Success Modal -->
+    <div class="modal-overlay" id="order-success-modal">
+        <div class="custom-modal">
+            <h3>Order Confirmed</h3>
+            <p style="margin-bottom: 1rem; color: var(--success);">Your order has been placed successfully!</p>
+            <div id="order-details" style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-secondary);"></div>
+            <div class="modal-actions">
+                <button onclick="closeOrderModal()">Continue Shopping</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Utility: Log messages
         function log(message, type = 'info') {
@@ -1039,10 +1054,12 @@
             const cart = getCart();
             const tbody = document.getElementById('cart-table');
             const totalDiv = document.getElementById('cart-total');
+            const checkoutSection = document.getElementById('checkout-section');
 
             if (!cart.length) {
                 tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Your cart is empty.</td></tr>';
                 totalDiv.textContent = '';
+                checkoutSection.style.display = 'none';
                 return;
             }
 
@@ -1068,6 +1085,7 @@
             }).join('');
 
             totalDiv.innerHTML = `Grand Total: <span class="price">$${grandTotal.toFixed(2)}</span>`;
+            checkoutSection.style.display = 'block';
         }
 
         function renderCartCount() {
@@ -1077,6 +1095,63 @@
             badge.textContent = totalItems;
             badge.classList.toggle('hidden', totalItems === 0);
         }
+
+        // ---- Checkout Logic ----
+
+        async function checkout() {
+            const cart = getCart();
+            if (!cart.length) {
+                log('Cart is empty', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('checkout-btn');
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            try {
+                const items = cart.map(item => ({
+                    product_id: item.id,
+                    quantity: item.qty
+                }));
+
+                const order = await apiCall('/orders', 'POST', { items });
+
+                // Clear cart
+                saveCart([]);
+                renderCart();
+                renderCartCount();
+                loadProducts();
+
+                // Show success modal
+                const detailsDiv = document.getElementById('order-details');
+                detailsDiv.innerHTML = `
+                    <p><strong>Order ID:</strong> ${order.id}</p>
+                    <p><strong>Total:</strong> <span class="price">$${order.total_amount.toFixed(2)}</span></p>
+                    <p><strong>Status:</strong> ${order.status}</p>
+                    <p><strong>Items:</strong> ${order.items.length}</p>
+                `;
+                document.getElementById('order-success-modal').classList.add('active');
+                log(`Order placed successfully! Total: $${order.total_amount.toFixed(2)}`, 'success');
+            } catch (error) {
+                log(`Checkout failed: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Checkout';
+            }
+        }
+
+        function closeOrderModal() {
+            document.getElementById('order-success-modal').classList.remove('active');
+            switchTab('catalog');
+        }
+
+        // Close order modal on overlay click
+        document.getElementById('order-success-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'order-success-modal') {
+                closeOrderModal();
+            }
+        });
 
         // ---- End Shopping Cart Logic ----
 

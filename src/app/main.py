@@ -28,6 +28,7 @@ from fastapi.responses import HTMLResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .routes.products import router as products_router
+from .routes.orders import router as orders_router
 from .darwin_client import DarwinClient
 from .chaos_state import get_chaos, record_request
 
@@ -107,6 +108,7 @@ app.add_middleware(ChaosMiddleware)
 
 # Mount routes
 app.include_router(products_router)
+app.include_router(orders_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -165,8 +167,25 @@ async def startup_event():
                     description TEXT DEFAULT ''
                 )
             ''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS orders (
+                    id UUID PRIMARY KEY,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    total_amount REAL NOT NULL,
+                    status VARCHAR(50) DEFAULT 'pending'
+                )
+            ''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS order_items (
+                    id UUID PRIMARY KEY,
+                    order_id UUID NOT NULL REFERENCES orders(id),
+                    product_id UUID NOT NULL REFERENCES products(id),
+                    quantity INTEGER NOT NULL,
+                    price_at_purchase REAL NOT NULL
+                )
+            ''')
             conn.commit()
-            logger.info("Database initialized and 'products' table created or verified.")
+            logger.info("Database initialized and 'products', 'orders', 'order_items' tables created or verified.")
 
             # Migration: Ensure description column exists for existing databases
             try:
