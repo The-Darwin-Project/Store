@@ -1,6 +1,14 @@
 # Store/.github/workflows/build-push.yaml
-# Build and push Docker image to GitHub Container Registry on every push
-# After push, updates helm/values.yaml with the new image tag (commit SHA)
+# Build and push Docker image to GitHub Container Registry
+#
+# Triggers:
+#   1. Push to main (with paths filter -- direct pushes)
+#   2. PR merged to main (closed event -- covers agent auto-merges via GITHUB_TOKEN)
+#   3. Manual dispatch
+#
+# The PR merged trigger bypasses the GITHUB_TOKEN anti-recursion rule that
+# prevents push events from triggering workflows when the push is made by
+# github-actions[bot]. This ensures agent PRs always trigger a build.
 #
 # Authentication Options:
 #   1. GITHUB_TOKEN (default) - No setup required
@@ -25,6 +33,7 @@ on:
       - "requirements.txt"
       - ".github/workflows/build-push.yaml"
   pull_request:
+    types: [closed]
     branches:
       - main
       - master
@@ -37,6 +46,10 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    # Skip closed-but-not-merged PRs (only actual merges trigger the build)
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.merged == true
 
     permissions:
       contents: write # Needed to push helm values update
@@ -75,7 +88,6 @@ jobs:
 
       # Login with GitHub App token if configured, otherwise GITHUB_TOKEN
       - name: Log in to GitHub Container Registry
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -97,7 +109,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -105,12 +117,10 @@ jobs:
 
       # Install yq for safe YAML manipulation
       - name: Install yq
-        if: github.event_name != 'pull_request'
         uses: mikefarah/yq@master
 
       # Update helm/values.yaml with the new image tag
       - name: Update Helm values with new image tag
-        if: github.event_name != 'pull_request'
         run: |
           yq -i '.image.tag = "${{ steps.sha.outputs.short }}"' helm/values.yaml
 
@@ -119,7 +129,6 @@ jobs:
           yq '.image' helm/values.yaml
 
       - name: Commit and push Helm values update
-        if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -135,7 +144,6 @@ jobs:
           fi
 
       - name: Output image info
-        if: github.event_name != 'pull_request'
         run: |
           echo "## Image Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
