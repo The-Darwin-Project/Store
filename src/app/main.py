@@ -161,11 +161,19 @@ async def startup_event():
                     price REAL NOT NULL,
                     stock INTEGER NOT NULL,
                     sku VARCHAR(255) NOT NULL UNIQUE,
-                    image_data TEXT
+                    image_data TEXT,
+                    description TEXT DEFAULT ''
                 )
             ''')
             conn.commit()
             logger.info("Database initialized and 'products' table created or verified.")
+
+            # Migration: Ensure description column exists for existing databases
+            try:
+                cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT DEFAULT ''")
+                conn.commit()
+            except Exception as e:
+                logger.warning(f"Migration warning: {e}")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
     finally:

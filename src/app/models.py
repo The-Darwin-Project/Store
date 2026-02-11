@@ -18,6 +18,7 @@ class Product(BaseModel):
     stock: int = Field(ge=0, default=0)
     sku: str
     image_data: Optional[str] = None
+    description: Optional[str] = Field(default="")
 
 
 class ProductCreate(BaseModel):
@@ -27,6 +28,7 @@ class ProductCreate(BaseModel):
     stock: int = Field(ge=0, default=0)
     sku: str
     image_data: Optional[str] = None
+    description: Optional[str] = Field(default="")
 
 
 class ProductUpdate(BaseModel):
@@ -36,6 +38,7 @@ class ProductUpdate(BaseModel):
     stock: Optional[int] = Field(default=None, ge=0)
     sku: Optional[str] = None
     image_data: Optional[str] = None
+    description: Optional[str] = None
 
 
 class Dependency(BaseModel):
