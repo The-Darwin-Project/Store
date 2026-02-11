@@ -21,6 +21,9 @@ spec:
         gemini-cli-force-sync: "true"
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.restartedAt }}
+        kubectl.kubernetes.io/restartedAt: {{ .Values.restartedAt | quote }}
+        {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

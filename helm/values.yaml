@@ -12,6 +12,8 @@ image:
 imagePullSecrets: []
 # -- Replica count
 replicaCount: 2
+# -- Rollout trigger
+restartedAt: "2026-02-11T20:00:19Z"
 # -- Service configuration
 service:
   store:
