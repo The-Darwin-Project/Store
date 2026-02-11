@@ -9,6 +9,58 @@ from ..models import Order, OrderItem, OrderCreate
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 
+@router.get("", response_model=list[Order])
+async def list_orders(request: Request) -> list[Order]:
+    """Return all orders with their items, most recent first."""
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, created_at, total_amount, status FROM orders ORDER BY created_at DESC"
+            )
+            order_rows = cur.fetchall()
+
+            if not order_rows:
+                return []
+
+            order_ids = [row[0] for row in order_rows]
+            cur.execute(
+                "SELECT id, order_id, product_id, quantity, price_at_purchase "
+                "FROM order_items WHERE order_id = ANY(%s)",
+                (order_ids,)
+            )
+            item_rows = cur.fetchall()
+
+            # Group items by order_id
+            items_by_order: dict[str, list[OrderItem]] = {}
+            for row in item_rows:
+                oi = OrderItem(
+                    id=row[0],
+                    order_id=row[1],
+                    product_id=row[2],
+                    quantity=row[3],
+                    price_at_purchase=row[4]
+                )
+                items_by_order.setdefault(row[1], []).append(oi)
+
+            orders = []
+            for row in order_rows:
+                orders.append(Order(
+                    id=row[0],
+                    created_at=row[1],
+                    total_amount=row[2],
+                    status=row[3],
+                    items=items_by_order.get(row[0], [])
+                ))
+
+            return orders
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load orders: {str(e)}")
+    finally:
+        pool.putconn(conn)
+
+
 @router.post("", response_model=Order, status_code=201)
 async def create_order(order_data: OrderCreate, request: Request) -> Order:
     """

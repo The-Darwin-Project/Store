@@ -540,6 +540,9 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="cart-tab" type="button" role="tab" onclick="switchTab('cart')">Cart</button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="orders-tab" type="button" role="tab" onclick="switchTab('orders')">Orders</button>
+            </li>
         </ul>
 
         <!-- Tab Content -->
@@ -574,6 +577,28 @@
                     <div id="cart-total" style="text-align: right; margin-top: 1rem; font-size: 1.25rem; font-weight: 700;"></div>
                     <div id="checkout-section" style="text-align: right; margin-top: 1rem; display: none;">
                         <button onclick="checkout()" id="checkout-btn">Checkout</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders Tab -->
+            <div class="tab-pane" id="orders">
+                <div class="panel">
+                    <h2>Order History</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Order ID</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-table">
+                                <tr><td colspan="4" class="empty-state">No orders yet.</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -739,6 +764,7 @@
             document.querySelectorAll('.nav-link').forEach(t => t.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
             document.getElementById(tabName + '-tab').classList.add('active');
+            if (tabName === 'orders') loadOrders();
         }
 
         // API helper with error handling
@@ -1094,6 +1120,34 @@
             const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
             badge.textContent = totalItems;
             badge.classList.toggle('hidden', totalItems === 0);
+        }
+
+        // ---- Order History Logic ----
+
+        async function loadOrders() {
+            const tbody = document.getElementById('orders-table');
+            try {
+                const orders = await apiCall('/orders');
+                if (!orders || orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No orders yet.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = orders.map(o => {
+                    const date = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A';
+                    const shortId = o.id.substring(0, 8);
+                    return `
+                        <tr>
+                            <td>${date}</td>
+                            <td title="${o.id}">${shortId}...</td>
+                            <td class="price">$${o.total_amount.toFixed(2)}</td>
+                            <td>${escapeHtml(o.status)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                log(`Failed to load orders: ${error.message}`, 'error');
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Failed to load orders.</td></tr>';
+            }
         }
 
         // ---- Checkout Logic ----
