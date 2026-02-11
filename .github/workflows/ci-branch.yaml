@@ -24,10 +24,10 @@ jobs:
       - name: Checkout branch
         uses: actions/checkout@v4
 
-      - name: Validate Dockerfile builds
+      - name: Validate Docker image builds
         run: |
-          echo "Validating Docker build..."
-          docker build --target build -f Dockerfile . || docker build -f Dockerfile . --no-cache --progress=plain 2>&1 | tail -20
+          echo "Building Docker image to validate branch changes..."
+          docker build -f Dockerfile -t ci-validate:${{ github.sha }} .
           echo "Docker build validation passed"
 
       - name: Check for helm values.yaml conflicts
