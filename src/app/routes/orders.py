@@ -24,10 +24,10 @@ async def list_orders(request: Request) -> list[Order]:
             if not order_rows:
                 return []
 
-            order_ids = [row[0] for row in order_rows]
+            order_ids = [str(row[0]) for row in order_rows]
             cur.execute(
                 "SELECT id, order_id, product_id, quantity, price_at_purchase "
-                "FROM order_items WHERE order_id = ANY(%s)",
+                "FROM order_items WHERE order_id = ANY(%s::uuid[])",
                 (order_ids,)
             )
             item_rows = cur.fetchall()
@@ -36,22 +36,22 @@ async def list_orders(request: Request) -> list[Order]:
             items_by_order: dict[str, list[OrderItem]] = {}
             for row in item_rows:
                 oi = OrderItem(
-                    id=row[0],
-                    order_id=row[1],
-                    product_id=row[2],
+                    id=str(row[0]),
+                    order_id=str(row[1]),
+                    product_id=str(row[2]),
                     quantity=row[3],
                     price_at_purchase=row[4]
                 )
-                items_by_order.setdefault(row[1], []).append(oi)
+                items_by_order.setdefault(str(row[1]), []).append(oi)
 
             orders = []
             for row in order_rows:
                 orders.append(Order(
-                    id=row[0],
+                    id=str(row[0]),
                     created_at=row[1],
                     total_amount=row[2],
                     status=row[3],
-                    items=items_by_order.get(row[0], [])
+                    items=items_by_order.get(str(row[0]), [])
                 ))
 
             return orders
