@@ -1,3 +1,4 @@
+
 import pytest
 import uuid
 from unittest.mock import MagicMock, patch, call
@@ -13,10 +14,10 @@ from app.main import app
 from app.routes.orders import list_orders
 
 @patch("app.main.SimpleConnectionPool")
-def test_list_orders_uses_uuid_objects_for_array_query(mock_pool_cls):
+def test_list_orders_uses_sql_cast_for_uuid_array(mock_pool_cls):
     """
-    Verify that list_orders converts order IDs to uuid.UUID objects 
-    before passing them to the ANY(%s) query.
+    Verify that list_orders uses SQL cast ::uuid[] for the array query
+    and passes string parameters (consistent with other endpoints).
     """
     # Setup Mock DB
     mock_pool = MagicMock()
@@ -42,15 +43,11 @@ def test_list_orders_uses_uuid_objects_for_array_query(mock_pool_cls):
         [] 
     ]
     
-    # We can't easily use TestClient because we want to inspect the internal cursor calls
-    # triggered by the route handler. 
-    # But TestClient with mocked app.state.db_pool is the integration way.
-    
-    # Let's inject the mock pool into the app state
+    # Inject mock pool
     app.state.db_pool = mock_pool
     
     with TestClient(app) as client:
-        # Reset mock to clear calls from startup (table creation)
+        # Reset mock to clear calls from startup
         mock_cursor.execute.reset_mock()
         
         response = client.get("/orders")
@@ -58,10 +55,6 @@ def test_list_orders_uses_uuid_objects_for_array_query(mock_pool_cls):
         assert response.status_code == 200
         
         # Verify the calls
-        # Expected: 2 calls to execute.
-        # 1. Select orders
-        # 2. Select items with ANY(%s)
-        
         assert mock_cursor.execute.call_count == 2
         
         # Check the second call arguments
@@ -72,21 +65,21 @@ def test_list_orders_uses_uuid_objects_for_array_query(mock_pool_cls):
         print(f"SQL: {sql_query}")
         print(f"Params: {params}")
         
-        # Verify SQL does NOT have ::uuid[] cast (as per actual code implementation)
-        assert "::uuid[]" not in sql_query, "Code should not use SQL cast if it uses Python object conversion"
-        assert "order_id = ANY(%s)" in sql_query
+        # Verify SQL DOES have ::uuid[] cast
+        assert "::uuid[]" in sql_query, "SQL query must include ::uuid[] cast"
+        assert "order_id = ANY(%s::uuid[])" in sql_query
         
-        # Verify params is a tuple containing a list of uuid.UUID objects
+        # Verify params is a tuple containing a list of strings
         assert isinstance(params, tuple)
         assert len(params) == 1
-        uuid_list = params[0]
+        str_list = params[0]
         
-        assert isinstance(uuid_list, list)
-        assert len(uuid_list) == 2
-        assert isinstance(uuid_list[0], uuid.UUID)
-        assert isinstance(uuid_list[1], uuid.UUID)
-        assert str(uuid_list[0]) == oid1_str
-        assert str(uuid_list[1]) == oid2_str
+        assert isinstance(str_list, list)
+        assert len(str_list) == 2
+        assert isinstance(str_list[0], str)
+        assert isinstance(str_list[1], str)
+        assert str_list[0] == oid1_str
+        assert str_list[1] == oid2_str
 
 if __name__ == "__main__":
     sys.exit(pytest.main(["-v", __file__]))
