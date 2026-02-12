@@ -333,15 +333,22 @@ class DarwinClient:
             error_rate=error_rate
         )
     
+    # Env var suffixes that carry credentials or config, never hostnames.
+    _NON_HOST_SUFFIXES = {"_USER", "_PASSWORD", "_PASS", "_NAME", "_PORT", "_SCHEMA", "_SSLMODE"}
+
     def _discover_topology(self) -> list[Dependency]:
         """
         Discover service dependencies by scanning environment variables.
-        
+
         CRITICAL: Returns the env var KEY name (e.g., DATABASE_URL), not just the value.
         The SysAdmin Agent needs the key name to construct kubectl patch commands.
+
+        Only env vars whose values look like hostnames or URLs are treated as
+        dependency targets.  Credential / config keys (DB_USER, DB_PASSWORD,
+        DB_NAME, DB_PORT …) are skipped to avoid ghost nodes in the topology.
         """
         dependencies = []
-        
+
         # Patterns for different dependency types
         db_patterns = [
             r'^DATABASE_.*',
@@ -350,19 +357,24 @@ class DarwinClient:
             r'^MYSQL_.*',
             r'^REDIS_.*',
         ]
-        
+
         http_patterns = [
             r'.*_HOST$',
             r'.*_URL$',
             r'.*_URI$',
             r'.*_ENDPOINT$',
         ]
-        
+
         for key, value in os.environ.items():
             # Skip empty values
             if not value:
                 continue
-            
+
+            # Skip credential / config keys that never contain hostnames
+            upper_key = key.upper()
+            if any(upper_key.endswith(suffix) for suffix in self._NON_HOST_SUFFIXES):
+                continue
+
             # Check for database dependencies
             for pattern in db_patterns:
                 if re.match(pattern, key, re.IGNORECASE):
@@ -382,7 +394,7 @@ class DarwinClient:
                             env_var=key  # The KEY name for SysAdmin patching
                         ))
                         break
-        
+
         return dependencies
     
     def _extract_target(self, value: str) -> str:
@@ -392,7 +404,7 @@ class DarwinClient:
             # Remove protocol
             remainder = value.split("://", 1)[1]
             # Get host part (before path or port)
-            host = remainder.split("/")[0].split(":")[0].split("@")[-1]
+            host = remainder.split("/")[0].split("@")[-1].split(":")[0]
             return host
         
         # For simple hostnames, return as-is
