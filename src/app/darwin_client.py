@@ -1,4 +1,7 @@
 # Store/src/app/darwin_client.py
+# DEPRECATED: This module is deprecated. Use darwin.io/* Kubernetes annotations instead.
+# The BlackBoard K8s Observer now passively discovers services via annotations.
+# This client will be removed in a future release.
 """
 Darwin telemetry client - self-reporting middleware.
 

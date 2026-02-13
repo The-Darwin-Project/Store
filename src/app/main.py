@@ -29,7 +29,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from .routes.products import router as products_router
 from .routes.orders import router as orders_router
-from .darwin_client import DarwinClient
+from .darwin_client import DarwinClient  # DEPRECATED: Use darwin.io/* annotations. Will be removed in a future release.
 from .chaos_state import get_chaos, record_request
 
 logging.basicConfig(level=logging.INFO)
@@ -132,7 +132,7 @@ async def startup_event():
     """Initialize Darwin telemetry client and database connection on startup."""
     global darwin_client, db_pool
     
-    # Initialize Darwin Client
+    # Initialize Darwin Client (DEPRECATED: use darwin.io/* annotations instead; will be removed in a future release)
     if DARWIN_URL:
         darwin_client = DarwinClient(
             service=SERVICE_NAME,
