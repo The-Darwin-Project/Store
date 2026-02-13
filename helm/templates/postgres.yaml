@@ -65,9 +65,7 @@ spec:
             - name: POSTGRESQL_ADMIN_PASSWORD
               value: {{ .Values.postgres.auth.password | quote }}
             {{- end }}
-            # Optional: create a named database (admin mode creates 'postgres' DB by default)
-            - name: POSTGRESQL_DATABASE
-              value: "postgres"
+            # Admin mode creates the 'postgres' DB by default -- no POSTGRESQL_DATABASE needed
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/pgsql/data
