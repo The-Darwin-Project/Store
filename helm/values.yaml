@@ -49,10 +49,10 @@ app:
   version: "55.1"
 # -- Postgres configuration
 postgres:
-  # Image settings (RHEL9 image for OpenShift CRI-O short-name enforcement)
+  # Image settings
   image:
-    repository: registry.redhat.io/rhel9/postgresql-15
-    digest: "sha256:07dec86e5af52b1819549de2185aef85f59ecf10719e03c536ea6bfdf4d4f1d1"
+    repository: docker.io/library/postgres
+    tag: "15"
   # Replica count
   replicas: 1
   # Persistence settings

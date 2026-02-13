@@ -44,39 +44,37 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
       securityContext:
-        fsGroup: 26  # RHEL postgresql-15 runs as UID 26
+        fsGroup: 1001
       containers:
         - name: postgres
-          image: "{{ .Values.postgres.image.repository }}@{{ .Values.postgres.image.digest }}"
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
           ports:
             - containerPort: 5432
               name: postgres
           env:
-            # RHEL9 postgresql-15 uses POSTGRESQL_* env vars (not POSTGRES_*)
             {{- if .Values.postgres.auth.existingSecret }}
-            - name: POSTGRESQL_PASSWORD
+            - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.postgres.auth.existingSecret }}
                   key: postgres-password
             {{- else }}
-            - name: POSTGRESQL_PASSWORD
+            - name: POSTGRES_PASSWORD
               value: {{ .Values.postgres.auth.password | quote }}
             {{- end }}
-            - name: POSTGRESQL_USER
-              value: "postgres"
-            - name: POSTGRESQL_DATABASE
-              value: "postgres"
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: postgres-data
-              mountPath: /var/lib/pgsql/data
+              mountPath: /var/lib/postgresql/data
           resources:
             {{- toYaml .Values.postgres.resources | nindent 12 }}
           livenessProbe:
             exec:
               command:
-                - /usr/libexec/check-container
-                - --live
+                - pg_isready
+                - -U
+                - postgres
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -84,7 +82,9 @@ spec:
           readinessProbe:
             exec:
               command:
-                - /usr/libexec/check-container
+                - pg_isready
+                - -U
+                - postgres
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 3
