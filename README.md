@@ -1,6 +1,19 @@
 # Darwin Store
 
-A self-aware vulnerable application for Darwin demos. The Store reports its topology and metrics to the Darwin BlackBoard brain, and accepts chaos injection from the Chaos Controller.
+A self-aware vulnerable application for Darwin demos. The Store is discovered by the Darwin BlackBoard brain via `darwin.io/*` Kubernetes annotations on the Deployment resource. It also accepts chaos injection from the Chaos Controller.
+
+## Service Discovery
+
+The Store uses **annotation-based passive discovery**. The BlackBoard K8s Observer polls Deployment annotations to register services, extract GitOps coordinates, and build the topology graph.
+
+| Annotation | Value | Purpose |
+|------------|-------|---------|
+| `darwin.io/monitored` | `"true"` | Opts the Deployment into Darwin observation |
+| `darwin.io/gitops-repo` | `"https://github.com/The-Darwin-Project/Store.git"` | Git repo URL for SysAdmin remediation |
+| `darwin.io/helm-path` | `"helm/values.yaml"` | Helm values path within the repo |
+| `darwin.io/service-name` | `"darwin-store"` | Logical service name in the topology |
+
+> **Deprecation notice:** The `DarwinClient` push telemetry module (`src/app/darwin_client.py`) is deprecated. It still runs during the transition period but will be removed in a future release. All new services should use `darwin.io/*` annotations instead.
 
 ## Architecture
 
@@ -10,11 +23,17 @@ flowchart TD
         StoreAPI["Store API<br/>:8080<br/>- Products<br/>- Health"]
         ChaosController["Chaos Controller<br/>:9000<br/>- CPU Attack<br/>- Latency<br/>- Errors"]
         ChaosState["/tmp/chaos_state.json"]
-        DarwinClient["DarwinClient (Thread)<br/>- Collects metrics (psutil)<br/>- Discovers topology (env)<br/>- Streams to BlackBoard"]
+        DarwinClient["DarwinClient (Thread) DEPRECATED<br/>- Collects metrics (psutil)<br/>- Discovers topology (env)<br/>- Streams to BlackBoard"]
 
         StoreAPI -- data --> ChaosState
         ChaosController -- updates --> ChaosState
         ChaosState -- reads --> DarwinClient
+    end
+
+    subgraph K8s_Discovery [K8s Passive Discovery - Primary]
+        Observer["BlackBoard K8s Observer<br/>polls darwin.io/* annotations"]
+        Deployment["Store Deployment<br/>darwin.io/monitored: true"]
+        Deployment --> Observer
     end
 ```
 
@@ -163,9 +182,13 @@ curl -X POST http://localhost:9000/api/settings \
   -d '{"reset": true}'
 ```
 
-## Telemetry Schema
+## Telemetry Schema (Deprecated)
 
-The Store pushes telemetry to Darwin BlackBoard every 5 seconds:
+> **Deprecated:** Push telemetry via DarwinClient will be removed in a future release.
+> The BlackBoard K8s Observer now passively discovers services via `darwin.io/*` annotations
+> and reads metrics from the Kubernetes metrics-server.
+
+The Store currently pushes telemetry to Darwin BlackBoard every 5 seconds:
 
 ```json
 {

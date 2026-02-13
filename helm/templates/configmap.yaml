@@ -19,7 +19,9 @@ data:
   SERVICE_NAME: {{ .Values.app.name | quote }}
   SERVICE_VERSION: {{ .Values.app.version | quote }}
 
-  # GitOps coordinates (self-describing service -- sent in telemetry to Brain)
+  # DEPRECATED: GitOps coordinates below are consumed by DarwinClient (push telemetry).
+  # These are now duplicated by darwin.io/* annotations on the Deployment resource.
+  # Remove these 3 env vars when DarwinClient is deleted from src/app/darwin_client.py.
   GITOPS_REPO: "The-Darwin-Project/Store"
   GITOPS_REPO_URL: "https://github.com/The-Darwin-Project/Store.git"
   HELM_PATH: "helm/values.yaml"

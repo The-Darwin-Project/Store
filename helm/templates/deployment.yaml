@@ -7,6 +7,11 @@ metadata:
     app: darwin-store
     app.kubernetes.io/name: darwin-store
     app.kubernetes.io/instance: {{ .Release.Name }}
+  annotations:
+    darwin.io/monitored: "true"
+    darwin.io/gitops-repo: "https://github.com/The-Darwin-Project/Store.git"
+    darwin.io/helm-path: "helm/values.yaml"
+    darwin.io/service-name: "darwin-store"
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -20,10 +25,6 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         gemini-cli-force-sync: "true"
       annotations:
-        darwin.io/monitored: "true"
-        darwin.io/gitops-repo: "https://github.com/The-Darwin-Project/Store.git"
-        darwin.io/helm-path: "helm/values.yaml"
-        darwin.io/service-name: "darwin-store"
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- if .Values.restartedAt }}
         kubectl.kubernetes.io/restartedAt: {{ .Values.restartedAt | quote }}

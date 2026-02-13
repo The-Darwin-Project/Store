@@ -2,7 +2,9 @@
 # @ai-rules:
 # 1. [CHAOS_MODE]: Env var gates ChaosMiddleware. "disabled" = middleware short-circuits. Only affects latency/error injection.
 # 2. [Middleware order]: ChaosMiddleware must be added before routes. It wraps all incoming requests.
-# 3. [Telemetry]: DarwinClient runs as a daemon thread, not async. Do not await it.
+# 3. [Telemetry]: DEPRECATED - DarwinClient runs as a daemon thread, not async. Do not await it.
+#    Service discovery is now via darwin.io/* K8s annotations on the Deployment resource.
+#    DarwinClient will be removed in a future release. Do not add new logic to it.
 """
 Darwin Store - FastAPI application entry point.
 
