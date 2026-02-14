@@ -36,14 +36,7 @@ route:
     enabled: true
     termination: edge # edge, passthrough, or reencrypt
     insecureEdgeTerminationPolicy: Redirect # Allow, Redirect, or None
-# -- Darwin BlackBoard connection
-# Service name follows pattern: {release-name}-brain (from BlackBoard Helm chart)
-# ArgoCD app name "darwin-blackboard" becomes release name, so service is "darwin-blackboard-brain"
-darwin:
-  url: "http://darwin-blackboard-brain:8000"
-  enabled: false
-  readTimeout: 10.0
-# -- Application metadata (sent in telemetry)
+# -- Application metadata
 app:
   name: "darwin-store"
   version: "55.1"

@@ -2,16 +2,14 @@
 # @ai-rules:
 # 1. [CHAOS_MODE]: Env var gates ChaosMiddleware. "disabled" = middleware short-circuits. Only affects latency/error injection.
 # 2. [Middleware order]: ChaosMiddleware must be added before routes. It wraps all incoming requests.
-# 3. [Telemetry]: DEPRECATED - DarwinClient runs as a daemon thread, not async. Do not await it.
-#    Service discovery is now via darwin.io/* K8s annotations on the Deployment resource.
-#    DarwinClient will be removed in a future release. Do not add new logic to it.
+# 3. [Discovery]: Service discovery via darwin.io/* K8s annotations on the Deployment. No app-side telemetry.
 """
 Darwin Store - FastAPI application entry point.
 
 A self-aware vulnerable application that:
 1. Exposes product CRUD endpoints
-2. Streams telemetry to Darwin BlackBoard
-3. Accepts chaos injection from the Chaos Controller
+2. Accepts chaos injection from the Chaos Controller
+3. Discovered by Darwin Brain via K8s annotations (darwin.io/*)
 """
 
 import os
@@ -31,7 +29,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from .routes.products import router as products_router
 from .routes.orders import router as orders_router
-from .darwin_client import DarwinClient  # DEPRECATED: Use darwin.io/* annotations. Will be removed in a future release.
 from .chaos_state import get_chaos, record_request
 
 logging.basicConfig(level=logging.INFO)
@@ -40,18 +37,13 @@ logger = logging.getLogger(__name__)
 # Configuration from environment
 SERVICE_NAME = os.getenv("SERVICE_NAME", "darwin-store")
 SERVICE_VERSION = os.getenv("SERVICE_VERSION", "1.0.0")
-DARWIN_URL = os.getenv("DARWIN_URL", "http://darwin-blackboard-brain:8000")
 CHAOS_MODE = os.getenv("CHAOS_MODE", "disabled")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "darwin")
 DB_USER = os.getenv("DB_USER", "darwin")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "darwin")
-DARWIN_READ_TIMEOUT = float(os.getenv("DARWIN_READ_TIMEOUT", "5.0"))
 
-
-# Darwin telemetry client (initialized on startup)
-darwin_client: Optional[DarwinClient] = None
 db_pool: Optional[SimpleConnectionPool] = None
 
 
@@ -131,21 +123,8 @@ async def health():
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize Darwin telemetry client and database connection on startup."""
-    global darwin_client, db_pool
-    
-    # Initialize Darwin Client (DEPRECATED: use darwin.io/* annotations instead; will be removed in a future release)
-    if DARWIN_URL:
-        darwin_client = DarwinClient(
-            service=SERVICE_NAME,
-            url=DARWIN_URL,
-            version=SERVICE_VERSION,
-            read_timeout=DARWIN_READ_TIMEOUT
-        )
-        darwin_client.start()
-        logger.info(f"Darwin telemetry started: {SERVICE_NAME} -> {DARWIN_URL}")
-    else:
-        logger.warning("DARWIN_URL not set, telemetry disabled")
+    """Initialize database connection on startup."""
+    global db_pool
     
     logger.info(f"Chaos mode: {CHAOS_MODE}")
 
@@ -217,12 +196,8 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Stop Darwin telemetry client and close database connections on shutdown."""
-    global darwin_client, db_pool
-    
-    if darwin_client:
-        darwin_client.stop()
-        logger.info("Darwin telemetry stopped")
+    """Close database connections on shutdown."""
+    global db_pool
     
     if db_pool:
         db_pool.closeall()

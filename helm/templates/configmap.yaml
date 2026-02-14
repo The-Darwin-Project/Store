@@ -8,26 +8,8 @@ metadata:
     app.kubernetes.io/name: darwin-store
     app.kubernetes.io/instance: {{ .Release.Name }}
 data:
-  # Darwin BlackBoard connection
-  {{- if .Values.darwin.enabled }}
-  DARWIN_URL: {{ .Values.darwin.url | quote }}
-  {{- else }}
-  DARWIN_URL: ""
-  {{- end }}
-  
-  # Service metadata (sent in telemetry)
+  # App metadata (used by health endpoint)
   SERVICE_NAME: {{ .Values.app.name | quote }}
   SERVICE_VERSION: {{ .Values.app.version | quote }}
-
-  # DEPRECATED: GitOps coordinates below are consumed by DarwinClient (push telemetry).
-  # These are now duplicated by darwin.io/* annotations on the Deployment resource.
-  # Remove these 3 env vars when DarwinClient is deleted from src/app/darwin_client.py.
-  GITOPS_REPO: "The-Darwin-Project/Store"
-  GITOPS_REPO_URL: "https://github.com/The-Darwin-Project/Store.git"
-  HELM_PATH: "helm/values.yaml"
-
   # Chaos mode
   CHAOS_MODE: {{ .Values.config.chaos_mode | quote }}
-
-  # Darwin client read timeout
-  DARWIN_READ_TIMEOUT: {{ .Values.darwin.readTimeout | quote }}
