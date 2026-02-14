@@ -41,7 +41,7 @@ route:
 # ArgoCD app name "darwin-blackboard" becomes release name, so service is "darwin-blackboard-brain"
 darwin:
   url: "http://darwin-blackboard-brain:8000"
-  enabled: true
+  enabled: false
   readTimeout: 10.0
 # -- Application metadata (sent in telemetry)
 app:
