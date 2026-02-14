@@ -7,12 +7,6 @@ metadata:
     app: darwin-store
     app.kubernetes.io/name: darwin-store
     app.kubernetes.io/instance: {{ .Release.Name }}
-  annotations:
-    darwin.io/monitored: "true"
-    darwin.io/service-name: "darwin-store"
-    darwin.io/source-repo: "https://github.com/The-Darwin-Project/Store.git"
-    darwin.io/gitops-repo: "https://github.com/The-Darwin-Project/Store.git"
-    darwin.io/config-path: "helm/values.yaml"
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -24,12 +18,17 @@ spec:
       labels:
         app: darwin-store
         app.kubernetes.io/instance: {{ .Release.Name }}
-        gemini-cli-force-sync: "true"
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- if .Values.restartedAt }}
         kubectl.kubernetes.io/restartedAt: {{ .Values.restartedAt | quote }}
         {{- end }}
+        # Darwin service discovery -- Observer reads these from pods
+        darwin.io/monitored: "true"
+        darwin.io/service-name: "darwin-store"
+        darwin.io/source-repo: "https://github.com/The-Darwin-Project/Store.git"
+        darwin.io/gitops-repo: "https://github.com/The-Darwin-Project/Store.git"
+        darwin.io/config-path: "helm/values.yaml"
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

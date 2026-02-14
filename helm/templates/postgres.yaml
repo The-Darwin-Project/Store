@@ -30,12 +30,6 @@ metadata:
     app: postgres
     app.kubernetes.io/name: postgres
     app.kubernetes.io/instance: {{ .Release.Name }}
-  annotations:
-    darwin.io/monitored: "true"
-    darwin.io/service-name: "{{ .Release.Name }}-postgres-svc"
-    darwin.io/source-repo: "https://github.com/The-Darwin-Project/Store.git"
-    darwin.io/gitops-repo: "https://github.com/The-Darwin-Project/Store.git"
-    darwin.io/config-path: "helm/values.yaml"
 spec:
   serviceName: {{ .Release.Name }}-postgres-svc
   replicas: {{ .Values.postgres.replicas }}
@@ -48,6 +42,13 @@ spec:
       labels:
         app: postgres
         app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        # Darwin service discovery -- Observer reads these from pods
+        darwin.io/monitored: "true"
+        darwin.io/service-name: "{{ .Release.Name }}-postgres-svc"
+        darwin.io/source-repo: "https://github.com/The-Darwin-Project/Store.git"
+        darwin.io/gitops-repo: "https://github.com/The-Darwin-Project/Store.git"
+        darwin.io/config-path: "helm/values.yaml"
     spec:
       securityContext:
         fsGroup: 26  # RHEL postgresql-15 runs as UID 26
