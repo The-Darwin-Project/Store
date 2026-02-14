@@ -9,9 +9,10 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
   annotations:
     darwin.io/monitored: "true"
+    darwin.io/service-name: "darwin-store"
+    darwin.io/source-repo: "https://github.com/The-Darwin-Project/Store.git"
     darwin.io/gitops-repo: "https://github.com/The-Darwin-Project/Store.git"
     darwin.io/helm-path: "helm/values.yaml"
-    darwin.io/service-name: "darwin-store"
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
