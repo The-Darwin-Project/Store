@@ -12,7 +12,7 @@ metadata:
     darwin.io/service-name: "darwin-store"
     darwin.io/source-repo: "https://github.com/The-Darwin-Project/Store.git"
     darwin.io/gitops-repo: "https://github.com/The-Darwin-Project/Store.git"
-    darwin.io/helm-path: "helm/values.yaml"
+    darwin.io/config-path: "helm/values.yaml"
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:

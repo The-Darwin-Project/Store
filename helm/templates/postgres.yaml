@@ -33,6 +33,9 @@ metadata:
   annotations:
     darwin.io/monitored: "true"
     darwin.io/service-name: "{{ .Release.Name }}-postgres-svc"
+    darwin.io/source-repo: "https://github.com/The-Darwin-Project/Store.git"
+    darwin.io/gitops-repo: "https://github.com/The-Darwin-Project/Store.git"
+    darwin.io/config-path: "helm/values.yaml"
 spec:
   serviceName: {{ .Release.Name }}-postgres-svc
   replicas: {{ .Values.postgres.replicas }}
