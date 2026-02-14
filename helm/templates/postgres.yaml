@@ -30,6 +30,9 @@ metadata:
     app: postgres
     app.kubernetes.io/name: postgres
     app.kubernetes.io/instance: {{ .Release.Name }}
+  annotations:
+    darwin.io/monitored: "true"
+    darwin.io/service-name: "{{ .Release.Name }}-postgres-svc"
 spec:
   serviceName: {{ .Release.Name }}-postgres-svc
   replicas: {{ .Values.postgres.replicas }}
