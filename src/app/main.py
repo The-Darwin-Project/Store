@@ -149,8 +149,22 @@ async def startup_event():
 
     # Initialize Database Connection
     db_dsn = f"dbname={DB_NAME} user={DB_USER} password={DB_PASSWORD} host={DB_HOST} port={DB_PORT}"
-    db_pool = SimpleConnectionPool(1, 10, dsn=db_dsn)
-    app.state.db_pool = db_pool
+    
+    max_retries = 5
+    retry_delay = 2  # seconds
+    for attempt in range(1, max_retries + 1):
+        try:
+            db_pool = SimpleConnectionPool(1, 10, dsn=db_dsn)
+            app.state.db_pool = db_pool
+            logger.info(f"Database connection pool established (attempt {attempt})")
+            break
+        except psycopg2.OperationalError as e:
+            if attempt < max_retries:
+                logger.warning(f"Database connection attempt {attempt}/{max_retries} failed: {e}. Retrying in {retry_delay}s...")
+                await asyncio.sleep(retry_delay)
+            else:
+                logger.error(f"Database connection failed after {max_retries} attempts: {e}")
+                raise  # Let the app crash cleanly instead of running with db_pool=None
     
     conn = None
     try:
