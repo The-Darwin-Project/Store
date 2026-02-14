@@ -4,7 +4,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-store
+  name: {{ .Release.Name }}
   labels:
     app: darwin-store
     app.kubernetes.io/name: darwin-store

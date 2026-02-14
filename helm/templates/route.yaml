@@ -5,7 +5,7 @@
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: {{ .Release.Name }}-store
+  name: {{ .Release.Name }}
   labels:
     app: darwin-store
     app.kubernetes.io/name: darwin-store
@@ -22,7 +22,7 @@ spec:
     targetPort: http
   to:
     kind: Service
-    name: {{ .Release.Name }}-store
+    name: {{ .Release.Name }}
     weight: 100
   {{- if .Values.route.tls.enabled }}
   tls:
