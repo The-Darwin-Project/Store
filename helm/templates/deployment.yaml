@@ -36,6 +36,40 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: wait-for-postgres
+          image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+          command:
+            - sh
+            - -c
+            - |
+              microdnf install -y bash --nodocs && \
+              bash -c '
+              PG_HOST="{{ .Release.Name }}-postgres-svc"
+              PG_PORT=5432
+              MAX_WAIT=120
+              ELAPSED=0
+              echo "Waiting for ${PG_HOST}:${PG_PORT} to be ready..."
+              while ! (echo > /dev/tcp/${PG_HOST}/${PG_PORT}) >/dev/null 2>&1; do
+                if [ ${ELAPSED} -ge ${MAX_WAIT} ]; then
+                  echo "ERROR: Timed out after ${MAX_WAIT}s waiting for ${PG_HOST}:${PG_PORT}"
+                  exit 1
+                fi
+                echo "Postgres not ready yet (${ELAPSED}s elapsed), retrying in 2s..."
+                sleep 2
+                ELAPSED=$((ELAPSED + 2))
+              done
+              echo "Postgres is ready! (${PG_HOST}:${PG_PORT} accepting connections after ${ELAPSED}s)"
+              '
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
       containers:
         - name: store
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
