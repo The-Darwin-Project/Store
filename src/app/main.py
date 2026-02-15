@@ -29,6 +29,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from .routes.products import router as products_router
 from .routes.orders import router as orders_router
+from .routes.customers import router as customers_router
 from .chaos_state import get_chaos, record_request
 
 logging.basicConfig(level=logging.INFO)
@@ -103,6 +104,7 @@ app.add_middleware(ChaosMiddleware)
 # Mount routes
 app.include_router(products_router)
 app.include_router(orders_router)
+app.include_router(customers_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -162,11 +164,20 @@ async def startup_event():
                 )
             ''')
             cur.execute('''
+                CREATE TABLE IF NOT EXISTS customers (
+                    id UUID PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    email VARCHAR(255) NOT NULL UNIQUE,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            ''')
+            cur.execute('''
                 CREATE TABLE IF NOT EXISTS orders (
                     id UUID PRIMARY KEY,
                     created_at TIMESTAMP DEFAULT NOW(),
                     total_amount REAL NOT NULL,
-                    status VARCHAR(50) DEFAULT 'pending'
+                    status VARCHAR(50) DEFAULT 'pending',
+                    customer_id UUID REFERENCES customers(id)
                 )
             ''')
             cur.execute('''
@@ -187,6 +198,15 @@ async def startup_event():
                 conn.commit()
             except Exception as e:
                 logger.warning(f"Migration warning: {e}")
+
+            # Migration: Ensure customer_id column exists on orders for existing databases
+            try:
+                cur.execute("""
+                    ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id)
+                """)
+                conn.commit()
+            except Exception as e:
+                logger.warning(f"Migration warning (customer_id): {e}")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
     finally:

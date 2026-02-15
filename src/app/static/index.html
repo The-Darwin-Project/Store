@@ -500,6 +500,59 @@
             color: #000;
         }
 
+        /* Select/Dropdown Styles */
+        select {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            width: 100%;
+        }
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        input[type="email"] {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            width: 100%;
+        }
+        input[type="email"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .customer-orders-section {
+            margin-top: 1rem;
+        }
+        .customer-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .customer-list-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .customer-list-item.selected {
+            background: rgba(233, 69, 96, 0.15);
+            border-left: 3px solid var(--accent);
+        }
+        .new-customer-form {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: var(--bg-card);
+            border-radius: 8px;
+        }
+
         /* Bootstrap Modal Overrides for Dark Theme */
         .modal-content {
             background-color: #343a40;
@@ -543,6 +596,9 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="orders-tab" type="button" role="tab" onclick="switchTab('orders')">Orders</button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="customers-tab" type="button" role="tab" onclick="switchTab('customers')">Customers</button>
+            </li>
         </ul>
 
         <!-- Tab Content -->
@@ -575,8 +631,39 @@
                         </table>
                     </div>
                     <div id="cart-total" style="text-align: right; margin-top: 1rem; font-size: 1.25rem; font-weight: 700;"></div>
-                    <div id="checkout-section" style="text-align: right; margin-top: 1rem; display: none;">
-                        <button onclick="checkout()" id="checkout-btn">Checkout</button>
+                    <div id="checkout-section" style="margin-top: 1.5rem; display: none;">
+                        <div class="panel" style="margin-bottom: 1rem;">
+                            <h2>Select Customer</h2>
+                            <div class="form-row">
+                                <div class="form-group flex-grow">
+                                    <label for="checkout-customer">Customer</label>
+                                    <select id="checkout-customer">
+                                        <option value="">-- Select a customer --</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <button type="button" class="secondary" onclick="toggleNewCustomerForm()">New Customer</button>
+                                </div>
+                            </div>
+                            <div id="inline-new-customer" class="new-customer-form" style="display: none;">
+                                <div class="form-row">
+                                    <div class="form-group flex-grow">
+                                        <label for="new-cust-name">Name</label>
+                                        <input type="text" id="new-cust-name" placeholder="Customer name">
+                                    </div>
+                                    <div class="form-group flex-grow">
+                                        <label for="new-cust-email">Email</label>
+                                        <input type="email" id="new-cust-email" placeholder="customer@example.com">
+                                    </div>
+                                    <div class="form-group">
+                                        <button type="button" onclick="createInlineCustomer()">Create</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <button onclick="checkout()" id="checkout-btn">Checkout</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -597,6 +684,53 @@
                             </thead>
                             <tbody id="orders-table">
                                 <tr><td colspan="4" class="empty-state">No orders yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customers Tab -->
+            <div class="tab-pane" id="customers">
+                <div class="panel">
+                    <h2>Add Customer</h2>
+                    <form id="add-customer-form">
+                        <div class="form-row">
+                            <div class="form-group flex-grow">
+                                <label for="cust-name">Name</label>
+                                <input type="text" id="cust-name" placeholder="Customer name" required>
+                            </div>
+                            <div class="form-group flex-grow">
+                                <label for="cust-email">Email</label>
+                                <input type="email" id="cust-email" placeholder="customer@example.com" required>
+                            </div>
+                            <div class="form-group">
+                                <button type="submit">Add Customer</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="panel">
+                    <h2>Customer List</h2>
+                    <div id="customer-list">
+                        <div class="empty-state">No customers yet.</div>
+                    </div>
+                </div>
+                <div class="panel customer-orders-section" id="customer-orders-panel" style="display: none;">
+                    <h2 id="customer-orders-title">Customer Orders</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Order ID</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customer-orders-table">
+                                <tr><td colspan="5" class="empty-state">Select a customer to view orders.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -765,6 +899,8 @@
             document.getElementById(tabName).classList.add('active');
             document.getElementById(tabName + '-tab').classList.add('active');
             if (tabName === 'orders') loadOrders();
+            if (tabName === 'customers') loadCustomers();
+            if (tabName === 'cart') loadCustomerDropdown();
         }
 
         // API helper with error handling
@@ -1159,6 +1295,12 @@
                 return;
             }
 
+            const customerId = document.getElementById('checkout-customer').value;
+            if (!customerId) {
+                log('Please select a customer before checking out', 'error');
+                return;
+            }
+
             const btn = document.getElementById('checkout-btn');
             btn.disabled = true;
             btn.textContent = 'Processing...';
@@ -1169,7 +1311,7 @@
                     quantity: item.qty
                 }));
 
-                const order = await apiCall('/orders', 'POST', { items });
+                const order = await apiCall('/orders', 'POST', { items, customer_id: customerId });
 
                 // Clear cart
                 saveCart([]);
@@ -1207,12 +1349,168 @@
             }
         });
 
+        // ---- Customer Logic ----
+
+        let _customersCache = [];
+        let _selectedCustomerId = null;
+
+        async function loadCustomers() {
+            try {
+                const customers = await apiCall('/customers');
+                _customersCache = customers || [];
+                renderCustomerList(_customersCache);
+            } catch (error) {
+                log(`Failed to load customers: ${error.message}`, 'error');
+            }
+        }
+
+        function renderCustomerList(customers) {
+            const container = document.getElementById('customer-list');
+            if (!customers || customers.length === 0) {
+                container.innerHTML = '<div class="empty-state">No customers yet. Add one above!</div>';
+                document.getElementById('customer-orders-panel').style.display = 'none';
+                return;
+            }
+
+            container.innerHTML = customers.map(c => {
+                const date = c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A';
+                const selectedClass = _selectedCustomerId === c.id ? 'selected' : '';
+                return `
+                    <div class="customer-list-item ${selectedClass}" onclick="selectCustomer('${c.id}')">
+                        <div>
+                            <strong>${escapeHtml(c.name)}</strong>
+                            <span style="color: var(--text-secondary); margin-left: 0.5rem;">${escapeHtml(c.email)}</span>
+                        </div>
+                        <span style="color: var(--text-secondary); font-size: 0.85rem;">${date}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function selectCustomer(customerId) {
+            _selectedCustomerId = customerId;
+            renderCustomerList(_customersCache);
+            document.getElementById('customer-orders-panel').style.display = 'block';
+            const customer = _customersCache.find(c => c.id === customerId);
+            document.getElementById('customer-orders-title').textContent =
+                customer ? `Orders for ${customer.name}` : 'Customer Orders';
+            await loadCustomerOrders(customerId);
+        }
+
+        async function loadCustomerOrders(customerId) {
+            const tbody = document.getElementById('customer-orders-table');
+            try {
+                const orders = await apiCall(`/customers/${customerId}/orders`);
+                if (!orders || orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No orders for this customer.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = orders.map(o => {
+                    const date = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A';
+                    const shortId = o.id.substring(0, 8);
+                    return `
+                        <tr>
+                            <td>${date}</td>
+                            <td title="${o.id}">${shortId}...</td>
+                            <td class="price">$${o.total_amount.toFixed(2)}</td>
+                            <td>${escapeHtml(o.status)}</td>
+                            <td>
+                                <button class="small danger" onclick="detachOrder('${customerId}', '${o.id}')">Detach</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                log(`Failed to load customer orders: ${error.message}`, 'error');
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Failed to load orders.</td></tr>';
+            }
+        }
+
+        async function detachOrder(customerId, orderId) {
+            try {
+                await apiCall(`/customers/${customerId}/orders/${orderId}`, 'DELETE');
+                log(`Order ${orderId.substring(0, 8)}... detached from customer`, 'success');
+                await loadCustomerOrders(customerId);
+            } catch (error) {
+                log(`Failed to detach order: ${error.message}`, 'error');
+            }
+        }
+
+        document.getElementById('add-customer-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('cust-name').value.trim();
+            const email = document.getElementById('cust-email').value.trim();
+            if (!name || !email) {
+                log('Customer name and email are required', 'error');
+                return;
+            }
+            try {
+                const customer = await apiCall('/customers', 'POST', { name, email });
+                log(`Created customer: ${customer.name}`, 'success');
+                document.getElementById('add-customer-form').reset();
+                await loadCustomers();
+            } catch (error) {
+                log(`Failed to create customer: ${error.message}`, 'error');
+            }
+        });
+
+        // ---- Checkout Customer Selection ----
+
+        async function loadCustomerDropdown() {
+            try {
+                const customers = await apiCall('/customers');
+                _customersCache = customers || [];
+                const select = document.getElementById('checkout-customer');
+                const currentVal = select.value;
+                select.innerHTML = '<option value="">-- Select a customer --</option>';
+                _customersCache.forEach(c => {
+                    const option = document.createElement('option');
+                    option.value = c.id;
+                    option.textContent = `${c.name} (${c.email})`;
+                    select.appendChild(option);
+                });
+                if (currentVal && _customersCache.find(c => c.id === currentVal)) {
+                    select.value = currentVal;
+                }
+            } catch (error) {
+                log(`Failed to load customer list: ${error.message}`, 'error');
+            }
+        }
+
+        function toggleNewCustomerForm() {
+            const form = document.getElementById('inline-new-customer');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function createInlineCustomer() {
+            const name = document.getElementById('new-cust-name').value.trim();
+            const email = document.getElementById('new-cust-email').value.trim();
+            if (!name || !email) {
+                log('Customer name and email are required', 'error');
+                return;
+            }
+            try {
+                const customer = await apiCall('/customers', 'POST', { name, email });
+                log(`Created customer: ${customer.name}`, 'success');
+                document.getElementById('new-cust-name').value = '';
+                document.getElementById('new-cust-email').value = '';
+                document.getElementById('inline-new-customer').style.display = 'none';
+                await loadCustomerDropdown();
+                document.getElementById('checkout-customer').value = customer.id;
+            } catch (error) {
+                log(`Failed to create customer: ${error.message}`, 'error');
+            }
+        }
+
+        // ---- End Customer Logic ----
+
         // ---- End Shopping Cart Logic ----
 
         // Initial load and auto-refresh
         loadProducts();
         renderCart();
         renderCartCount();
+        loadCustomerDropdown();
         setInterval(loadProducts, 5000);
         log('Darwin Store initialized', 'success');
     </script>

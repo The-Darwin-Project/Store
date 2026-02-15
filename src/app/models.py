@@ -42,6 +42,20 @@ class ProductUpdate(BaseModel):
     description: Optional[str] = None
 
 
+class Customer(BaseModel):
+    """Customer model."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    name: str
+    email: str
+    created_at: Optional[datetime] = None
+
+
+class CustomerCreate(BaseModel):
+    """Schema for creating a new customer."""
+    name: str
+    email: str
+
+
 class OrderItemCreate(BaseModel):
     """Schema for an item in an order creation request."""
     product_id: str
@@ -51,6 +65,7 @@ class OrderItemCreate(BaseModel):
 class OrderCreate(BaseModel):
     """Schema for creating a new order from cart items."""
     items: list[OrderItemCreate] = Field(min_length=1)
+    customer_id: str
 
 
 class OrderItem(BaseModel):
@@ -69,6 +84,7 @@ class Order(BaseModel):
     total_amount: float
     status: str = "pending"
     items: list[OrderItem] = Field(default_factory=list)
+    customer_id: Optional[str] = None
 
 
 class Dependency(BaseModel):
