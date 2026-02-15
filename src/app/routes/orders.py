@@ -17,7 +17,7 @@ async def list_orders(request: Request) -> list[Order]:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, created_at, total_amount, status FROM orders ORDER BY created_at DESC"
+                "SELECT id, created_at, total_amount, status, customer_id FROM orders ORDER BY created_at DESC"
             )
             order_rows = cur.fetchall()
 
@@ -51,6 +51,7 @@ async def list_orders(request: Request) -> list[Order]:
                     created_at=row[1],
                     total_amount=row[2],
                     status=row[3],
+                    customer_id=str(row[4]) if row[4] else None,
                     items=items_by_order.get(str(row[0]), [])
                 ))
 
@@ -73,6 +74,11 @@ async def create_order(order_data: OrderCreate, request: Request) -> Order:
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
+            # Validate customer existence
+            cur.execute("SELECT id FROM customers WHERE id = %s", (order_data.customer_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=400, detail="Invalid customer_id: customer does not exist")
+
             order_id = str(uuid.uuid4())
             total_amount = 0.0
             order_items = []
@@ -119,8 +125,8 @@ async def create_order(order_data: OrderCreate, request: Request) -> Order:
 
             # Insert order record
             cur.execute(
-                "INSERT INTO orders (id, total_amount, status) VALUES (%s, %s, %s)",
-                (order_id, total_amount, "confirmed")
+                "INSERT INTO orders (id, total_amount, status, customer_id) VALUES (%s, %s, %s, %s)",
+                (order_id, total_amount, "confirmed", order_data.customer_id)
             )
 
             # Insert order items
@@ -141,7 +147,8 @@ async def create_order(order_data: OrderCreate, request: Request) -> Order:
                 created_at=created_at,
                 total_amount=total_amount,
                 status="confirmed",
-                items=order_items
+                items=order_items,
+                customer_id=order_data.customer_id
             )
     except HTTPException:
         raise
