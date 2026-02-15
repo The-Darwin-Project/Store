@@ -688,6 +688,26 @@
                         </table>
                     </div>
                 </div>
+                
+                <div class="panel" style="margin-top: 1.5rem;">
+                    <h2>Unassigned Orders (Legacy)</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Order ID</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="unassigned-orders-table">
+                                <tr><td colspan="5" class="empty-state">No unassigned orders.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <!-- Customers Tab -->
@@ -844,6 +864,23 @@
                     <button type="submit">Save</button>
                 </div>
             </form>
+        </div>
+    </div>
+    
+    <!-- Attach Order Modal -->
+    <div class="modal-overlay" id="attach-modal">
+        <div class="custom-modal">
+            <h3>Attach Order to Customer</h3>
+            <div class="form-group">
+                <label for="attach-customer-select">Select Customer</label>
+                <select id="attach-customer-select">
+                    <option value="">-- Select --</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="secondary" onclick="closeAttachModal()">Cancel</button>
+                <button type="button" onclick="confirmAttachOrder()">Attach</button>
+            </div>
         </div>
     </div>
                 
@@ -1266,6 +1303,34 @@
                 const orders = await apiCall('/orders');
                 if (!orders || orders.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No orders yet.</td></tr>';
+                } else {
+                    tbody.innerHTML = orders.map(o => {
+                        const date = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A';
+                        const shortId = o.id.substring(0, 8);
+                        return `
+                            <tr>
+                                <td>${date}</td>
+                                <td title="${o.id}">${shortId}...</td>
+                                <td class="price">$${o.total_amount.toFixed(2)}</td>
+                                <td>${escapeHtml(o.status)}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (error) {
+                log(`Failed to load orders: ${error.message}`, 'error');
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Failed to load orders.</td></tr>';
+            }
+            
+            await loadUnassignedOrders();
+        }
+
+        async function loadUnassignedOrders() {
+            const tbody = document.getElementById('unassigned-orders-table');
+            try {
+                const orders = await apiCall('/orders/unassigned');
+                if (!orders || orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No unassigned orders.</td></tr>';
                     return;
                 }
                 tbody.innerHTML = orders.map(o => {
@@ -1277,14 +1342,80 @@
                             <td title="${o.id}">${shortId}...</td>
                             <td class="price">$${o.total_amount.toFixed(2)}</td>
                             <td>${escapeHtml(o.status)}</td>
+                            <td class="actions">
+                                <button class="small secondary" onclick="openAttachModal('${o.id}')">Attach</button>
+                                <button class="small danger" onclick="deleteOrder('${o.id}')">Delete</button>
+                            </td>
                         </tr>
                     `;
                 }).join('');
             } catch (error) {
-                log(`Failed to load orders: ${error.message}`, 'error');
-                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Failed to load orders.</td></tr>';
+                log(`Failed to load unassigned orders: ${error.message}`, 'error');
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Failed to load orders.</td></tr>';
             }
         }
+
+        async function deleteOrder(orderId) {
+            if (!confirm('Are you sure you want to permanently delete this order?')) return;
+            try {
+                await apiCall(`/orders/${orderId}`, 'DELETE');
+                log(`Deleted order ${orderId.substring(0, 8)}...`, 'success');
+                loadOrders();
+            } catch (error) {
+                log(`Failed to delete order: ${error.message}`, 'error');
+            }
+        }
+
+        let _attachOrderId = null;
+
+        async function openAttachModal(orderId) {
+            _attachOrderId = orderId;
+            const select = document.getElementById('attach-customer-select');
+            select.innerHTML = '<option value="">-- Loading customers... --</option>';
+            document.getElementById('attach-modal').classList.add('active');
+            try {
+                const customers = await apiCall('/customers');
+                _customersCache = customers || [];
+            } catch (e) {
+                log('Failed to load customers for modal', 'error');
+            }
+            select.innerHTML = '<option value="">-- Select Customer --</option>';
+            _customersCache.forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.id;
+                option.textContent = `${c.name} (${c.email})`;
+                select.appendChild(option);
+            });
+        }
+
+        function closeAttachModal() {
+            document.getElementById('attach-modal').classList.remove('active');
+            _attachOrderId = null;
+        }
+
+        async function confirmAttachOrder() {
+            const customerId = document.getElementById('attach-customer-select').value;
+            if (!customerId) {
+                log('Please select a customer', 'error');
+                return;
+            }
+
+            try {
+                await apiCall(`/orders/${_attachOrderId}/customer/${customerId}`, 'PUT');
+                log(`Order ${_attachOrderId.substring(0, 8)}... attached to customer`, 'success');
+                closeAttachModal();
+                loadOrders();
+            } catch (error) {
+                log(`Failed to attach order: ${error.message}`, 'error');
+            }
+        }
+
+        // Close attach modal on overlay click
+        document.getElementById('attach-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'attach-modal') {
+                closeAttachModal();
+            }
+        });
 
         // ---- Checkout Logic ----
 
