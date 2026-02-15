@@ -62,6 +62,130 @@ async def list_orders(request: Request) -> list[Order]:
         pool.putconn(conn)
 
 
+@router.get("/unassigned", response_model=list[Order])
+async def list_unassigned_orders(request: Request) -> list[Order]:
+    """Return all orders that have no customer attached."""
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, created_at, total_amount, status FROM orders WHERE customer_id IS NULL ORDER BY created_at DESC"
+            )
+            order_rows = cur.fetchall()
+
+            if not order_rows:
+                return []
+
+            order_ids = [str(row[0]) for row in order_rows]
+            cur.execute(
+                "SELECT id, order_id, product_id, quantity, price_at_purchase "
+                "FROM order_items WHERE order_id = ANY(%s::uuid[])",
+                (order_ids,)
+            )
+            item_rows = cur.fetchall()
+
+            # Group items by order_id
+            items_by_order: dict[str, list[OrderItem]] = {}
+            for row in item_rows:
+                oi = OrderItem(
+                    id=str(row[0]),
+                    order_id=str(row[1]),
+                    product_id=str(row[2]),
+                    quantity=row[3],
+                    price_at_purchase=row[4]
+                )
+                items_by_order.setdefault(str(row[1]), []).append(oi)
+
+            orders = []
+            for row in order_rows:
+                orders.append(Order(
+                    id=str(row[0]),
+                    created_at=row[1],
+                    total_amount=row[2],
+                    status=row[3],
+                    customer_id=None,
+                    items=items_by_order.get(str(row[0]), [])
+                ))
+
+            return orders
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load unassigned orders: {str(e)}")
+    finally:
+        pool.putconn(conn)
+
+
+@router.put("/{order_id}/customer/{customer_id}", response_model=Order)
+async def attach_order_to_customer(order_id: str, customer_id: str, request: Request) -> Order:
+    """Attach an unassigned order to a customer."""
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            # Validate customer exists
+            cur.execute("SELECT id FROM customers WHERE id = %s", (customer_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Customer not found")
+
+            # Update only if currently unassigned
+            cur.execute(
+                "UPDATE orders SET customer_id = %s WHERE id = %s AND customer_id IS NULL "
+                "RETURNING id, created_at, total_amount, status",
+                (customer_id, order_id)
+            )
+            row = cur.fetchone()
+            if not row:
+                cur.execute("SELECT id, customer_id FROM orders WHERE id = %s", (order_id,))
+                existing = cur.fetchone()
+                if not existing:
+                    raise HTTPException(status_code=404, detail="Order not found")
+                raise HTTPException(status_code=400, detail="Order is already assigned to a customer")
+
+            conn.commit()
+
+            return Order(
+                id=str(row[0]),
+                created_at=row[1],
+                total_amount=row[2],
+                status=row[3],
+                customer_id=customer_id
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to attach order: {str(e)}")
+    finally:
+        pool.putconn(conn)
+
+
+@router.delete("/{order_id}", status_code=204)
+async def delete_order(order_id: str, request: Request):
+    """Delete an order and its items."""
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            # Check if order exists
+            cur.execute("SELECT id FROM orders WHERE id = %s", (order_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Order not found")
+
+            # Delete items first (no CASCADE in schema)
+            cur.execute("DELETE FROM order_items WHERE order_id = %s", (order_id,))
+            
+            # Delete order
+            cur.execute("DELETE FROM orders WHERE id = %s", (order_id,))
+            conn.commit()
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete order: {str(e)}")
+    finally:
+        pool.putconn(conn)
+
+
 @router.post("", response_model=Order, status_code=201)
 async def create_order(order_data: OrderCreate, request: Request) -> Order:
     """
