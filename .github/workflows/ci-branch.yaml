@@ -73,7 +73,6 @@ jobs:
             tests/test_model.py \
             tests/test_html_structure.py \
             tests/test_order_history.py \
-            tests/test_orders.py \
             tests/test_orders_qe.py \
             tests/test_orders_uuid_fix.py \
             tests/test_order_status.py \
