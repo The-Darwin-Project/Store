@@ -11,8 +11,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../src'))
 
 from app.main import app
 
-client = TestClient(app)
-
 MOCK_PRODUCT_ID = str(uuid.uuid4())
 MOCK_ORDER_PAYLOAD = {
     "items": [

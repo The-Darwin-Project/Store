@@ -1,0 +1,9 @@
+# Store/requirements-test.txt
+# @ai-rules:
+# 1. [Constraint]: Test-only deps -- NOT installed in production Dockerfile.
+# 2. [Pattern]: Inherits runtime deps via -r, adds pytest + httpx for FastAPI TestClient.
+# 3. [Gotcha]: httpx is required by FastAPI TestClient (starlette.testclient).
+
+-r requirements.txt
+pytest
+httpx

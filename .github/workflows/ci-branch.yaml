@@ -3,7 +3,12 @@
 # On success: auto-creates PR and merges to main
 # Main branch build-push.yaml then builds the image + updates helm tag
 #
-# Flow: Agent pushes to feat/evt-xxx → CI validates → auto-merge to main → build-push triggers
+# Flow: Agent pushes to feat/evt-xxx → CI validates + tests → auto-merge to main → build-push triggers
+#
+# Quality gates (all must pass before auto-merge):
+#   1. validate: Docker build + Helm tag safety
+#   2. test-python: pytest unit tests (FastAPI TestClient, mocked DB)
+#   3. test-playwright: Self-contained UI tests (route-mocked, no server needed)
 
 name: Branch CI + Auto-Merge
 
@@ -32,8 +37,6 @@ jobs:
 
       - name: Check for helm values.yaml conflicts
         run: |
-          # Ensure the branch hasn't accidentally modified the image tag
-          # (CI manages this on main only)
           git fetch origin main
           MAIN_TAG=$(git show origin/main:helm/values.yaml | grep 'tag:' | head -1 | awk '{print $2}' | tr -d '"')
           BRANCH_TAG=$(grep 'tag:' helm/values.yaml | head -1 | awk '{print $2}' | tr -d '"')
@@ -49,8 +52,72 @@ jobs:
           echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "Commit: $(git rev-parse --short HEAD)" >> $GITHUB_STEP_SUMMARY
 
+  test-python:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements-test.txt
+
+      - name: Run pytest
+        run: |
+          python -m pytest \
+            tests/test_model.py \
+            tests/test_html_structure.py \
+            tests/test_order_history.py \
+            tests/test_orders_qe.py \
+            tests/test_orders_uuid_fix.py \
+            tests/test_order_status.py \
+            tests/test_uuid_cast_fix.py \
+            tests/test_customers_qe.py \
+            tests/test_redesign.py \
+            tests/test_unassigned_orders.py \
+            tests/verify_customers_api.py \
+            -v --tb=short
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## Python Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
+  test-playwright:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run self-contained Playwright tests
+        run: npm test
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## Playwright Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
   auto-merge:
-    needs: validate
+    needs: [validate, test-python, test-playwright]
     runs-on: ubuntu-latest
 
     permissions:
@@ -58,7 +125,6 @@ jobs:
       pull-requests: write
 
     steps:
-      # GitHub App authentication (if configured)
       - name: Generate GitHub App Token
         id: app-token
         if: vars.USE_GITHUB_APP == 'true'
@@ -76,7 +142,6 @@ jobs:
 
       - name: Reset helm values.yaml to main
         run: |
-          # Prevent agent branches from overwriting CI-managed image tag
           git fetch origin main
           if ! git diff --quiet origin/main -- helm/values.yaml; then
             echo "Resetting helm/values.yaml to main's version (agent should not modify image tag)"
@@ -94,19 +159,15 @@ jobs:
         run: |
           BRANCH="${{ github.ref_name }}"
           
-          # Create PR if it doesn't exist
           EXISTING_PR=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' 2>/dev/null || echo "")
           if [ -z "$EXISTING_PR" ]; then
             gh pr create \
               --title "Auto: ${BRANCH}" \
-              --body "Automated PR from Darwin agent branch. CI validated." \
+              --body "Automated PR from Darwin agent branch. CI validated (Docker build + pytest + Playwright)." \
               --head "$BRANCH" \
               --base main
           fi
           
-          # Merge immediately (CI already passed in the validate job)
-          # Use --admin to bypass branch protection checks (validate job is the CI gate)
-          # Retry with delays in case PR status is still propagating
           MERGED=false
           for i in 1 2 3; do
             if gh pr merge "$BRANCH" --merge --delete-branch --admin 2>/dev/null; then
@@ -118,7 +179,6 @@ jobs:
           done
           
           if [ "$MERGED" = "false" ]; then
-            # Fallback: try without --admin (in case App doesn't have admin)
             gh pr merge "$BRANCH" --merge --delete-branch || echo "WARNING: Auto-merge failed"
           fi
           
