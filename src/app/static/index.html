@@ -970,7 +970,7 @@
                 'delivered': [],
                 'cancelled': []
             };
-            return transitions[currentStatus] || [];
+            return transitions[currentStatus] || ['processing', 'cancelled'];
         }
 
         function renderStatusBadge(status) {
