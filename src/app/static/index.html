@@ -241,6 +241,7 @@
         }
 
         .supplier-reorder {
+            display: inline-block;
             background: rgba(251, 191, 36, 0.2);
             color: var(--warning);
             font-weight: 600;
@@ -1246,7 +1247,7 @@
                         <td>${escapeHtml(p.sku)}</td>
                         <td class="price">$${p.price.toFixed(2)}</td>
                         <td class="stock ${stockClass}">${p.stock}</td>
-                        <td class="${supplierClass}">${supplierName}</td>
+                        <td><span class="${supplierClass}">${supplierName}</span></td>
                         <td class="desc-cell" title="${desc}">${desc}</td>
                         <td class="actions">
                             <button class="small secondary" onclick="openEditModal('${p.id}')">Edit</button>
