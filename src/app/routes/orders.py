@@ -322,6 +322,19 @@ async def update_order_status(order_id: str, body: OrderStatusUpdate, request: R
                                f"Allowed: {[s.value for s in allowed] if allowed else 'none (terminal state)'}"
                     )
 
+            # Restore stock when cancelling
+            if body.status == OrderStatus.CANCELLED:
+                cur.execute(
+                    "SELECT product_id, quantity FROM order_items WHERE order_id = %s",
+                    (order_id,)
+                )
+                items = cur.fetchall()
+                for product_id, quantity in items:
+                    cur.execute(
+                        "UPDATE products SET stock = stock + %s WHERE id = %s",
+                        (quantity, product_id)
+                    )
+
             # Update status
             cur.execute(
                 "UPDATE orders SET status = %s, updated_at = NOW() WHERE id = %s "

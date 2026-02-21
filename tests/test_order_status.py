@@ -55,7 +55,7 @@ def test_update_order_status_invalid(mock_pool_cls):
 
 @patch("app.main.SimpleConnectionPool")
 def test_update_order_status_cancel(mock_pool_cls):
-    """Test cancelling an order."""
+    """Test cancelling an order restores stock for each order item."""
     mock_pool = MagicMock()
     mock_pool_cls.return_value = mock_pool
     mock_conn = MagicMock()
@@ -63,16 +63,30 @@ def test_update_order_status_cancel(mock_pool_cls):
     mock_pool.getconn.return_value = mock_conn
     mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
-    # Current status: processing
+    product_a = "aaaa-aaaa"
+    product_b = "bbbb-bbbb"
+
+    # fetchone #1: current order row (processing)
+    # fetchall: order_items for stock restoration
+    # fetchone #2: RETURNING row after status UPDATE
     mock_cursor.fetchone.side_effect = [
         (MOCK_ORDER_ID, "2023-01-01", 100.0, "processing", MOCK_CUSTOMER_ID),
         (MOCK_ORDER_ID, "2023-01-01", 100.0, "cancelled", MOCK_CUSTOMER_ID),
+    ]
+    mock_cursor.fetchall.return_value = [
+        (product_a, 2),
+        (product_b, 5),
     ]
 
     with TestClient(app) as client:
         response = client.patch(f"/orders/{MOCK_ORDER_ID}/status", json={"status": "cancelled"})
         assert response.status_code == 200
         assert response.json()["status"] == "cancelled"
+
+    # Verify stock restoration queries were executed
+    executed_queries = [call[0][0] for call in mock_cursor.execute.call_args_list]
+    stock_updates = [q for q in executed_queries if "stock = stock +" in q]
+    assert len(stock_updates) == 2, f"Expected 2 stock restoration queries, got {len(stock_updates)}"
 
 
 @patch("app.main.SimpleConnectionPool")
