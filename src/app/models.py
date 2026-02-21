@@ -18,6 +18,7 @@ class OrderStatus(str, Enum):
     SHIPPED = "shipped"
     DELIVERED = "delivered"
     CANCELLED = "cancelled"
+    RETURNED = "returned"
 
 
 # Valid transitions: current_status -> set of allowed next statuses
@@ -25,8 +26,9 @@ ORDER_STATUS_TRANSITIONS = {
     OrderStatus.PENDING: {OrderStatus.PROCESSING, OrderStatus.CANCELLED},
     OrderStatus.PROCESSING: {OrderStatus.SHIPPED, OrderStatus.CANCELLED},
     OrderStatus.SHIPPED: {OrderStatus.DELIVERED, OrderStatus.CANCELLED},
-    OrderStatus.DELIVERED: set(),   # terminal
+    OrderStatus.DELIVERED: {OrderStatus.RETURNED},
     OrderStatus.CANCELLED: set(),   # terminal
+    OrderStatus.RETURNED: set(),    # terminal
 }
 
 

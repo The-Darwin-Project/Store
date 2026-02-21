@@ -21,6 +21,7 @@
         .status-badge.status-shipped    { background: rgba(167,139,250,0.15); color: #a78bfa; }
         .status-badge.status-delivered  { background: rgba(74,222,128,0.15); color: #4ade80; }
         .status-badge.status-cancelled  { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .status-badge.status-returned   { background: rgba(251,146,60,0.15); color: #fb923c; }
 
         :root {
             --bg-primary: #1a1a2e;
@@ -967,8 +968,9 @@
                 'pending': ['processing', 'cancelled'],
                 'processing': ['shipped', 'cancelled'],
                 'shipped': ['delivered', 'cancelled'],
-                'delivered': [],
-                'cancelled': []
+                'delivered': ['returned'],
+                'cancelled': [],
+                'returned': []
             };
             return transitions[currentStatus] || ['processing', 'cancelled'];
         }
@@ -979,7 +981,9 @@
 
         function renderStatusActions(orderId, currentStatus) {
             const nextStatuses = getNextStatuses(currentStatus);
-            if (nextStatuses.length === 0) return '';
+            if (nextStatuses.length === 0) {
+                return '<button class="small" disabled style="opacity:0.4;cursor:not-allowed;">No Actions</button>';
+            }
 
             const forward = nextStatuses.filter(s => s !== 'cancelled');
             const canCancel = nextStatuses.includes('cancelled');

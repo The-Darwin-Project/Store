@@ -90,6 +90,59 @@ def test_update_order_status_cancel(mock_pool_cls):
 
 
 @patch("app.main.SimpleConnectionPool")
+def test_update_order_status_returned(mock_pool_cls):
+    """Test delivered -> returned restores stock for each order item."""
+    mock_pool = MagicMock()
+    mock_pool_cls.return_value = mock_pool
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_pool.getconn.return_value = mock_conn
+    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+    product_a = "aaaa-aaaa"
+    product_b = "bbbb-bbbb"
+
+    mock_cursor.fetchone.side_effect = [
+        (MOCK_ORDER_ID, "2023-01-01", 100.0, "delivered", MOCK_CUSTOMER_ID),
+        (MOCK_ORDER_ID, "2023-01-01", 100.0, "returned", MOCK_CUSTOMER_ID),
+    ]
+    mock_cursor.fetchall.return_value = [
+        (product_a, 3),
+        (product_b, 1),
+    ]
+
+    with TestClient(app) as client:
+        response = client.patch(f"/orders/{MOCK_ORDER_ID}/status", json={"status": "returned"})
+        assert response.status_code == 200
+        assert response.json()["status"] == "returned"
+
+    # Verify stock restoration queries were executed
+    executed_queries = [call[0][0] for call in mock_cursor.execute.call_args_list]
+    stock_updates = [q for q in executed_queries if "stock = stock +" in q]
+    assert len(stock_updates) == 2, f"Expected 2 stock restoration queries, got {len(stock_updates)}"
+
+
+@patch("app.main.SimpleConnectionPool")
+def test_update_order_status_returned_terminal(mock_pool_cls):
+    """Test that returned is a terminal state — cannot transition further."""
+    mock_pool = MagicMock()
+    mock_pool_cls.return_value = mock_pool
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_pool.getconn.return_value = mock_conn
+    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+    mock_cursor.fetchone.side_effect = [
+        (MOCK_ORDER_ID, "2023-01-01", 100.0, "returned", MOCK_CUSTOMER_ID),
+    ]
+
+    with TestClient(app) as client:
+        response = client.patch(f"/orders/{MOCK_ORDER_ID}/status", json={"status": "pending"})
+        assert response.status_code == 400
+        assert "Cannot transition from 'returned' to 'pending'" in response.json()["detail"]
+
+
+@patch("app.main.SimpleConnectionPool")
 def test_update_order_status_not_found(mock_pool_cls):
     """Test 404 on unknown order."""
     mock_pool = MagicMock()
