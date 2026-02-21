@@ -48,6 +48,17 @@ test.describe('Darwin Store UI Redesign', () => {
       }
     });
 
+    // Mock other API endpoints used at init
+    await page.route('**/suppliers', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+    await page.route('**/customers', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+    await page.route('**/orders**', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+
     // Load the local HTML file
     const htmlPath = path.resolve(__dirname, '../src/app/static/index.html');
     const htmlContent = fs.readFileSync(htmlPath, 'utf8');
@@ -133,7 +144,7 @@ test.describe('Darwin Store UI Redesign', () => {
 
     // Check Description cell
     const firstRow = rows.first();
-    await expect(firstRow.locator('td').nth(5)).toHaveText('This is a test description.'); // 6th column (index 5) is Description
+    await expect(firstRow.locator('td').nth(6)).toHaveText('This is a test description.'); // 7th column (index 6) is Description (Supplier is at index 5)
   });
 
   test('should have description field in Add Product form', async ({ page }) => {
