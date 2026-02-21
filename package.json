@@ -7,7 +7,8 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx playwright test tests/test_shopping_cart.spec.js tests/verify_ui.spec.js tests/verify_checkout.spec.js tests/verify_frontend_customers.spec.js tests/verify_shopping_cart.spec.js tests/verify_unassigned_orders_ui.spec.js",
+    "test:all": "npx playwright test"
   },
   "repository": {
     "type": "git",
