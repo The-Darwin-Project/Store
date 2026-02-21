@@ -288,7 +288,7 @@ async def update_order_status(order_id: str, body: OrderStatusUpdate, request: R
     Update the status of an order.
 
     Enforces valid transitions:
-      pending -> processing -> shipped -> delivered
+      pending -> processing -> shipped -> delivered -> returned
       Any non-terminal state -> cancelled
     """
     pool = request.app.state.db_pool
@@ -322,8 +322,8 @@ async def update_order_status(order_id: str, body: OrderStatusUpdate, request: R
                                f"Allowed: {[s.value for s in allowed] if allowed else 'none (terminal state)'}"
                     )
 
-            # Restore stock when cancelling
-            if body.status == OrderStatus.CANCELLED:
+            # Restore stock when cancelling or returning
+            if body.status in (OrderStatus.CANCELLED, OrderStatus.RETURNED):
                 cur.execute(
                     "SELECT product_id, quantity FROM order_items WHERE order_id = %s",
                     (order_id,)
