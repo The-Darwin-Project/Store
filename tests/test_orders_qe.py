@@ -20,7 +20,8 @@ MOCK_ORDER_PAYLOAD = {
             "product_id": MOCK_PRODUCT_ID,
             "quantity": 2
         }
-    ]
+    ],
+    "customer_id": str(uuid.uuid4())
 }
 
 @patch("app.main.SimpleConnectionPool")

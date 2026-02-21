@@ -39,7 +39,7 @@ route:
 # -- Application metadata
 app:
   name: "darwin-store"
-  version: "55.1"
+  version: "56.0"
 # -- Postgres configuration
 postgres:
   # Image settings (RHEL9 image for OpenShift CRI-O short-name enforcement)
