@@ -20,8 +20,8 @@ async def list_products(request: Request) -> list[Product]:
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, name, price, stock, sku, image_data, description FROM products")
-            products = [Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6]) for row in cur.fetchall()]
+            cur.execute("SELECT id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold FROM products")
+            products = [Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6], supplier_id=str(row[7]) if row[7] else None, reorder_threshold=row[8] if row[8] is not None else 10) for row in cur.fetchall()]
             return products
     finally:
         pool.putconn(conn)
@@ -34,11 +34,11 @@ async def get_product(product_id: str, request: Request) -> Product:
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, name, price, stock, sku, image_data, description FROM products WHERE id = %s", (product_id,))
+            cur.execute("SELECT id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold FROM products WHERE id = %s", (product_id,))
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Product not found")
-            return Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6])
+            return Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6], supplier_id=str(row[7]) if row[7] else None, reorder_threshold=row[8] if row[8] is not None else 10)
     finally:
         pool.putconn(conn)
 
@@ -54,15 +54,17 @@ async def create_product(product: ProductCreate, request: Request) -> Product:
         stock=product.stock,
         sku=product.sku,
         image_data=product.image_data,
-        description=product.description
+        description=product.description,
+        supplier_id=product.supplier_id,
+        reorder_threshold=product.reorder_threshold
     )
     pool = request.app.state.db_pool
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO products (id, name, price, stock, sku, image_data, description) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (new_product.id, new_product.name, new_product.price, new_product.stock, new_product.sku, new_product.image_data, new_product.description)
+                "INSERT INTO products (id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (new_product.id, new_product.name, new_product.price, new_product.stock, new_product.sku, new_product.image_data, new_product.description, new_product.supplier_id, new_product.reorder_threshold)
             )
             conn.commit()
             return new_product
@@ -80,17 +82,17 @@ async def update_product(product_id: str, product: ProductCreate, request: Reque
             cur.execute(
                 """
                 UPDATE products
-                SET name = %s, price = %s, stock = %s, sku = %s, image_data = COALESCE(%s, image_data), description = %s
+                SET name = %s, price = %s, stock = %s, sku = %s, image_data = COALESCE(%s, image_data), description = %s, supplier_id = %s, reorder_threshold = %s
                 WHERE id = %s
-                RETURNING id, name, price, stock, sku, image_data, description
+                RETURNING id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold
                 """,
-                (product.name, product.price, product.stock, product.sku, product.image_data, product.description, product_id)
+                (product.name, product.price, product.stock, product.sku, product.image_data, product.description, product.supplier_id, product.reorder_threshold, product_id)
             )
             row = cur.fetchone()
             conn.commit()
             if not row:
                 raise HTTPException(status_code=404, detail="Product not found")
-            return Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6])
+            return Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6], supplier_id=str(row[7]) if row[7] else None, reorder_threshold=row[8] if row[8] is not None else 10)
     finally:
         pool.putconn(conn)
 
@@ -104,11 +106,11 @@ async def patch_product(product_id: str, updates: ProductUpdate, request: Reques
     try:
         with conn.cursor() as cur:
             # Fetch existing product
-            cur.execute("SELECT id, name, price, stock, sku, image_data, description FROM products WHERE id = %s", (product_id,))
+            cur.execute("SELECT id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold FROM products WHERE id = %s", (product_id,))
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Product not found")
-            existing = Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6])
+            existing = Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6], supplier_id=str(row[7]) if row[7] else None, reorder_threshold=row[8] if row[8] is not None else 10)
 
             # No-op: empty body returns existing product unchanged
             if not provided:
@@ -117,8 +119,8 @@ async def patch_product(product_id: str, updates: ProductUpdate, request: Reques
             # Merge provided fields over existing
             merged = existing.model_copy(update=provided)
             cur.execute(
-                "UPDATE products SET name = %s, price = %s, stock = %s, sku = %s, image_data = %s, description = %s WHERE id = %s",
-                (merged.name, merged.price, merged.stock, merged.sku, merged.image_data, merged.description, product_id)
+                "UPDATE products SET name = %s, price = %s, stock = %s, sku = %s, image_data = %s, description = %s, supplier_id = %s, reorder_threshold = %s WHERE id = %s",
+                (merged.name, merged.price, merged.stock, merged.sku, merged.image_data, merged.description, merged.supplier_id, merged.reorder_threshold, product_id)
             )
             conn.commit()
             return merged

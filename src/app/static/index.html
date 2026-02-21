@@ -233,6 +233,14 @@
             color: var(--danger);
         }
 
+        .supplier-reorder {
+            background: rgba(251, 191, 36, 0.2);
+            color: var(--warning);
+            font-weight: 600;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+
         /* Tab Styles */
         .nav-tabs {
             border-bottom: 2px solid rgba(255,255,255,0.1);
@@ -547,6 +555,9 @@
         .customer-orders-section {
             margin-top: 1rem;
         }
+        .supplier-products-section {
+            margin-top: 1rem;
+        }
         .customer-list-item {
             display: flex;
             justify-content: space-between;
@@ -615,6 +626,9 @@
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="customers-tab" type="button" role="tab" onclick="switchTab('customers')">Customers</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="suppliers-tab" type="button" role="tab" onclick="switchTab('suppliers')">Suppliers</button>
             </li>
         </ul>
 
@@ -775,6 +789,56 @@
                 </div>
             </div>
 
+            <!-- Suppliers Tab -->
+            <div class="tab-pane" id="suppliers">
+                <div class="panel">
+                    <h2>Add Supplier</h2>
+                    <form id="add-supplier-form">
+                        <div class="form-row">
+                            <div class="form-group flex-grow">
+                                <label for="supp-name">Name</label>
+                                <input type="text" id="supp-name" placeholder="Supplier name" required>
+                            </div>
+                            <div class="form-group flex-grow">
+                                <label for="supp-email">Contact Email</label>
+                                <input type="email" id="supp-email" placeholder="contact@supplier.com">
+                            </div>
+                            <div class="form-group flex-grow">
+                                <label for="supp-phone">Phone</label>
+                                <input type="tel" id="supp-phone" placeholder="Phone number">
+                            </div>
+                            <div class="form-group">
+                                <button type="submit">Add Supplier</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="panel">
+                    <h2>Supplier List</h2>
+                    <div id="supplier-list">
+                        <div class="empty-state">No suppliers yet.</div>
+                    </div>
+                </div>
+                <div class="panel supplier-products-section" id="supplier-products-panel" style="display: none;">
+                    <h2 id="supplier-products-title">Supplier Products</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>SKU</th>
+                                    <th>Price</th>
+                                    <th>Stock</th>
+                                </tr>
+                            </thead>
+                            <tbody id="supplier-products-table">
+                                <tr><td colspan="4" class="empty-state">Select a supplier to view products.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Inventory Tab -->
             <div class="tab-pane" id="inventory">
                 <!-- Add Product Form -->
@@ -797,6 +861,16 @@
                             <div class="form-group">
                                 <label for="add-stock">Stock</label>
                                 <input type="number" id="add-stock" min="0" value="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="add-reorder">Reorder At</label>
+                                <input type="number" id="add-reorder" min="0" value="10">
+                            </div>
+                            <div class="form-group flex-grow">
+                                <label for="add-supplier">Supplier</label>
+                                <select id="add-supplier">
+                                    <option value="">-- No supplier --</option>
+                                </select>
                             </div>
                             <div class="form-group">
                                 <label for="add-image">Image</label>
@@ -825,13 +899,14 @@
                                     <th>SKU</th>
                                     <th>Price</th>
                                     <th>Stock</th>
+                                    <th>Supplier</th>
                                     <th>Description</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="product-table">
                                 <tr>
-                                    <td colspan="7" class="empty-state">No products yet. Add one above!</td>
+                                    <td colspan="8" class="empty-state">No products yet. Add one above!</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -868,6 +943,16 @@
                 <div class="form-group">
                     <label for="edit-stock">Stock</label>
                     <input type="number" id="edit-stock" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-reorder">Reorder At</label>
+                    <input type="number" id="edit-reorder" min="0" value="10">
+                </div>
+                <div class="form-group flex-grow">
+                    <label for="edit-supplier">Supplier</label>
+                    <select id="edit-supplier">
+                        <option value="">-- No supplier --</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="edit-image">Replace Image</label>
@@ -952,6 +1037,8 @@
     </div>
 
     <script>
+        let _suppliersCache = [];
+
         async function updateOrderStatus(orderId, newStatus) {
             try {
                 const order = await apiCall(`/orders/${orderId}/status`, 'PATCH', { status: newStatus });
@@ -1022,6 +1109,7 @@
             if (tabName === 'orders') loadOrders();
             if (tabName === 'customers') loadCustomers();
             if (tabName === 'cart') loadCustomerDropdown();
+            if (tabName === 'suppliers') loadSuppliers();
         }
 
         // API helper with error handling
@@ -1130,7 +1218,7 @@
             const tbody = document.getElementById('product-table');
 
             if (!products || products.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No products yet. Add one above!</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No products yet. Add one above!</td></tr>';
                 return;
             }
 
@@ -1140,6 +1228,9 @@
                     ? `<img src="${p.image_data}" alt="${escapeHtml(p.name)}" width="50" height="50" style="object-fit: cover;">`
                     : `<div style="width: 50px; height: 50px; background: #ccc; display: inline-block;"></div>`;
                 const desc = escapeHtml(p.description || '');
+                const supplier = _suppliersCache.find(s => s.id === p.supplier_id);
+                const supplierName = supplier ? escapeHtml(supplier.name) : '-';
+                const supplierClass = (supplier && p.stock <= (p.reorder_threshold ?? 10)) ? 'supplier-reorder' : '';
 
                 return `
                     <tr data-id="${p.id}">
@@ -1148,6 +1239,7 @@
                         <td>${escapeHtml(p.sku)}</td>
                         <td class="price">$${p.price.toFixed(2)}</td>
                         <td class="stock ${stockClass}">${p.stock}</td>
+                        <td class="${supplierClass}">${supplierName}</td>
                         <td class="desc-cell" title="${desc}">${desc}</td>
                         <td class="actions">
                             <button class="small secondary" onclick="openEditModal('${p.id}')">Edit</button>
@@ -1185,6 +1277,8 @@
             document.getElementById('edit-sku').value = p.sku;
             document.getElementById('edit-price').value = p.price;
             document.getElementById('edit-stock').value = p.stock;
+            document.getElementById('edit-reorder').value = p.reorder_threshold ?? 10;
+            document.getElementById('edit-supplier').value = p.supplier_id || '';
             document.getElementById('edit-description').value = p.description || '';
             document.getElementById('edit-image').value = '';
             document.getElementById('edit-modal').classList.add('active');
@@ -1201,6 +1295,8 @@
             const sku = document.getElementById('add-sku').value.trim();
             const price = parseFloat(document.getElementById('add-price').value) || 0;
             const stock = parseInt(document.getElementById('add-stock').value) || 0;
+            const reorder_threshold = parseInt(document.getElementById('add-reorder').value) || 0;
+            const supplier_id = document.getElementById('add-supplier').value || null;
             const description = document.getElementById('add-description').value.trim();
             const imageFile = document.getElementById('add-image').files[0];
 
@@ -1223,7 +1319,7 @@
                 });
             }
 
-            await createProduct({ name, sku, price, stock, image_data: imageData, description });
+            await createProduct({ name, sku, price, stock, image_data: imageData, description, reorder_threshold, supplier_id });
             document.getElementById('add-form').reset();
         });
 
@@ -1234,6 +1330,8 @@
             const sku = document.getElementById('edit-sku').value.trim();
             const price = parseFloat(document.getElementById('edit-price').value) || 0;
             const stock = parseInt(document.getElementById('edit-stock').value) || 0;
+            const reorder_threshold = parseInt(document.getElementById('edit-reorder').value) || 0;
+            const supplier_id = document.getElementById('edit-supplier').value || null;
             const description = document.getElementById('edit-description').value.trim();
             const imageFile = document.getElementById('edit-image').files[0];
 
@@ -1257,7 +1355,7 @@
             }
 
             try {
-                const product = await apiCall(`/products/${id}`, 'PUT', { name, sku, price, stock, image_data: imageData, description });
+                const product = await apiCall(`/products/${id}`, 'PUT', { name, sku, price, stock, image_data: imageData, description, reorder_threshold, supplier_id });
                 log(`Updated product: ${product.name}`, 'success');
                 loadProducts();
             } catch (error) {
@@ -1732,14 +1830,118 @@
 
         // ---- End Customer Logic ----
 
+        // ---- Supplier Logic ----
+        async function loadSuppliers() {
+            try {
+                const suppliers = await apiCall('/suppliers');
+                _suppliersCache = suppliers || [];
+                renderSupplierList();
+                loadSupplierDropdowns();
+            } catch (error) {
+                log(`Failed to load suppliers: ${error.message}`, 'error');
+            }
+        }
+
+        function renderSupplierList() {
+            const list = document.getElementById('supplier-list');
+            if (!_suppliersCache.length) {
+                list.innerHTML = '<div class="empty-state">No suppliers yet.</div>';
+                return;
+            }
+            list.innerHTML = _suppliersCache.map(s => {
+                const lowBadge = s.low_stock_count > 0
+                    ? `<span class="supplier-reorder" style="margin-left:0.5rem;">${s.low_stock_count} low stock</span>`
+                    : '';
+                return `
+                <div class="customer-list-item" onclick="selectSupplier('${s.id}')">
+                    <div>
+                        <strong>${escapeHtml(s.name)}</strong>
+                        <span style="color: var(--text-secondary); margin-left: 0.5rem;">${escapeHtml(s.contact_email || '')} ${escapeHtml(s.phone || '')}</span>
+                        ${lowBadge}
+                    </div>
+                    <div class="actions">
+                        <button class="small secondary" onclick="event.stopPropagation(); selectSupplier('${s.id}')">Products</button>
+                        <button class="small danger" onclick="event.stopPropagation(); deleteSupplier('${s.id}', '${escapeHtml(s.name).replace(/'/g, "\\'")}')">Delete</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function selectSupplier(id) {
+            try {
+                const products = await apiCall(`/suppliers/${id}/products`);
+                const title = document.getElementById('supplier-products-title');
+                const supplier = _suppliersCache.find(s => s.id === id);
+                title.textContent = `Products for ${supplier.name}`;
+                
+                const tbody = document.getElementById('supplier-products-table');
+                if (!products.length) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No products attached to this supplier.</td></tr>';
+                } else {
+                    tbody.innerHTML = products.map(p => `
+                        <tr>
+                            <td>${escapeHtml(p.name)}</td>
+                            <td>${escapeHtml(p.sku)}</td>
+                            <td>$${p.price.toFixed(2)}</td>
+                            <td class="stock ${p.stock <= p.reorder_threshold ? 'out' : ''}">${p.stock}</td>
+                        </tr>
+                    `).join('');
+                }
+                document.getElementById('supplier-products-panel').style.display = 'block';
+            } catch (error) {
+                log(`Failed to load supplier products: ${error.message}`, 'error');
+            }
+        }
+
+        document.getElementById('add-supplier-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('supp-name').value;
+            const email = document.getElementById('supp-email').value;
+            const phone = document.getElementById('supp-phone').value;
+            try {
+                await apiCall('/suppliers', 'POST', { name, contact_email: email, phone });
+                log(`Added supplier: ${name}`, 'success');
+                e.target.reset();
+                loadSuppliers();
+            } catch (error) {
+                log(`Failed to add supplier: ${error.message}`, 'error');
+            }
+        });
+
+        async function deleteSupplier(id, name) {
+            if (!confirm(`Are you sure you want to delete supplier ${name}?`)) return;
+            try {
+                await apiCall(`/suppliers/${id}`, 'DELETE');
+                log(`Deleted supplier: ${name}`, 'success');
+                if (document.getElementById('supplier-products-panel').style.display === 'block') {
+                    document.getElementById('supplier-products-panel').style.display = 'none';
+                }
+                loadSuppliers();
+            } catch (error) {
+                log(`Failed to delete supplier: ${error.message}`, 'error');
+            }
+        }
+
+        function loadSupplierDropdowns() {
+            const addSelect = document.getElementById('add-supplier');
+            const editSelect = document.getElementById('edit-supplier');
+            const options = '<option value="">-- No supplier --</option>' + _suppliersCache.map(s => 
+                `<option value="${s.id}">${escapeHtml(s.name)}</option>`
+            ).join('');
+            if (addSelect) addSelect.innerHTML = options;
+            if (editSelect) editSelect.innerHTML = options;
+        }
+        // ---- End Supplier Logic ----
+
         // ---- End Shopping Cart Logic ----
 
         // Initial load and auto-refresh
-        loadProducts();
+        loadSuppliers().then(() => loadProducts());
         renderCart();
         renderCartCount();
         loadCustomerDropdown();
         setInterval(loadProducts, 5000);
+        setInterval(loadSuppliers, 5000);
         log('Darwin Store initialized', 'success');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

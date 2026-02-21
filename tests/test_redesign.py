@@ -24,14 +24,14 @@ class TestStoreRedesign(unittest.TestCase):
 
     def test_list_products_sql(self):
         """Verify list_products selects description."""
-        # Mock fetchall return
+        # Mock fetchall return (9 columns including supplier_id and reorder_threshold)
         self.mock_cursor.fetchall.return_value = [
-            ('id1', 'name1', 10.0, 5, 'sku1', 'img1', 'desc1')
+            ('id1', 'name1', 10.0, 5, 'sku1', 'img1', 'desc1', None, 10)
         ]
-        
+
         result = asyncio.run(products_routes.list_products(self.mock_request))
-        
-        self.mock_cursor.execute.assert_called_with("SELECT id, name, price, stock, sku, image_data, description FROM products")
+
+        self.mock_cursor.execute.assert_called_with("SELECT id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold FROM products")
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].description, 'desc1')
 
@@ -53,8 +53,8 @@ class TestStoreRedesign(unittest.TestCase):
     def test_update_product_sql(self):
         """Verify update_product updates description."""
         product_in = ProductCreate(name="n", price=1, stock=1, sku="s", description="new_d")
-        self.mock_cursor.fetchone.return_value = ('id1', 'n', 1.0, 1, 's', 'img', 'new_d')
-        
+        self.mock_cursor.fetchone.return_value = ('id1', 'n', 1.0, 1, 's', 'img', 'new_d', None, 10)
+
         asyncio.run(products_routes.update_product("id1", product_in, self.mock_request))
         
         call_args = self.mock_cursor.execute.call_args

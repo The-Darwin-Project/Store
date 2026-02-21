@@ -30,6 +30,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from .routes.products import router as products_router
 from .routes.orders import router as orders_router
 from .routes.customers import router as customers_router
+from .routes.suppliers import router as suppliers_router
 from .chaos_state import get_chaos, record_request
 
 logging.basicConfig(level=logging.INFO)
@@ -105,6 +106,7 @@ app.add_middleware(ChaosMiddleware)
 app.include_router(products_router)
 app.include_router(orders_router)
 app.include_router(customers_router)
+app.include_router(suppliers_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -152,6 +154,15 @@ async def startup_event():
     try:
         conn = db_pool.getconn()
         with conn.cursor() as cur:
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS suppliers (
+                    id UUID PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    contact_email VARCHAR(255),
+                    phone VARCHAR(50),
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            ''')
             cur.execute('''
                 CREATE TABLE IF NOT EXISTS products (
                     id UUID PRIMARY KEY,
@@ -216,6 +227,24 @@ async def startup_event():
                 conn.commit()
             except Exception as e:
                 logger.warning(f"Migration warning (updated_at): {e}")
+
+            # Migration: Add supplier_id to products
+            try:
+                cur.execute("""
+                    ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier_id UUID REFERENCES suppliers(id)
+                """)
+                conn.commit()
+            except Exception as e:
+                logger.warning(f"Migration warning (supplier_id): {e}")
+
+            # Migration: Add reorder_threshold to products
+            try:
+                cur.execute("""
+                    ALTER TABLE products ADD COLUMN IF NOT EXISTS reorder_threshold INTEGER DEFAULT 10
+                """)
+                conn.commit()
+            except Exception as e:
+                logger.warning(f"Migration warning (reorder_threshold): {e}")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
     finally:
