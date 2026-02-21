@@ -39,7 +39,7 @@ def test_get_orders_history(mock_pool_cls):
     mock_cursor.fetchall.side_effect = [
         # Query 1: Orders
         [
-            (MOCK_ORDER_ID_1, TIMESTAMP_1, 50.0, "confirmed"),
+            (MOCK_ORDER_ID_1, TIMESTAMP_1, 50.0, "pending"),
             (MOCK_ORDER_ID_2, TIMESTAMP_2, 10.0, "shipped"),
         ],
         # Query 2: Order Items

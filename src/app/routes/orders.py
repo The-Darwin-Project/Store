@@ -4,7 +4,7 @@
 from fastapi import APIRouter, HTTPException, Request
 import uuid
 
-from ..models import Order, OrderItem, OrderCreate
+from ..models import Order, OrderItem, OrderCreate, OrderStatusUpdate, OrderStatus, ORDER_STATUS_TRANSITIONS
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -250,7 +250,7 @@ async def create_order(order_data: OrderCreate, request: Request) -> Order:
             # Insert order record
             cur.execute(
                 "INSERT INTO orders (id, total_amount, status, customer_id) VALUES (%s, %s, %s, %s)",
-                (order_id, total_amount, "confirmed", order_data.customer_id)
+                (order_id, total_amount, "pending", order_data.customer_id)
             )
 
             # Insert order items
@@ -270,7 +270,7 @@ async def create_order(order_data: OrderCreate, request: Request) -> Order:
                 id=order_id,
                 created_at=created_at,
                 total_amount=total_amount,
-                status="confirmed",
+                status="pending",
                 items=order_items,
                 customer_id=order_data.customer_id
             )
@@ -279,5 +279,69 @@ async def create_order(order_data: OrderCreate, request: Request) -> Order:
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"Order creation failed: {str(e)}")
+    finally:
+        pool.putconn(conn)
+
+@router.patch("/{order_id}/status", response_model=Order)
+async def update_order_status(order_id: str, body: OrderStatusUpdate, request: Request) -> Order:
+    """
+    Update the status of an order.
+
+    Enforces valid transitions:
+      pending -> processing -> shipped -> delivered
+      Any non-terminal state -> cancelled
+    """
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            # Fetch current order
+            cur.execute(
+                "SELECT id, created_at, total_amount, status, customer_id FROM orders WHERE id = %s",
+                (order_id,)
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Order not found")
+
+            current_status = row[3]
+
+            # Validate transition
+            try:
+                current_enum = OrderStatus(current_status)
+            except ValueError:
+                # Legacy status value (e.g., "confirmed") -- allow transition to any valid status
+                current_enum = None
+
+            if current_enum is not None:
+                allowed = ORDER_STATUS_TRANSITIONS.get(current_enum, set())
+                if body.status not in allowed:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Cannot transition from '{current_status}' to '{body.status.value}'. "
+                               f"Allowed: {[s.value for s in allowed] if allowed else 'none (terminal state)'}"
+                    )
+
+            # Update status
+            cur.execute(
+                "UPDATE orders SET status = %s, updated_at = NOW() WHERE id = %s "
+                "RETURNING id, created_at, total_amount, status, customer_id",
+                (body.status.value, order_id)
+            )
+            updated = cur.fetchone()
+            conn.commit()
+
+            return Order(
+                id=str(updated[0]),
+                created_at=updated[1],
+                total_amount=updated[2],
+                status=updated[3],
+                customer_id=str(updated[4]) if updated[4] else None,
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update order status: {str(e)}")
     finally:
         pool.putconn(conn)

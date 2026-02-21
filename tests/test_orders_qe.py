@@ -20,7 +20,8 @@ MOCK_ORDER_PAYLOAD = {
             "product_id": MOCK_PRODUCT_ID,
             "quantity": 2
         }
-    ]
+    ],
+    "customer_id": str(uuid.uuid4())
 }
 
 @patch("app.main.SimpleConnectionPool")
@@ -36,8 +37,9 @@ def test_create_order_atomic_update_sql(mock_pool_cls):
     
     # Setup successful execution
     mock_cursor.fetchone.side_effect = [
-        (MOCK_PRODUCT_ID, "Test Product", 10.0, 98), # UPDATE RETURNING
-        (None,) # SELECT created_at
+        (MOCK_ORDER_PAYLOAD["customer_id"],),  # SELECT id FROM customers
+        (MOCK_PRODUCT_ID, "Test Product", 10.0, 98),  # UPDATE RETURNING
+        (None,)  # SELECT created_at
     ]
     
     with TestClient(app) as client:
@@ -68,11 +70,12 @@ def test_create_order_insufficient_stock_rollback(mock_pool_cls):
     mock_pool.getconn.return_value = mock_conn
     mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
     
-    # UPDATE returns None (row not found due to condition)
+    # Customer validation passes, then UPDATE returns None (row not found due to condition)
     # Then SELECT returns product to confirm it exists but has low stock
     mock_cursor.fetchone.side_effect = [
-        None, 
-        ("Test Product", 1) 
+        (MOCK_ORDER_PAYLOAD["customer_id"],),  # SELECT id FROM customers
+        None,
+        ("Test Product", 1)
     ]
     
     with TestClient(app) as client:
@@ -95,10 +98,11 @@ def test_create_order_product_not_found(mock_pool_cls):
     mock_pool.getconn.return_value = mock_conn
     mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
     
-    # UPDATE returns None
+    # Customer validation passes, UPDATE returns None
     # Then SELECT returns None (product really doesn't exist)
     mock_cursor.fetchone.side_effect = [
-        None, 
+        (MOCK_ORDER_PAYLOAD["customer_id"],),  # SELECT id FROM customers
+        None,
         None
     ]
     

@@ -6,6 +6,22 @@
     <title>Darwin Store</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        /* Order Status Badges */
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .status-badge.status-pending    { background: rgba(251,191,36,0.15); color: #fbbf24; }
+        .status-badge.status-processing { background: rgba(96,165,250,0.15); color: #60a5fa; }
+        .status-badge.status-shipped    { background: rgba(167,139,250,0.15); color: #a78bfa; }
+        .status-badge.status-delivered  { background: rgba(74,222,128,0.15); color: #4ade80; }
+        .status-badge.status-cancelled  { background: rgba(239,68,68,0.15); color: #ef4444; }
+
         :root {
             --bg-primary: #1a1a2e;
             --bg-secondary: #16213e;
@@ -680,6 +696,7 @@
                                     <th>Order ID</th>
                                     <th>Total</th>
                                     <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="orders-table">
@@ -934,6 +951,50 @@
     </div>
 
     <script>
+        async function updateOrderStatus(orderId, newStatus) {
+            try {
+                const order = await apiCall(`/orders/${orderId}/status`, 'PATCH', { status: newStatus });
+                log(`Order ${orderId.substring(0, 8)}... status changed to "${order.status}"`, 'success');
+                loadOrders();
+                if (_selectedCustomerId) loadCustomerOrders(_selectedCustomerId);
+            } catch (error) {
+                log(`Failed to update order status: ${error.message}`, 'error');
+            }
+        }
+
+        function getNextStatuses(currentStatus) {
+            const transitions = {
+                'pending': ['processing', 'cancelled'],
+                'processing': ['shipped', 'cancelled'],
+                'shipped': ['delivered', 'cancelled'],
+                'delivered': [],
+                'cancelled': []
+            };
+            return transitions[currentStatus] || [];
+        }
+
+        function renderStatusBadge(status) {
+            return `<span class="status-badge status-${escapeHtml(status)}">${escapeHtml(status)}</span>`;
+        }
+
+        function renderStatusActions(orderId, currentStatus) {
+            const nextStatuses = getNextStatuses(currentStatus);
+            if (nextStatuses.length === 0) return '';
+
+            const forward = nextStatuses.filter(s => s !== 'cancelled');
+            const canCancel = nextStatuses.includes('cancelled');
+            let html = '';
+
+            if (forward.length > 0) {
+                const next = forward[0];
+                html += `<button class="small secondary" onclick="updateOrderStatus('${orderId}', '${next}')">${next.charAt(0).toUpperCase() + next.slice(1)}</button>`;
+            }
+            if (canCancel) {
+                html += ` <button class="small danger" onclick="updateOrderStatus('${orderId}', 'cancelled')">Cancel</button>`;
+            }
+            return html;
+        }
+
         // Utility: Log messages
         function log(message, type = 'info') {
             const logEl = document.getElementById('log');
@@ -1321,7 +1382,7 @@
             try {
                 const orders = await apiCall('/orders');
                 if (!orders || orders.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No orders yet.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No orders yet.</td></tr>';
                 } else {
                     tbody.innerHTML = orders.map(o => {
                         const date = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A';
@@ -1331,14 +1392,15 @@
                                 <td>${date}</td>
                                 <td title="${o.id}">${shortId}...</td>
                                 <td class="price">$${o.total_amount.toFixed(2)}</td>
-                                <td>${escapeHtml(o.status)}</td>
+                                <td>${renderStatusBadge(o.status)}</td>
+                                <td class="actions">${renderStatusActions(o.id, o.status)}</td>
                             </tr>
                         `;
                     }).join('');
                 }
             } catch (error) {
                 log(`Failed to load orders: ${error.message}`, 'error');
-                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Failed to load orders.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Failed to load orders.</td></tr>';
             }
             
             await loadUnassignedOrders();
@@ -1360,8 +1422,9 @@
                             <td>${date}</td>
                             <td title="${o.id}">${shortId}...</td>
                             <td class="price">$${o.total_amount.toFixed(2)}</td>
-                            <td>${escapeHtml(o.status)}</td>
+                            <td>${renderStatusBadge(o.status)}</td>
                             <td class="actions">
+                                ${renderStatusActions(o.id, o.status)}
                                 <button class="small secondary" onclick="openAttachModal('${o.id}')">Attach</button>
                                 <button class="small danger" onclick="openDeleteOrderModal('${o.id}')">Delete</button>
                             </td>
@@ -1573,8 +1636,9 @@
                             <td>${date}</td>
                             <td title="${o.id}">${shortId}...</td>
                             <td class="price">$${o.total_amount.toFixed(2)}</td>
-                            <td>${escapeHtml(o.status)}</td>
-                            <td>
+                            <td>${renderStatusBadge(o.status)}</td>
+                            <td class="actions">
+                                ${renderStatusActions(o.id, o.status)}
                                 <button class="small danger" onclick="detachOrder('${customerId}', '${o.id}')">Detach</button>
                             </td>
                         </tr>

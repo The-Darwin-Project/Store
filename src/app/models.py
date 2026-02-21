@@ -9,6 +9,30 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from uuid import uuid4
 from datetime import datetime
+from enum import Enum
+
+
+class OrderStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    SHIPPED = "shipped"
+    DELIVERED = "delivered"
+    CANCELLED = "cancelled"
+
+
+# Valid transitions: current_status -> set of allowed next statuses
+ORDER_STATUS_TRANSITIONS = {
+    OrderStatus.PENDING: {OrderStatus.PROCESSING, OrderStatus.CANCELLED},
+    OrderStatus.PROCESSING: {OrderStatus.SHIPPED, OrderStatus.CANCELLED},
+    OrderStatus.SHIPPED: {OrderStatus.DELIVERED, OrderStatus.CANCELLED},
+    OrderStatus.DELIVERED: set(),   # terminal
+    OrderStatus.CANCELLED: set(),   # terminal
+}
+
+
+class OrderStatusUpdate(BaseModel):
+    """Schema for updating order status."""
+    status: OrderStatus
 
 
 class Product(BaseModel):

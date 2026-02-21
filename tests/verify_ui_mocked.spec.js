@@ -19,7 +19,7 @@ test('Verify Checkout UI Flow with Mocked Backend', async ({ page }) => {
     id: "order-123",
     created_at: new Date().toISOString(),
     total_amount: 20.0,
-    status: "confirmed",
+    status: "pending",
     items: [
       {
         id: "item-1",

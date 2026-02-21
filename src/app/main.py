@@ -207,6 +207,15 @@ async def startup_event():
                 conn.commit()
             except Exception as e:
                 logger.warning(f"Migration warning (customer_id): {e}")
+
+            # Migration: Add updated_at column to orders
+            try:
+                cur.execute("""
+                    ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()
+                """)
+                conn.commit()
+            except Exception as e:
+                logger.warning(f"Migration warning (updated_at): {e}")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
     finally:

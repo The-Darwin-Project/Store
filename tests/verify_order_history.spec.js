@@ -20,7 +20,7 @@ test('Verify Order History UI', async ({ page }) => {
       id: "order-123",
       created_at: new Date().toISOString(), // Today
       total_amount: 20.0,
-      status: "confirmed",
+      status: "pending",
       items: [
         {
           id: "item-1",
