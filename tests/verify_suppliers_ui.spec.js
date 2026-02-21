@@ -3,15 +3,24 @@
 
 const { test, expect } = require('@playwright/test');
 const path = require('path');
+const fs = require('fs');
 
 test.describe('Supplier Management UI', () => {
     test.beforeEach(async ({ page }) => {
         // Load the HTML file
-        const indexHtml = path.resolve(__dirname, '../src/app/static/index.html');
-        await page.goto(`file://${indexHtml}`);
+        const htmlPath = path.resolve(__dirname, '../src/app/static/index.html');
+        const htmlContent = fs.readFileSync(htmlPath, 'utf8');
+
+        await page.route('http://localhost/', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'text/html',
+                body: htmlContent
+            });
+        });
 
         // Mock API responses
-        await page.route('/products', async route => {
+        await page.route('**/products', async route => {
             if (route.request().method() === 'GET') {
                 await route.fulfill({
                     status: 200,
@@ -29,7 +38,7 @@ test.describe('Supplier Management UI', () => {
             }
         });
 
-        await page.route('/suppliers', async route => {
+        await page.route('**/suppliers', async route => {
             if (route.request().method() === 'GET') {
                 await route.fulfill({
                     status: 200,
@@ -56,12 +65,14 @@ test.describe('Supplier Management UI', () => {
             }
         });
         
-        await page.route('/customers', async route => {
+        await page.route('**/customers', async route => {
             await route.fulfill({ status: 200, body: '[]' });
         });
-        await page.route('/orders', async route => {
+        await page.route('**/orders', async route => {
             await route.fulfill({ status: 200, body: '[]' });
         });
+
+        await page.goto('http://localhost/');
 
         // Trigger initialization
         await page.evaluate(() => {
