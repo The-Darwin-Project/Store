@@ -112,7 +112,7 @@ test.describe('Supplier Management UI', () => {
         await page.waitForSelector('#product-table tr[data-id="prod-1"]');
         
         // Check if supplier cell has the .supplier-reorder class
-        const supplierCell = page.locator('#product-table tr[data-id="prod-1"] td.supplier-reorder');
+        const supplierCell = page.locator('#product-table tr[data-id="prod-1"] span.supplier-reorder');
         await expect(supplierCell).toBeVisible();
         await expect(supplierCell).toContainText('Test Supplier');
     });
