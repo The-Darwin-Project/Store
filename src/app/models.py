@@ -46,6 +46,8 @@ class Product(BaseModel):
     sku: str
     image_data: Optional[str] = None
     description: Optional[str] = Field(default="")
+    supplier_id: Optional[str] = None
+    reorder_threshold: int = Field(default=10, ge=0)
 
 
 class ProductCreate(BaseModel):
@@ -56,6 +58,8 @@ class ProductCreate(BaseModel):
     sku: str
     image_data: Optional[str] = None
     description: Optional[str] = Field(default="")
+    supplier_id: Optional[str] = None
+    reorder_threshold: int = Field(default=10, ge=0)
 
 
 class ProductUpdate(BaseModel):
@@ -66,6 +70,24 @@ class ProductUpdate(BaseModel):
     sku: Optional[str] = None
     image_data: Optional[str] = None
     description: Optional[str] = None
+    supplier_id: Optional[str] = None
+    reorder_threshold: Optional[int] = Field(default=None, ge=0)
+
+
+class SupplierCreate(BaseModel):
+    """Schema for creating a new supplier."""
+    name: str
+    contact_email: Optional[str] = None
+    phone: Optional[str] = None
+
+
+class Supplier(BaseModel):
+    """Supplier schema for responses."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    name: str
+    contact_email: Optional[str] = None
+    phone: Optional[str] = None
+    created_at: Optional[datetime] = None
 
 
 class Customer(BaseModel):
