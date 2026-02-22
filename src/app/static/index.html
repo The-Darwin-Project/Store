@@ -629,7 +629,10 @@
         <!-- Tab Navigation -->
         <ul class="nav nav-tabs" id="viewTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="catalog-tab" type="button" role="tab" onclick="switchTab('catalog')">Catalog</button>
+                <button class="nav-link active" id="dashboard-tab" type="button" role="tab" onclick="switchTab('dashboard')">Dashboard</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="catalog-tab" type="button" role="tab" onclick="switchTab('catalog')">Catalog</button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="inventory-tab" type="button" role="tab" onclick="switchTab('inventory')">Inventory</button>
@@ -650,8 +653,56 @@
 
         <!-- Tab Content -->
         <div class="tab-content">
+            <!-- Dashboard Tab -->
+            <div class="tab-pane active" id="dashboard">
+                <div class="panel">
+                    <h2>Total Revenue</h2>
+                    <div id="dashboard-revenue" style="font-size: 2rem; font-weight: 700; color: var(--success);">$0.00</div>
+                </div>
+                <div class="panel">
+                    <h2>Orders by Status</h2>
+                    <div id="dashboard-orders-status" class="empty-state">No orders yet.</div>
+                </div>
+                <div class="panel">
+                    <h2>Top 5 Products by Sales</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Product</th>
+                                    <th>Units Sold</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboard-top-products">
+                                <tr><td colspan="3" class="empty-state">No sales data yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="panel">
+                    <h2>Low Stock Alerts</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Stock</th>
+                                    <th>Reorder At</th>
+                                    <th>Supplier</th>
+                                    <th>Contact</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboard-low-stock">
+                                <tr><td colspan="5" class="empty-state">No low-stock items.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Catalog Tab -->
-            <div class="tab-pane active" id="catalog">
+            <div class="tab-pane" id="catalog">
                 <div class="catalog-grid" id="catalog-grid">
                     <div class="empty-state" style="grid-column: 1 / -1;">No products yet.</div>
                 </div>
@@ -1128,6 +1179,7 @@
             const searchEl = document.getElementById('global-search');
             if (searchEl) {
                 const placeholders = {
+                    dashboard: 'Search...',
                     catalog: 'Search products...',
                     inventory: 'Search products...',
                     orders: 'Search orders...',
@@ -1136,6 +1188,7 @@
                 };
                 searchEl.placeholder = placeholders[tabName] || 'Search...';
             }
+            if (tabName === 'dashboard') loadDashboard();
             if (tabName === 'orders') loadOrders();
             if (tabName === 'customers') loadCustomers();
             if (tabName === 'cart') loadCustomerDropdown();
@@ -1698,7 +1751,7 @@
 
         function closeOrderModal() {
             document.getElementById('order-success-modal').classList.remove('active');
-            switchTab('catalog');
+            switchTab('dashboard');
         }
 
         // Close order modal on overlay click
@@ -2033,7 +2086,62 @@
         document.getElementById('global-search').addEventListener('input', applySearch);
         // ---- End Search Logic ----
 
+        // ---- Dashboard Logic ----
+        async function loadDashboard() {
+            try {
+                const data = await apiCall('/dashboard');
+                // Revenue
+                document.getElementById('dashboard-revenue').textContent =
+                    '$' + data.total_revenue.toFixed(2);
+
+                // Orders by status
+                const statusContainer = document.getElementById('dashboard-orders-status');
+                const statuses = data.orders_by_status;
+                if (Object.keys(statuses).length === 0) {
+                    statusContainer.innerHTML = '<span class="empty-state">No orders yet.</span>';
+                } else {
+                    statusContainer.innerHTML = Object.entries(statuses).map(([status, count]) =>
+                        `<span class="status-badge status-${escapeHtml(status)}" style="margin: 0.25rem;">${escapeHtml(status)}: ${count}</span>`
+                    ).join(' ');
+                }
+
+                // Top products
+                const topTbody = document.getElementById('dashboard-top-products');
+                if (!data.top_products || data.top_products.length === 0) {
+                    topTbody.innerHTML = '<tr><td colspan="3" class="empty-state">No sales data yet.</td></tr>';
+                } else {
+                    topTbody.innerHTML = data.top_products.map((p, i) =>
+                        `<tr><td>${i + 1}</td><td>${escapeHtml(p.name)}</td><td>${p.total_sold}</td></tr>`
+                    ).join('');
+                }
+
+                // Low stock alerts
+                const lowTbody = document.getElementById('dashboard-low-stock');
+                if (!data.low_stock_alerts || data.low_stock_alerts.length === 0) {
+                    lowTbody.innerHTML = '<tr><td colspan="5" class="empty-state">No low-stock items.</td></tr>';
+                } else {
+                    lowTbody.innerHTML = data.low_stock_alerts.map(item => {
+                        const supplierName = item.supplier ? escapeHtml(item.supplier.name) : '-';
+                        const supplierEmail = item.supplier && item.supplier.contact_email
+                            ? escapeHtml(item.supplier.contact_email) : '-';
+                        const stockClass = item.stock === 0 ? 'out' : 'low';
+                        return `<tr>
+                            <td>${escapeHtml(item.name)}</td>
+                            <td class="stock ${stockClass}">${item.stock}</td>
+                            <td>${item.reorder_threshold}</td>
+                            <td>${supplierName}</td>
+                            <td>${supplierEmail}</td>
+                        </tr>`;
+                    }).join('');
+                }
+            } catch (error) {
+                log('Failed to load dashboard: ' + error.message, 'error');
+            }
+        }
+        // ---- End Dashboard Logic ----
+
         // Initial load and auto-refresh
+        loadDashboard();
         loadSuppliers().then(() => loadProducts());
         renderCart();
         renderCartCount();
