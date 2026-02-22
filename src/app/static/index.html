@@ -621,7 +621,7 @@
             </div>
             <p class="subtitle">Product Management</p>
             <div class="search-bar" style="margin-top: 1rem;">
-                <input type="text" id="global-search" placeholder="Search products, orders, suppliers..."
+                <input type="text" id="global-search" placeholder="Search products..."
                        style="width: 100%; max-width: 500px;">
             </div>
         </header>
@@ -1124,6 +1124,18 @@
             document.querySelectorAll('.nav-link').forEach(t => t.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
             document.getElementById(tabName + '-tab').classList.add('active');
+            // Update search placeholder based on active tab
+            const searchEl = document.getElementById('global-search');
+            if (searchEl) {
+                const placeholders = {
+                    catalog: 'Search products...',
+                    inventory: 'Search products...',
+                    orders: 'Search orders...',
+                    customers: 'Search customers...',
+                    suppliers: 'Search suppliers...'
+                };
+                searchEl.placeholder = placeholders[tabName] || 'Search...';
+            }
             if (tabName === 'orders') loadOrders();
             if (tabName === 'customers') loadCustomers();
             if (tabName === 'cart') loadCustomerDropdown();
