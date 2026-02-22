@@ -161,7 +161,8 @@ test.describe('Darwin Store Customer Feature', () => {
   });
 
   test('should enforce customer selection during checkout', async ({ page }) => {
-    // 1. Add item to cart
+    // 1. Navigate to Catalog tab (Dashboard is now default) and add item to cart
+    await page.click('#catalog-tab');
     await page.click('button:has-text("Add to Cart")');
     
     // 2. Go to Cart
@@ -185,7 +186,8 @@ test.describe('Darwin Store Customer Feature', () => {
   });
 
   test('should allow creating new customer during checkout', async ({ page }) => {
-    // 1. Add to cart
+    // 1. Navigate to Catalog tab (Dashboard is now default) and add to cart
+    await page.click('#catalog-tab');
     await page.click('button:has-text("Add to Cart")');
     await page.click('#cart-tab');
     

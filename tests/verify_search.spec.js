@@ -138,7 +138,8 @@ test.describe('Real-Time Search Bar', () => {
     const searchInput = page.locator('#global-search');
     await expect(searchInput).toBeVisible();
 
-    // Default Catalog tab
+    // Navigate to Catalog tab (Dashboard is now default)
+    await page.click('#catalog-tab');
     await expect(page.locator('#catalog-tab')).toHaveClass(/active/);
     
     // Ensure 2 items initially
@@ -222,6 +223,9 @@ test.describe('Real-Time Search Bar', () => {
   });
 
   test('should retain search across periodic refreshes', async ({ page }) => {
+    // Navigate to Catalog tab first (Dashboard is now default)
+    await page.click('#catalog-tab');
+
     // Search for "Banana" in catalog
     const searchInput = page.locator('#global-search');
     await searchInput.fill('Banana');
@@ -238,5 +242,33 @@ test.describe('Real-Time Search Bar', () => {
     // Make sure only 1 item remains after refresh
     await expect(page.locator('.catalog-card')).toHaveCount(1);
     await expect(page.locator('.catalog-card').first()).toContainText('Banana');
+  });
+
+  test('should update placeholder text when switching tabs', async ({ page }) => {
+    const searchInput = page.locator('#global-search');
+
+    // Default Dashboard tab
+    await expect(page.locator('#dashboard-tab')).toHaveClass(/active/);
+    await expect(searchInput).toHaveAttribute('placeholder', 'Search...');
+
+    // Switch to Catalog tab first
+    await page.click('#catalog-tab');
+    await expect(searchInput).toHaveAttribute('placeholder', 'Search products...');
+
+    // Switch to Inventory tab
+    await page.click('#inventory-tab');
+    await expect(searchInput).toHaveAttribute('placeholder', 'Search products...');
+
+    // Switch to Orders tab
+    await page.click('#orders-tab');
+    await expect(searchInput).toHaveAttribute('placeholder', 'Search orders...');
+
+    // Switch to Customers tab
+    await page.click('#customers-tab');
+    await expect(searchInput).toHaveAttribute('placeholder', 'Search customers...');
+
+    // Switch to Suppliers tab
+    await page.click('#suppliers-tab');
+    await expect(searchInput).toHaveAttribute('placeholder', 'Search suppliers...');
   });
 });

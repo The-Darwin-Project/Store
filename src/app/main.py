@@ -31,6 +31,7 @@ from .routes.products import router as products_router
 from .routes.orders import router as orders_router
 from .routes.customers import router as customers_router
 from .routes.suppliers import router as suppliers_router
+from .routes.dashboard import router as dashboard_router
 from .chaos_state import get_chaos, record_request
 
 logging.basicConfig(level=logging.INFO)
@@ -107,6 +108,7 @@ app.include_router(products_router)
 app.include_router(orders_router)
 app.include_router(customers_router)
 app.include_router(suppliers_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/", response_class=HTMLResponse)
