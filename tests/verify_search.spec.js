@@ -202,6 +202,25 @@ test.describe('Real-Time Search Bar', () => {
     await expect(page.locator('#supplier-list .customer-list-item').first()).toContainText('FoodInc');
   });
 
+  test('should filter customers correctly', async ({ page }) => {
+    // Switch to Customers tab
+    await page.click('#customers-tab');
+    
+    const searchInput = page.locator('#global-search');
+    
+    await expect(page.locator('#customer-list .customer-list-item')).toHaveCount(2);
+
+    // Search for "John Doe"
+    await searchInput.fill('John Doe');
+    await expect(page.locator('#customer-list .customer-list-item')).toHaveCount(1);
+    await expect(page.locator('#customer-list .customer-list-item').first()).toContainText('John Doe');
+    
+    // Search for email "jane"
+    await searchInput.fill('jane@smith.com');
+    await expect(page.locator('#customer-list .customer-list-item')).toHaveCount(1);
+    await expect(page.locator('#customer-list .customer-list-item').first()).toContainText('Jane Smith');
+  });
+
   test('should retain search across periodic refreshes', async ({ page }) => {
     // Search for "Banana" in catalog
     const searchInput = page.locator('#global-search');

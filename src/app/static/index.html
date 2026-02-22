@@ -1278,8 +1278,6 @@
             try {
                 const products = await apiCall('/products');
                 _productsCache = products || [];
-                renderCatalog(_productsCache);
-                renderInventory(_productsCache);
                 applySearch();
             } catch (error) {
                 log(`Failed to load products: ${error.message}`, 'error');
@@ -1560,7 +1558,6 @@
                 _unassignedOrdersCache = [];
             }
 
-            renderOrdersFromCache(_ordersCache, _unassignedOrdersCache);
             applySearch();
         }
 
@@ -1708,7 +1705,6 @@
             try {
                 const customers = await apiCall('/customers');
                 _customersCache = customers || [];
-                renderCustomerList(_customersCache);
                 applySearch();
             } catch (error) {
                 log(`Failed to load customers: ${error.message}`, 'error');
@@ -1740,7 +1736,7 @@
 
         async function selectCustomer(customerId) {
             _selectedCustomerId = customerId;
-            renderCustomerList(_customersCache);
+            applySearch();
             document.getElementById('customer-orders-panel').style.display = 'block';
             const customer = _customersCache.find(c => c.id === customerId);
             document.getElementById('customer-orders-title').textContent =
@@ -1861,7 +1857,6 @@
             try {
                 const suppliers = await apiCall('/suppliers');
                 _suppliersCache = suppliers || [];
-                renderSupplierList();
                 loadSupplierDropdowns();
                 applySearch();
             } catch (error) {
@@ -1971,60 +1966,55 @@
             const activeTab = document.querySelector('.tab-pane.active')?.id;
 
             if (!query) {
-                // Empty search: render full data
+                // Empty search: render full data for the active tab
                 if (activeTab === 'catalog' || activeTab === 'inventory') {
                     renderCatalog(_productsCache);
                     renderInventory(_productsCache);
+                } else if (activeTab === 'orders') {
+                    renderOrdersFromCache(_ordersCache, _unassignedOrdersCache);
+                } else if (activeTab === 'customers') {
+                    renderCustomerList(_customersCache);
+                } else if (activeTab === 'suppliers') {
+                    renderSupplierList();
                 }
-                if (activeTab === 'orders') renderOrdersFromCache(_ordersCache, _unassignedOrdersCache);
-                if (activeTab === 'customers') renderCustomerList(_customersCache);
-                if (activeTab === 'suppliers') renderSupplierList();
                 return;
             }
 
-            switch (activeTab) {
-                case 'catalog':
-                case 'inventory': {
-                    const filtered = _productsCache.filter(p =>
-                        p.name.toLowerCase().includes(query) ||
-                        p.sku.toLowerCase().includes(query) ||
-                        (p.description || '').toLowerCase().includes(query)
-                    );
-                    renderCatalog(filtered);
-                    renderInventory(filtered);
-                    break;
-                }
-                case 'orders': {
-                    const filteredOrders = _ordersCache.filter(o =>
-                        o.id.toLowerCase().includes(query) ||
-                        o.status.toLowerCase().includes(query) ||
-                        o.total_amount.toFixed(2).includes(query)
-                    );
-                    const filteredUnassigned = _unassignedOrdersCache.filter(o =>
-                        o.id.toLowerCase().includes(query) ||
-                        o.status.toLowerCase().includes(query) ||
-                        o.total_amount.toFixed(2).includes(query)
-                    );
-                    renderOrdersFromCache(filteredOrders, filteredUnassigned);
-                    break;
-                }
-                case 'customers': {
-                    const filtered = _customersCache.filter(c =>
-                        c.name.toLowerCase().includes(query) ||
-                        c.email.toLowerCase().includes(query)
-                    );
-                    renderCustomerList(filtered);
-                    break;
-                }
-                case 'suppliers': {
-                    const filtered = _suppliersCache.filter(s =>
-                        s.name.toLowerCase().includes(query) ||
-                        (s.contact_email || '').toLowerCase().includes(query) ||
-                        (s.phone || '').toLowerCase().includes(query)
-                    );
-                    renderSupplierList(filtered);
-                    break;
-                }
+            // Helper to safely match a value against the query
+            function matches(value) {
+                return value != null && String(value).toLowerCase().includes(query);
+            }
+
+            if (activeTab === 'catalog' || activeTab === 'inventory') {
+                const filtered = _productsCache.filter(p =>
+                    matches(p.name) ||
+                    matches(p.sku) ||
+                    matches(p.description)
+                );
+                renderCatalog(filtered);
+                renderInventory(filtered);
+            } else if (activeTab === 'orders') {
+                const filterOrder = o =>
+                    matches(o.id) ||
+                    matches(o.status) ||
+                    (o.total_amount != null && String(o.total_amount.toFixed(2)).includes(query));
+                renderOrdersFromCache(
+                    _ordersCache.filter(filterOrder),
+                    _unassignedOrdersCache.filter(filterOrder)
+                );
+            } else if (activeTab === 'customers') {
+                const filtered = _customersCache.filter(c =>
+                    matches(c.name) ||
+                    matches(c.email)
+                );
+                renderCustomerList(filtered);
+            } else if (activeTab === 'suppliers') {
+                const filtered = _suppliersCache.filter(s =>
+                    matches(s.name) ||
+                    matches(s.contact_email) ||
+                    matches(s.phone)
+                );
+                renderSupplierList(filtered);
             }
         }
 
