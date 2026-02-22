@@ -3,7 +3,7 @@
 # Target Platform: OpenShift 4.x / Red Hat UBI 9
 
 # -- Image configuration
-# Retrying GitOps sync - Nudge 4
+# Retrying GitOps sync - Nudge 5
 image:
   repository: ghcr.io/the-darwin-project/store
   tag: "e4e5191"
