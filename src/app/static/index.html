@@ -589,6 +589,10 @@
             border-radius: 8px;
         }
 
+        .search-bar {
+            text-align: center;
+        }
+
         /* Bootstrap Modal Overrides for Dark Theme */
         .modal-content {
             background-color: #343a40;
@@ -616,6 +620,10 @@
                 </span>
             </div>
             <p class="subtitle">Product Management</p>
+            <div class="search-bar" style="margin-top: 1rem;">
+                <input type="text" id="global-search" placeholder="Search products, orders, suppliers..."
+                       style="width: 100%; max-width: 500px;">
+            </div>
         </header>
 
         <!-- Tab Navigation -->
@@ -1046,6 +1054,8 @@
 
     <script>
         let _suppliersCache = [];
+        let _ordersCache = [];
+        let _unassignedOrdersCache = [];
 
         async function updateOrderStatus(orderId, newStatus) {
             try {
@@ -1118,6 +1128,7 @@
             if (tabName === 'customers') loadCustomers();
             if (tabName === 'cart') loadCustomerDropdown();
             if (tabName === 'suppliers') loadSuppliers();
+            applySearch();
         }
 
         // API helper with error handling
@@ -1269,6 +1280,7 @@
                 _productsCache = products || [];
                 renderCatalog(_productsCache);
                 renderInventory(_productsCache);
+                applySearch();
             } catch (error) {
                 log(`Failed to load products: ${error.message}`, 'error');
             }
@@ -1487,44 +1499,31 @@
 
         // ---- Order History Logic ----
 
-        async function loadOrders() {
+        function renderOrdersFromCache(orders, unassigned) {
             const tbody = document.getElementById('orders-table');
-            try {
-                const orders = await apiCall('/orders');
-                if (!orders || orders.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No orders yet.</td></tr>';
-                } else {
-                    tbody.innerHTML = orders.map(o => {
-                        const date = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A';
-                        const shortId = o.id.substring(0, 8);
-                        return `
-                            <tr>
-                                <td>${date}</td>
-                                <td title="${o.id}">${shortId}...</td>
-                                <td class="price">$${o.total_amount.toFixed(2)}</td>
-                                <td>${renderStatusBadge(o.status)}</td>
-                                <td class="actions">${renderStatusActions(o.id, o.status)}</td>
-                            </tr>
-                        `;
-                    }).join('');
-                }
-            } catch (error) {
-                log(`Failed to load orders: ${error.message}`, 'error');
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Failed to load orders.</td></tr>';
-            }
-            
-            await loadUnassignedOrders();
-        }
-
-        async function loadUnassignedOrders() {
-            const tbody = document.getElementById('unassigned-orders-table');
-            try {
-                const orders = await apiCall('/orders/unassigned');
-                if (!orders || orders.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No unassigned orders.</td></tr>';
-                    return;
-                }
+            if (!orders || orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No orders yet.</td></tr>';
+            } else {
                 tbody.innerHTML = orders.map(o => {
+                    const date = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A';
+                    const shortId = o.id.substring(0, 8);
+                    return `
+                        <tr>
+                            <td>${date}</td>
+                            <td title="${o.id}">${shortId}...</td>
+                            <td class="price">$${o.total_amount.toFixed(2)}</td>
+                            <td>${renderStatusBadge(o.status)}</td>
+                            <td class="actions">${renderStatusActions(o.id, o.status)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            const unassignedTbody = document.getElementById('unassigned-orders-table');
+            if (!unassigned || unassigned.length === 0) {
+                unassignedTbody.innerHTML = '<tr><td colspan="5" class="empty-state">No unassigned orders.</td></tr>';
+            } else {
+                unassignedTbody.innerHTML = unassigned.map(o => {
                     const date = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A';
                     const shortId = o.id.substring(0, 8);
                     return `
@@ -1541,10 +1540,28 @@
                         </tr>
                     `;
                 }).join('');
+            }
+        }
+
+        async function loadOrders() {
+            try {
+                const orders = await apiCall('/orders');
+                _ordersCache = orders || [];
+            } catch (error) {
+                log(`Failed to load orders: ${error.message}`, 'error');
+                _ordersCache = [];
+            }
+
+            try {
+                const unassigned = await apiCall('/orders/unassigned');
+                _unassignedOrdersCache = unassigned || [];
             } catch (error) {
                 log(`Failed to load unassigned orders: ${error.message}`, 'error');
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Failed to load orders.</td></tr>';
+                _unassignedOrdersCache = [];
             }
+
+            renderOrdersFromCache(_ordersCache, _unassignedOrdersCache);
+            applySearch();
         }
 
         function openDeleteOrderModal(orderId) {
@@ -1692,6 +1709,7 @@
                 const customers = await apiCall('/customers');
                 _customersCache = customers || [];
                 renderCustomerList(_customersCache);
+                applySearch();
             } catch (error) {
                 log(`Failed to load customers: ${error.message}`, 'error');
             }
@@ -1845,18 +1863,20 @@
                 _suppliersCache = suppliers || [];
                 renderSupplierList();
                 loadSupplierDropdowns();
+                applySearch();
             } catch (error) {
                 log(`Failed to load suppliers: ${error.message}`, 'error');
             }
         }
 
-        function renderSupplierList() {
+        function renderSupplierList(suppliers) {
+            suppliers = suppliers || _suppliersCache;
             const list = document.getElementById('supplier-list');
-            if (!_suppliersCache.length) {
+            if (!suppliers.length) {
                 list.innerHTML = '<div class="empty-state">No suppliers yet.</div>';
                 return;
             }
-            list.innerHTML = _suppliersCache.map(s => {
+            list.innerHTML = suppliers.map(s => {
                 const lowBadge = s.low_stock_count > 0
                     ? `<span class="supplier-reorder" style="margin-left:0.5rem;">${s.low_stock_count} low stock</span>`
                     : '';
@@ -1942,6 +1962,74 @@
         // ---- End Supplier Logic ----
 
         // ---- End Shopping Cart Logic ----
+
+        // ---- Search Logic ----
+        function applySearch() {
+            const searchEl = document.getElementById('global-search');
+            if (!searchEl) return;
+            const query = searchEl.value.toLowerCase().trim();
+            const activeTab = document.querySelector('.tab-pane.active')?.id;
+
+            if (!query) {
+                // Empty search: render full data
+                if (activeTab === 'catalog' || activeTab === 'inventory') {
+                    renderCatalog(_productsCache);
+                    renderInventory(_productsCache);
+                }
+                if (activeTab === 'orders') renderOrdersFromCache(_ordersCache, _unassignedOrdersCache);
+                if (activeTab === 'customers') renderCustomerList(_customersCache);
+                if (activeTab === 'suppliers') renderSupplierList();
+                return;
+            }
+
+            switch (activeTab) {
+                case 'catalog':
+                case 'inventory': {
+                    const filtered = _productsCache.filter(p =>
+                        p.name.toLowerCase().includes(query) ||
+                        p.sku.toLowerCase().includes(query) ||
+                        (p.description || '').toLowerCase().includes(query)
+                    );
+                    renderCatalog(filtered);
+                    renderInventory(filtered);
+                    break;
+                }
+                case 'orders': {
+                    const filteredOrders = _ordersCache.filter(o =>
+                        o.id.toLowerCase().includes(query) ||
+                        o.status.toLowerCase().includes(query) ||
+                        o.total_amount.toFixed(2).includes(query)
+                    );
+                    const filteredUnassigned = _unassignedOrdersCache.filter(o =>
+                        o.id.toLowerCase().includes(query) ||
+                        o.status.toLowerCase().includes(query) ||
+                        o.total_amount.toFixed(2).includes(query)
+                    );
+                    renderOrdersFromCache(filteredOrders, filteredUnassigned);
+                    break;
+                }
+                case 'customers': {
+                    const filtered = _customersCache.filter(c =>
+                        c.name.toLowerCase().includes(query) ||
+                        c.email.toLowerCase().includes(query)
+                    );
+                    renderCustomerList(filtered);
+                    break;
+                }
+                case 'suppliers': {
+                    const filtered = _suppliersCache.filter(s =>
+                        s.name.toLowerCase().includes(query) ||
+                        (s.contact_email || '').toLowerCase().includes(query) ||
+                        (s.phone || '').toLowerCase().includes(query)
+                    );
+                    renderSupplierList(filtered);
+                    break;
+                }
+            }
+        }
+
+        document.getElementById('global-search').addEventListener('input', applySearch);
+        // ---- End Search Logic ----
 
         // Initial load and auto-refresh
         loadSuppliers().then(() => loadProducts());
