@@ -51,6 +51,8 @@ test.describe('Darwin Store Shopping Cart', () => {
   });
 
   test('should add item to cart', async ({ page }) => {
+    // Navigate to Catalog tab (Dashboard is now default)
+    await page.click('#catalog-tab');
     await page.waitForSelector('.catalog-card');
     
     const addToCartBtn = page.locator('.btn-add-cart').first();
@@ -71,6 +73,8 @@ test.describe('Darwin Store Shopping Cart', () => {
   });
 
   test('should view cart and verify content', async ({ page }) => {
+    // Navigate to Catalog tab (Dashboard is now default)
+    await page.click('#catalog-tab');
     await page.waitForSelector('.catalog-card');
     // Add item first
     await page.locator('.btn-add-cart').first().click();
@@ -93,6 +97,8 @@ test.describe('Darwin Store Shopping Cart', () => {
   });
 
   test('should update quantity and remove item', async ({ page }) => {
+    // Navigate to Catalog tab (Dashboard is now default)
+    await page.click('#catalog-tab');
     await page.waitForSelector('.catalog-card');
     // Add item
     await page.locator('.btn-add-cart').first().click();

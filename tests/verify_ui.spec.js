@@ -84,12 +84,13 @@ test.describe('Darwin Store UI Redesign', () => {
     await expect(catalogTab).toHaveText('Catalog');
     await expect(inventoryTab).toHaveText('Inventory');
 
-    // Check default view (Catalog should be active)
-    await expect(catalogTab).toHaveClass(/active/);
-    await expect(page.locator('#catalog')).toBeVisible(); // Check content visibility if possible, or class
-    await expect(page.locator('#catalog')).toHaveClass(/active/);
-    
-    // Inventory should be hidden/inactive
+    // Check default view (Dashboard should be active)
+    const dashboardTab = page.locator('#dashboard-tab');
+    await expect(dashboardTab).toHaveClass(/active/);
+    await expect(page.locator('#dashboard')).toHaveClass(/active/);
+
+    // Catalog and Inventory should be hidden/inactive
+    await expect(catalogTab).not.toHaveClass(/active/);
     await expect(inventoryTab).not.toHaveClass(/active/);
     await expect(page.locator('#inventory')).not.toHaveClass(/active/);
   });
