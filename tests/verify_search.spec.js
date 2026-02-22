@@ -239,4 +239,28 @@ test.describe('Real-Time Search Bar', () => {
     await expect(page.locator('.catalog-card')).toHaveCount(1);
     await expect(page.locator('.catalog-card').first()).toContainText('Banana');
   });
+
+  test('should update placeholder text when switching tabs', async ({ page }) => {
+    const searchInput = page.locator('#global-search');
+
+    // Default Catalog tab
+    await expect(page.locator('#catalog-tab')).toHaveClass(/active/);
+    await expect(searchInput).toHaveAttribute('placeholder', 'Search products...');
+
+    // Switch to Inventory tab
+    await page.click('#inventory-tab');
+    await expect(searchInput).toHaveAttribute('placeholder', 'Search products...');
+
+    // Switch to Orders tab
+    await page.click('#orders-tab');
+    await expect(searchInput).toHaveAttribute('placeholder', 'Search orders...');
+
+    // Switch to Customers tab
+    await page.click('#customers-tab');
+    await expect(searchInput).toHaveAttribute('placeholder', 'Search customers...');
+
+    // Switch to Suppliers tab
+    await page.click('#suppliers-tab');
+    await expect(searchInput).toHaveAttribute('placeholder', 'Search suppliers...');
+  });
 });
