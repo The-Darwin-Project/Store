@@ -96,7 +96,7 @@ test('Verify Order History UI', async ({ page }) => {
   // 5. Check Items (The current UI only shows summary: Date, ID, Total, Status)
   // We verify that the rows are present (implied by content checks above).
   // Ideally, we'd check row count.
-  await expect(page.locator('#orders-table tr')).toHaveCount(2); // 2 orders
+  await expect(page.locator('#orders-table .order-row')).toHaveCount(2); // 2 orders (excludes hidden detail rows)
  
 
 });

@@ -44,3 +44,14 @@ def test_edit_product_description_field():
 def test_js_references_description():
     content = _load_html()
     assert "p.description" in content, "JavaScript reference to p.description not found"
+
+
+def test_order_detail_toggle_function():
+    content = _load_html()
+    assert 'toggleOrderDetail' in content, "toggleOrderDetail function not found"
+
+
+def test_order_detail_css_classes():
+    content = _load_html()
+    assert 'order-detail-row' in content, "order-detail-row CSS class not found"
+    assert 'order-row' in content, "order-row CSS class not found"

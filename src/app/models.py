@@ -134,6 +134,7 @@ class OrderItem(BaseModel):
     product_id: str
     quantity: int
     price_at_purchase: float
+    product_name: Optional[str] = None
 
 
 class Order(BaseModel):
@@ -144,6 +145,7 @@ class Order(BaseModel):
     status: str = "pending"
     items: list[OrderItem] = Field(default_factory=list)
     customer_id: Optional[str] = None
+    customer_name: Optional[str] = None
     coupon_code: Optional[str] = None
     discount_amount: float = 0.0
 

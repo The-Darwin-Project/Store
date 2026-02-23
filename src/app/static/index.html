@@ -610,6 +610,42 @@
         .modal-footer {
             border-top: 1px solid #495057;
         }
+
+        /* Expandable order detail */
+        .order-row { cursor: pointer; }
+        .order-row:hover td { background: rgba(233, 69, 96, 0.05); }
+        .order-detail-row { display: none; }
+        .order-detail-row.expanded { display: table-row; }
+        .order-detail-row > td {
+            padding: 0.75rem 1rem 1rem;
+            background: rgba(15, 52, 96, 0.3);
+            border-bottom: 2px solid var(--accent);
+        }
+        .order-detail-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .order-detail-content h4 {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+        .line-items-table { width: 100%; border-collapse: collapse; }
+        .line-items-table th, .line-items-table td {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.85rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .line-items-table th {
+            color: var(--text-secondary);
+            text-align: left;
+            font-weight: 500;
+        }
+        .discount-section { margin-top: 0.5rem; font-size: 0.9rem; }
+        .discount-line { color: var(--accent); }
     </style>
 </head>
 <body>
@@ -1790,6 +1826,68 @@
 
         // ---- Order History Logic ----
 
+        function toggleOrderDetail(orderId) {
+            const detailRow = document.getElementById('order-detail-' + orderId);
+            if (detailRow) {
+                detailRow.classList.toggle('expanded');
+            }
+        }
+
+        function renderOrderDetail(order) {
+            const customerName = order.customer_name
+                ? escapeHtml(order.customer_name)
+                : (order.customer_id ? 'Unknown customer' : 'No customer');
+
+            let itemsHtml = '';
+            if (order.items && order.items.length > 0) {
+                const rows = order.items.map(item => {
+                    const name = item.product_name ? escapeHtml(item.product_name) : 'Unknown product';
+                    const lineTotal = (item.quantity * item.price_at_purchase).toFixed(2);
+                    return `<tr>
+                        <td>${name}</td>
+                        <td>${item.quantity}</td>
+                        <td class="price">$${item.price_at_purchase.toFixed(2)}</td>
+                        <td class="price">$${lineTotal}</td>
+                    </tr>`;
+                }).join('');
+                itemsHtml = `<table class="line-items-table">
+                    <thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>`;
+            } else {
+                itemsHtml = '<span style="color:var(--text-secondary)">No line items</span>';
+            }
+
+            let discountHtml = '';
+            if (order.coupon_code && order.discount_amount > 0) {
+                const subtotal = order.total_amount + order.discount_amount;
+                discountHtml = `
+                    <div class="discount-section">
+                        <h4>Coupon Applied</h4>
+                        <p>Code: <strong>${escapeHtml(order.coupon_code)}</strong></p>
+                        <p>Subtotal: $${subtotal.toFixed(2)}</p>
+                        <p class="discount-line">Discount: -$${order.discount_amount.toFixed(2)}</p>
+                        <p>Final Total: <strong class="price">$${order.total_amount.toFixed(2)}</strong></p>
+                    </div>`;
+            }
+
+            return `<td colspan="5" style="padding:0;">
+                <div style="padding: 0.75rem 1rem 1rem;">
+                    <div class="order-detail-content">
+                        <div>
+                            <h4>Line Items</h4>
+                            ${itemsHtml}
+                        </div>
+                        <div>
+                            <h4>Customer</h4>
+                            <p>${customerName}</p>
+                            ${discountHtml}
+                        </div>
+                    </div>
+                </div>
+            </td>`;
+        }
+
         function renderOrdersFromCache(orders, unassigned) {
             const tbody = document.getElementById('orders-table');
             if (!orders || orders.length === 0) {
@@ -1799,12 +1897,15 @@
                     const date = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A';
                     const shortId = o.id.substring(0, 8);
                     return `
-                        <tr>
+                        <tr class="order-row" onclick="toggleOrderDetail('${o.id}')">
                             <td>${date}</td>
                             <td title="${o.id}">${shortId}...</td>
                             <td class="price">$${o.total_amount.toFixed(2)}</td>
                             <td>${renderStatusBadge(o.status)}</td>
-                            <td class="actions">${renderStatusActions(o.id, o.status)}</td>
+                            <td class="actions" onclick="event.stopPropagation()">${renderStatusActions(o.id, o.status)}</td>
+                        </tr>
+                        <tr class="order-detail-row" id="order-detail-${o.id}">
+                            ${renderOrderDetail(o)}
                         </tr>
                     `;
                 }).join('');
@@ -1818,16 +1919,19 @@
                     const date = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A';
                     const shortId = o.id.substring(0, 8);
                     return `
-                        <tr>
+                        <tr class="order-row" onclick="toggleOrderDetail('${o.id}')">
                             <td>${date}</td>
                             <td title="${o.id}">${shortId}...</td>
                             <td class="price">$${o.total_amount.toFixed(2)}</td>
                             <td>${renderStatusBadge(o.status)}</td>
-                            <td class="actions">
+                            <td class="actions" onclick="event.stopPropagation()">
                                 ${renderStatusActions(o.id, o.status)}
                                 <button class="small secondary" onclick="openAttachModal('${o.id}')">Attach</button>
                                 <button class="small danger" onclick="openDeleteOrderModal('${o.id}')">Delete</button>
                             </td>
+                        </tr>
+                        <tr class="order-detail-row" id="order-detail-${o.id}">
+                            ${renderOrderDetail(o)}
                         </tr>
                     `;
                 }).join('');

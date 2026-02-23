@@ -19,7 +19,11 @@ async def list_orders(request: Request) -> list[Order]:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, created_at, total_amount, status, customer_id, coupon_code, discount_amount FROM orders ORDER BY created_at DESC"
+                "SELECT o.id, o.created_at, o.total_amount, o.status, o.customer_id, "
+                "o.coupon_code, o.discount_amount, c.name AS customer_name "
+                "FROM orders o "
+                "LEFT JOIN customers c ON o.customer_id = c.id "
+                "ORDER BY o.created_at DESC"
             )
             order_rows = cur.fetchall()
 
@@ -28,8 +32,11 @@ async def list_orders(request: Request) -> list[Order]:
 
             order_ids = [str(row[0]) for row in order_rows]
             cur.execute(
-                "SELECT id, order_id, product_id, quantity, price_at_purchase "
-                "FROM order_items WHERE order_id = ANY(%s::uuid[])",
+                "SELECT oi.id, oi.order_id, oi.product_id, oi.quantity, oi.price_at_purchase, "
+                "p.name AS product_name "
+                "FROM order_items oi "
+                "LEFT JOIN products p ON oi.product_id = p.id "
+                "WHERE oi.order_id = ANY(%s::uuid[])",
                 (order_ids,)
             )
             item_rows = cur.fetchall()
@@ -42,7 +49,8 @@ async def list_orders(request: Request) -> list[Order]:
                     order_id=str(row[1]),
                     product_id=str(row[2]),
                     quantity=row[3],
-                    price_at_purchase=row[4]
+                    price_at_purchase=row[4],
+                    product_name=row[5]
                 )
                 items_by_order.setdefault(str(row[1]), []).append(oi)
 
@@ -56,6 +64,7 @@ async def list_orders(request: Request) -> list[Order]:
                     customer_id=str(row[4]) if row[4] else None,
                     coupon_code=row[5],
                     discount_amount=row[6] if row[6] is not None else 0.0,
+                    customer_name=row[7],
                     items=items_by_order.get(str(row[0]), [])
                 ))
 
