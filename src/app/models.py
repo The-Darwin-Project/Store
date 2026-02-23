@@ -124,6 +124,7 @@ class OrderCreate(BaseModel):
     """Schema for creating a new order from cart items."""
     items: list[OrderItemCreate] = Field(min_length=1)
     customer_id: str
+    coupon_code: Optional[str] = None
 
 
 class OrderItem(BaseModel):
@@ -143,6 +144,8 @@ class Order(BaseModel):
     status: str = "pending"
     items: list[OrderItem] = Field(default_factory=list)
     customer_id: Optional[str] = None
+    coupon_code: Optional[str] = None
+    discount_amount: float = 0.0
 
 
 class Dependency(BaseModel):
@@ -238,3 +241,57 @@ class AlertCreate(BaseModel):
 class AlertStatusUpdate(BaseModel):
     """Schema for updating alert status."""
     status: AlertStatus
+
+
+class DiscountType(str, Enum):
+    PERCENTAGE = "percentage"
+    FIXED = "fixed"
+
+
+class CouponCreate(BaseModel):
+    """Schema for creating a new coupon."""
+    code: str = Field(min_length=1, max_length=50)
+    discount_type: DiscountType
+    discount_value: float = Field(gt=0)
+    min_order_amount: float = Field(default=0.0, ge=0)
+    max_uses: int = Field(default=0, ge=0)  # 0 = unlimited
+    expires_at: Optional[datetime] = None
+
+
+class CouponUpdate(BaseModel):
+    """Schema for partial coupon updates."""
+    discount_type: Optional[DiscountType] = None
+    discount_value: Optional[float] = Field(default=None, gt=0)
+    min_order_amount: Optional[float] = Field(default=None, ge=0)
+    max_uses: Optional[int] = Field(default=None, ge=0)
+    expires_at: Optional[datetime] = None
+    is_active: Optional[bool] = None
+
+
+class Coupon(BaseModel):
+    """Coupon schema for responses."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    code: str
+    discount_type: DiscountType
+    discount_value: float
+    min_order_amount: float = 0.0
+    max_uses: int = 0
+    current_uses: int = 0
+    is_active: bool = True
+    expires_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+
+
+class CouponValidateRequest(BaseModel):
+    """Schema for validating a coupon against a cart total."""
+    code: str
+    cart_total: float = Field(gt=0)
+
+
+class CouponValidationResult(BaseModel):
+    """Result of coupon validation against a cart total."""
+    valid: bool
+    coupon: Optional[Coupon] = None
+    discount_amount: float = 0.0
+    final_total: float = 0.0
+    error: Optional[str] = None

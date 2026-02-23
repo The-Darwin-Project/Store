@@ -532,6 +532,9 @@
             background: var(--success);
             color: #000;
         }
+        .coupon-success { color: var(--success); font-size: 0.9rem; }
+        .coupon-error   { color: var(--danger); font-size: 0.9rem; }
+        .discount-line  { color: var(--success); }
 
         /* Select/Dropdown Styles */
         select {
@@ -730,6 +733,23 @@
                                 <tr><td colspan="5" class="empty-state">Your cart is empty.</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div id="coupon-section" style="margin-top: 1rem; display: none;">
+                        <div class="form-row">
+                            <div class="form-group flex-grow">
+                                <label for="coupon-input">Discount Code</label>
+                                <input type="text" id="coupon-input" placeholder="Enter coupon code"
+                                       style="text-transform: uppercase;">
+                            </div>
+                            <div class="form-group">
+                                <button type="button" class="secondary" onclick="applyCoupon()">Apply</button>
+                            </div>
+                            <div class="form-group">
+                                <button type="button" class="small danger" onclick="removeCoupon()"
+                                        id="remove-coupon-btn" style="display: none;">Remove</button>
+                            </div>
+                        </div>
+                        <div id="coupon-result" style="margin-top: 0.5rem;"></div>
                     </div>
                     <div id="cart-total" style="text-align: right; margin-top: 1rem; font-size: 1.25rem; font-weight: 700;"></div>
                     <div id="checkout-section" style="margin-top: 1.5rem; display: none;">
@@ -1500,6 +1520,88 @@
             }
         });
 
+        // ---- Coupon Logic ----
+
+        let appliedCoupon = null; // { code, discount_amount, final_total }
+
+        async function applyCoupon() {
+            const code = document.getElementById('coupon-input').value.trim();
+            if (!code) return;
+
+            const cart = getCart();
+            const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+
+            try {
+                const result = await apiCall('/coupons/validate', 'POST', {
+                    code: code,
+                    cart_total: cartTotal
+                });
+
+                if (result.valid) {
+                    appliedCoupon = {
+                        code: result.coupon.code,
+                        discount_amount: result.discount_amount,
+                        final_total: result.final_total
+                    };
+                    renderCouponResult(true, `Coupon "${escapeHtml(result.coupon.code)}" applied: -$${result.discount_amount.toFixed(2)}`);
+                    document.getElementById('remove-coupon-btn').style.display = '';
+                    document.getElementById('coupon-input').disabled = true;
+                } else {
+                    appliedCoupon = null;
+                    renderCouponResult(false, result.error);
+                }
+                renderCart();
+            } catch (error) {
+                renderCouponResult(false, error.message);
+            }
+        }
+
+        function removeCoupon() {
+            appliedCoupon = null;
+            document.getElementById('coupon-input').value = '';
+            document.getElementById('coupon-input').disabled = false;
+            document.getElementById('remove-coupon-btn').style.display = 'none';
+            document.getElementById('coupon-result').innerHTML = '';
+            renderCart();
+        }
+
+        function renderCouponResult(success, message) {
+            const div = document.getElementById('coupon-result');
+            div.innerHTML = `<span class="${success ? 'coupon-success' : 'coupon-error'}">${escapeHtml(message)}</span>`;
+        }
+
+        async function revalidateCoupon(grandTotal) {
+            if (!appliedCoupon || grandTotal <= 0) return;
+            try {
+                const result = await apiCall('/coupons/validate', 'POST', {
+                    code: appliedCoupon.code, cart_total: grandTotal
+                });
+                if (result.valid) {
+                    appliedCoupon.discount_amount = result.discount_amount;
+                    appliedCoupon.final_total = result.final_total;
+                    updateCartTotalDisplay(grandTotal);
+                } else {
+                    removeCoupon();
+                    log('Coupon removed: ' + result.error, 'error');
+                }
+            } catch (e) {
+                // Silently ignore re-validation errors
+            }
+        }
+
+        function updateCartTotalDisplay(grandTotal) {
+            const totalDiv = document.getElementById('cart-total');
+            if (appliedCoupon) {
+                totalDiv.innerHTML = `
+                    Subtotal: <span class="price">$${grandTotal.toFixed(2)}</span><br>
+                    <span class="discount-line">Discount (${escapeHtml(appliedCoupon.code)}): -$${appliedCoupon.discount_amount.toFixed(2)}</span><br>
+                    Grand Total: <span class="price">$${appliedCoupon.final_total.toFixed(2)}</span>
+                `;
+            } else {
+                totalDiv.innerHTML = `Grand Total: <span class="price">$${grandTotal.toFixed(2)}</span>`;
+            }
+        }
+
         // ---- Shopping Cart Logic ----
 
         function getCart() {
@@ -1557,11 +1659,14 @@
             const tbody = document.getElementById('cart-table');
             const totalDiv = document.getElementById('cart-total');
             const checkoutSection = document.getElementById('checkout-section');
+            const couponSection = document.getElementById('coupon-section');
 
             if (!cart.length) {
                 tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Your cart is empty.</td></tr>';
                 totalDiv.textContent = '';
                 checkoutSection.style.display = 'none';
+                couponSection.style.display = 'none';
+                if (appliedCoupon) removeCoupon();
                 return;
             }
 
@@ -1586,8 +1691,14 @@
                 `;
             }).join('');
 
-            totalDiv.innerHTML = `Grand Total: <span class="price">$${grandTotal.toFixed(2)}</span>`;
+            updateCartTotalDisplay(grandTotal);
+            couponSection.style.display = 'block';
             checkoutSection.style.display = 'block';
+
+            // Re-validate coupon if cart changed
+            if (appliedCoupon) {
+                revalidateCoupon(grandTotal);
+            }
         }
 
         function renderCartCount() {
@@ -1761,9 +1872,14 @@
                     quantity: item.qty
                 }));
 
-                const order = await apiCall('/orders', 'POST', { items, customer_id: customerId });
+                const payload = { items, customer_id: customerId };
+                if (appliedCoupon) {
+                    payload.coupon_code = appliedCoupon.code;
+                }
+                const order = await apiCall('/orders', 'POST', payload);
 
-                // Clear cart
+                // Clear coupon and cart
+                appliedCoupon = null;
                 saveCart([]);
                 renderCart();
                 renderCartCount();
@@ -1771,12 +1887,16 @@
 
                 // Show success modal
                 const detailsDiv = document.getElementById('order-details');
-                detailsDiv.innerHTML = `
+                let orderDetailsHtml = `
                     <p><strong>Order ID:</strong> ${order.id}</p>
                     <p><strong>Total:</strong> <span class="price">$${order.total_amount.toFixed(2)}</span></p>
                     <p><strong>Status:</strong> ${order.status}</p>
                     <p><strong>Items:</strong> ${order.items.length}</p>
                 `;
+                if (order.discount_amount > 0) {
+                    orderDetailsHtml += `<p><strong>Discount:</strong> <span class="discount-line">-$${order.discount_amount.toFixed(2)}</span></p>`;
+                }
+                detailsDiv.innerHTML = orderDetailsHtml;
                 document.getElementById('order-success-modal').classList.add('active');
                 log(`Order placed successfully! Total: $${order.total_amount.toFixed(2)}`, 'success');
             } catch (error) {
