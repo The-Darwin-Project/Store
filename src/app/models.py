@@ -12,6 +12,16 @@ from datetime import datetime
 from enum import Enum
 
 
+class AlertStatus(str, Enum):
+    ACTIVE = "active"
+    ORDERED = "ordered"
+    DISMISSED = "dismissed"
+
+
+class AlertType(str, Enum):
+    RESTOCK = "restock"
+
+
 class OrderStatus(str, Enum):
     PENDING = "pending"
     PROCESSING = "processing"
@@ -200,3 +210,31 @@ class TelemetryPayload(BaseModel):
     topology: Topology = Field(default_factory=Topology)
     gitops: Optional[GitOpsMetadata] = Field(default=None, description="GitOps coordinates for this service")
     pod_ips: list[str] = Field(default_factory=list, description="Pod IP addresses for IP-to-name correlation")
+
+
+class Alert(BaseModel):
+    """Alert schema for responses."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    type: AlertType = AlertType.RESTOCK
+    message: str
+    status: AlertStatus = AlertStatus.ACTIVE
+    product_id: Optional[str] = None
+    supplier_id: Optional[str] = None
+    current_stock: Optional[int] = None
+    reorder_threshold: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+
+class AlertCreate(BaseModel):
+    """Schema for creating a new alert."""
+    type: AlertType = AlertType.RESTOCK
+    message: str
+    product_id: Optional[str] = None
+    supplier_id: Optional[str] = None
+    current_stock: Optional[int] = None
+    reorder_threshold: Optional[int] = None
+
+
+class AlertStatusUpdate(BaseModel):
+    """Schema for updating alert status."""
+    status: AlertStatus

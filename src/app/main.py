@@ -32,6 +32,7 @@ from .routes.orders import router as orders_router
 from .routes.customers import router as customers_router
 from .routes.suppliers import router as suppliers_router
 from .routes.dashboard import router as dashboard_router
+from .routes.alerts import router as alerts_router
 from .chaos_state import get_chaos, record_request
 
 logging.basicConfig(level=logging.INFO)
@@ -109,6 +110,7 @@ app.include_router(orders_router)
 app.include_router(customers_router)
 app.include_router(suppliers_router)
 app.include_router(dashboard_router)
+app.include_router(alerts_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -200,6 +202,19 @@ async def startup_event():
                     product_id UUID NOT NULL REFERENCES products(id),
                     quantity INTEGER NOT NULL,
                     price_at_purchase REAL NOT NULL
+                )
+            ''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS alerts (
+                    id UUID PRIMARY KEY,
+                    type VARCHAR(50) NOT NULL DEFAULT 'restock',
+                    message TEXT NOT NULL,
+                    status VARCHAR(50) NOT NULL DEFAULT 'active',
+                    product_id UUID REFERENCES products(id),
+                    supplier_id UUID REFERENCES suppliers(id),
+                    current_stock INTEGER,
+                    reorder_threshold INTEGER,
+                    created_at TIMESTAMP DEFAULT NOW()
                 )
             ''')
             conn.commit()

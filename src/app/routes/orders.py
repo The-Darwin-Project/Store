@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Request
 import uuid
 
 from ..models import Order, OrderItem, OrderCreate, OrderStatusUpdate, OrderStatus, ORDER_STATUS_TRANSITIONS
+from .alerts import check_and_create_alert
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -266,7 +267,7 @@ async def create_order(order_data: OrderCreate, request: Request) -> Order:
             cur.execute("SELECT created_at FROM orders WHERE id = %s", (order_id,))
             created_at = cur.fetchone()[0]
 
-            return Order(
+            result = Order(
                 id=order_id,
                 created_at=created_at,
                 total_amount=total_amount,
@@ -274,6 +275,15 @@ async def create_order(order_data: OrderCreate, request: Request) -> Order:
                 items=order_items,
                 customer_id=order_data.customer_id
             )
+
+        # Check for restock alerts after stock deduction (outside cursor context)
+        for item in order_data.items:
+            try:
+                check_and_create_alert(conn, item.product_id)
+            except Exception:
+                pass  # Alert creation is best-effort; don't fail the order
+
+        return result
     except HTTPException:
         raise
     except Exception as e:
