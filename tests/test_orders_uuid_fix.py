@@ -36,8 +36,8 @@ def test_list_orders_uses_sql_cast_for_uuid_array(mock_pool_cls):
     # First query: SELECT ... FROM orders
     mock_cursor.fetchall.side_effect = [
         [
-            (oid1_str, "2023-01-01", 100.0, "pending", None, None, 0.0),
-            (oid2_str, "2023-01-02", 200.0, "pending", None, None, 0.0)
+            (oid1_str, "2023-01-01", 100.0, "pending", None, None, 0.0, None),
+            (oid2_str, "2023-01-02", 200.0, "pending", None, None, 0.0, None)
         ],
         # Second query: SELECT ... FROM order_items
         []

@@ -170,18 +170,18 @@ test.describe('Real-Time Search Bar', () => {
     
     const searchInput = page.locator('#global-search');
     
-    // Wait for initial load
-    await expect(page.locator('#orders-table tr')).toHaveCount(2);
+    // Wait for initial load (count .order-row to exclude hidden detail rows)
+    await expect(page.locator('#orders-table .order-row')).toHaveCount(2);
 
     // Search for "ORD-001"
     await searchInput.fill('ORD-001');
-    await expect(page.locator('#orders-table tr')).toHaveCount(1);
-    await expect(page.locator('#orders-table tr').first()).toContainText('ORD-001');
+    await expect(page.locator('#orders-table .order-row')).toHaveCount(1);
+    await expect(page.locator('#orders-table .order-row').first()).toContainText('ORD-001');
 
     // Search for status "shipped"
     await searchInput.fill('shipped');
-    await expect(page.locator('#orders-table tr')).toHaveCount(1);
-    await expect(page.locator('#orders-table tr').first()).toContainText('ORD-002');
+    await expect(page.locator('#orders-table .order-row')).toHaveCount(1);
+    await expect(page.locator('#orders-table .order-row').first()).toContainText('ORD-002');
   });
 
   test('should filter suppliers correctly', async ({ page }) => {
