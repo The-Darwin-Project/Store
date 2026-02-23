@@ -655,6 +655,9 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="alerts-tab" type="button" role="tab" onclick="switchTab('alerts')">Alerts <span id="alerts-badge" class="badge bg-danger" style="font-size: 0.7rem; vertical-align: top; display: none;">0</span></button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="coupons-tab" type="button" role="tab" onclick="switchTab('coupons')">Coupons</button>
+            </li>
         </ul>
 
         <!-- Tab Content -->
@@ -1036,6 +1039,80 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Coupons Tab -->
+            <div class="tab-pane" id="coupons">
+                <div class="panel">
+                    <h2>Create Coupon</h2>
+                    <form id="add-coupon-form">
+                        <div class="form-row">
+                            <div class="form-group flex-grow">
+                                <label for="coupon-code">Code</label>
+                                <input type="text" id="coupon-code" placeholder="e.g. SUMMER20"
+                                       style="text-transform: uppercase;" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="coupon-type">Type</label>
+                                <select id="coupon-type" style="background: var(--bg-card); color: var(--text-primary);
+                                        border: 1px solid rgba(255,255,255,0.2); padding: 0.75rem 1rem;
+                                        border-radius: 8px; font-size: 1rem;">
+                                    <option value="percentage">Percentage (%)</option>
+                                    <option value="fixed">Fixed ($)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="coupon-value">Value</label>
+                                <input type="number" id="coupon-value" step="0.01" min="0.01"
+                                       placeholder="10" required>
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-top: 0.75rem;">
+                            <div class="form-group">
+                                <label for="coupon-min-order">Min Order ($)</label>
+                                <input type="number" id="coupon-min-order" step="0.01" min="0"
+                                       value="0" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="coupon-max-uses">Max Uses</label>
+                                <input type="number" id="coupon-max-uses" min="0" value="0"
+                                       placeholder="0 = unlimited">
+                            </div>
+                            <div class="form-group">
+                                <label for="coupon-expires">Expires At</label>
+                                <input type="datetime-local" id="coupon-expires"
+                                       style="background: var(--bg-card); color: var(--text-primary);
+                                       border: 1px solid rgba(255,255,255,0.2); padding: 0.75rem 1rem;
+                                       border-radius: 8px; font-size: 1rem;">
+                            </div>
+                            <div class="form-group">
+                                <button type="submit">Create Coupon</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="panel">
+                    <h2>Coupon List</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Type</th>
+                                    <th>Value</th>
+                                    <th>Min Order</th>
+                                    <th>Uses</th>
+                                    <th>Expires</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="coupons-table">
+                                <tr><td colspan="8" class="empty-state">No coupons yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Activity Log -->
@@ -1241,7 +1318,8 @@
                     orders: 'Search orders...',
                     customers: 'Search customers...',
                     suppliers: 'Search suppliers...',
-                    alerts: 'Search alerts...'
+                    alerts: 'Search alerts...',
+                    coupons: 'Search coupons...'
                 };
                 searchEl.placeholder = placeholders[tabName] || 'Search...';
             }
@@ -1251,6 +1329,7 @@
             if (tabName === 'cart') loadCustomerDropdown();
             if (tabName === 'suppliers') loadSuppliers();
             if (tabName === 'alerts') loadAlerts();
+            if (tabName === 'coupons') loadCoupons();
             applySearch();
         }
 
@@ -2394,6 +2473,106 @@
             }
         }
         // ---- End Alerts Logic ----
+
+        // ---- Coupon Management ----
+
+        async function loadCoupons() {
+            try {
+                const coupons = await apiCall('/coupons');
+                const tbody = document.getElementById('coupons-table');
+                if (!coupons.length) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No coupons yet.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = coupons.map(c => {
+                    const isExpired = c.expires_at && new Date(c.expires_at) < new Date();
+                    const usageLimitReached = c.max_uses > 0 && c.current_uses >= c.max_uses;
+                    let statusText = 'Active';
+                    let statusClass = 'status-delivered';
+                    if (!c.is_active) { statusText = 'Inactive'; statusClass = 'status-cancelled'; }
+                    else if (isExpired) { statusText = 'Expired'; statusClass = 'status-cancelled'; }
+                    else if (usageLimitReached) { statusText = 'Exhausted'; statusClass = 'status-returned'; }
+
+                    const usageDisplay = c.max_uses > 0
+                        ? `${c.current_uses} / ${c.max_uses}`
+                        : `${c.current_uses} / \u221e`;
+                    const expiresDisplay = c.expires_at
+                        ? new Date(c.expires_at).toLocaleDateString()
+                        : 'Never';
+                    const valueDisplay = c.discount_type === 'percentage'
+                        ? `${c.discount_value}%`
+                        : `$${c.discount_value.toFixed(2)}`;
+
+                    return `<tr>
+                        <td><strong>${escapeHtml(c.code)}</strong></td>
+                        <td>${c.discount_type}</td>
+                        <td>${valueDisplay}</td>
+                        <td>$${c.min_order_amount.toFixed(2)}</td>
+                        <td>${usageDisplay}</td>
+                        <td>${expiresDisplay}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>
+                            <button class="small ${c.is_active ? 'secondary' : ''}"
+                                    onclick="toggleCouponActive('${c.id}', ${!c.is_active})">
+                                ${c.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button class="small danger" onclick="deleteCoupon('${c.id}', '${escapeHtml(c.code)}')">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch (error) {
+                log('Failed to load coupons: ' + error.message, 'error');
+            }
+        }
+
+        async function createCoupon(event) {
+            event.preventDefault();
+            const code = document.getElementById('coupon-code').value.trim();
+            const discount_type = document.getElementById('coupon-type').value;
+            const discount_value = parseFloat(document.getElementById('coupon-value').value);
+            const min_order_amount = parseFloat(document.getElementById('coupon-min-order').value) || 0;
+            const max_uses = parseInt(document.getElementById('coupon-max-uses').value) || 0;
+            const expiresInput = document.getElementById('coupon-expires').value;
+            const expires_at = expiresInput ? new Date(expiresInput).toISOString() : null;
+
+            try {
+                await apiCall('/coupons', 'POST', {
+                    code, discount_type, discount_value, min_order_amount, max_uses, expires_at
+                });
+                log(`Coupon "${code.toUpperCase()}" created`, 'success');
+                document.getElementById('add-coupon-form').reset();
+                loadCoupons();
+            } catch (error) {
+                log('Failed to create coupon: ' + error.message, 'error');
+            }
+        }
+
+        async function toggleCouponActive(couponId, newState) {
+            try {
+                await apiCall(`/coupons/${couponId}`, 'PATCH', { is_active: newState });
+                log(`Coupon ${newState ? 'activated' : 'deactivated'}`, 'success');
+                loadCoupons();
+            } catch (error) {
+                log('Failed to update coupon: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteCoupon(couponId, code) {
+            if (!confirm(`Delete coupon "${code}"? This cannot be undone.`)) return;
+            try {
+                await apiCall(`/coupons/${couponId}`, 'DELETE');
+                log(`Coupon "${code}" deleted`, 'success');
+                loadCoupons();
+            } catch (error) {
+                log('Failed to delete coupon: ' + error.message, 'error');
+            }
+        }
+
+        document.getElementById('add-coupon-form').addEventListener('submit', createCoupon);
+
+        // ---- End Coupon Management ----
 
         // Initial load and auto-refresh
         loadDashboard();
