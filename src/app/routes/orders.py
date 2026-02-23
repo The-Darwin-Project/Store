@@ -6,6 +6,7 @@ import uuid
 
 from ..models import Order, OrderItem, OrderCreate, OrderStatusUpdate, OrderStatus, ORDER_STATUS_TRANSITIONS
 from .alerts import check_and_create_alert
+from .coupons import validate_coupon_for_cart
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -18,7 +19,7 @@ async def list_orders(request: Request) -> list[Order]:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, created_at, total_amount, status, customer_id FROM orders ORDER BY created_at DESC"
+                "SELECT id, created_at, total_amount, status, customer_id, coupon_code, discount_amount FROM orders ORDER BY created_at DESC"
             )
             order_rows = cur.fetchall()
 
@@ -53,6 +54,8 @@ async def list_orders(request: Request) -> list[Order]:
                     total_amount=row[2],
                     status=row[3],
                     customer_id=str(row[4]) if row[4] else None,
+                    coupon_code=row[5],
+                    discount_amount=row[6] if row[6] is not None else 0.0,
                     items=items_by_order.get(str(row[0]), [])
                 ))
 
@@ -248,10 +251,29 @@ async def create_order(order_data: OrderCreate, request: Request) -> Order:
                     price_at_purchase=price_at_purchase
                 ))
 
+            # Apply coupon discount if provided
+            discount_amount = 0.0
+            coupon_code = None
+            if order_data.coupon_code:
+                coupon, discount_amount = validate_coupon_for_cart(
+                    conn, order_data.coupon_code, total_amount
+                )
+                coupon_code = coupon.code
+                total_amount = round(total_amount - discount_amount, 2)
+                # Atomic usage increment with limit check
+                cur.execute(
+                    "UPDATE coupons SET current_uses = current_uses + 1 "
+                    "WHERE id = %s AND (max_uses = 0 OR current_uses < max_uses) RETURNING id",
+                    (coupon.id,)
+                )
+                if not cur.fetchone():
+                    raise HTTPException(status_code=400, detail="Coupon usage limit reached")
+
             # Insert order record
             cur.execute(
-                "INSERT INTO orders (id, total_amount, status, customer_id) VALUES (%s, %s, %s, %s)",
-                (order_id, total_amount, "pending", order_data.customer_id)
+                "INSERT INTO orders (id, total_amount, status, customer_id, coupon_code, discount_amount) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
+                (order_id, total_amount, "pending", order_data.customer_id, coupon_code, discount_amount)
             )
 
             # Insert order items
@@ -273,7 +295,9 @@ async def create_order(order_data: OrderCreate, request: Request) -> Order:
                 total_amount=total_amount,
                 status="pending",
                 items=order_items,
-                customer_id=order_data.customer_id
+                customer_id=order_data.customer_id,
+                coupon_code=coupon_code,
+                discount_amount=discount_amount,
             )
 
         # Check for restock alerts after stock deduction (outside cursor context)
@@ -348,7 +372,7 @@ async def update_order_status(order_id: str, body: OrderStatusUpdate, request: R
             # Update status
             cur.execute(
                 "UPDATE orders SET status = %s, updated_at = NOW() WHERE id = %s "
-                "RETURNING id, created_at, total_amount, status, customer_id",
+                "RETURNING id, created_at, total_amount, status, customer_id, coupon_code, discount_amount",
                 (body.status.value, order_id)
             )
             updated = cur.fetchone()
@@ -360,6 +384,8 @@ async def update_order_status(order_id: str, body: OrderStatusUpdate, request: R
                 total_amount=updated[2],
                 status=updated[3],
                 customer_id=str(updated[4]) if updated[4] else None,
+                coupon_code=updated[5],
+                discount_amount=updated[6] if updated[6] is not None else 0.0,
             )
     except HTTPException:
         raise

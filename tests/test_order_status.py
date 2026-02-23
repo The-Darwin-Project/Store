@@ -23,7 +23,7 @@ def test_update_order_status_valid(mock_pool_cls):
     # Current status: pending
     mock_cursor.fetchone.side_effect = [
         (MOCK_ORDER_ID, "2023-01-01", 100.0, "pending", MOCK_CUSTOMER_ID),
-        (MOCK_ORDER_ID, "2023-01-01", 100.0, "processing", MOCK_CUSTOMER_ID),
+        (MOCK_ORDER_ID, "2023-01-01", 100.0, "processing", MOCK_CUSTOMER_ID, None, 0.0),
     ]
 
     with TestClient(app) as client:
@@ -70,8 +70,8 @@ def test_update_order_status_cancel(mock_pool_cls):
     # fetchall: order_items for stock restoration
     # fetchone #2: RETURNING row after status UPDATE
     mock_cursor.fetchone.side_effect = [
-        (MOCK_ORDER_ID, "2023-01-01", 100.0, "processing", MOCK_CUSTOMER_ID),
-        (MOCK_ORDER_ID, "2023-01-01", 100.0, "cancelled", MOCK_CUSTOMER_ID),
+        (MOCK_ORDER_ID, "2023-01-01", 100.0, "processing", MOCK_CUSTOMER_ID, None, 0.0),
+        (MOCK_ORDER_ID, "2023-01-01", 100.0, "cancelled", MOCK_CUSTOMER_ID, None, 0.0),
     ]
     mock_cursor.fetchall.return_value = [
         (product_a, 2),
@@ -104,7 +104,7 @@ def test_update_order_status_returned(mock_pool_cls):
 
     mock_cursor.fetchone.side_effect = [
         (MOCK_ORDER_ID, "2023-01-01", 100.0, "delivered", MOCK_CUSTOMER_ID),
-        (MOCK_ORDER_ID, "2023-01-01", 100.0, "returned", MOCK_CUSTOMER_ID),
+        (MOCK_ORDER_ID, "2023-01-01", 100.0, "returned", MOCK_CUSTOMER_ID, None, 0.0),
     ]
     mock_cursor.fetchall.return_value = [
         (product_a, 3),
@@ -133,7 +133,7 @@ def test_update_order_status_returned_terminal(mock_pool_cls):
     mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
     mock_cursor.fetchone.side_effect = [
-        (MOCK_ORDER_ID, "2023-01-01", 100.0, "returned", MOCK_CUSTOMER_ID),
+        (MOCK_ORDER_ID, "2023-01-01", 100.0, "returned", MOCK_CUSTOMER_ID, None, 0.0),
     ]
 
     with TestClient(app) as client:

@@ -33,6 +33,7 @@ from .routes.customers import router as customers_router
 from .routes.suppliers import router as suppliers_router
 from .routes.dashboard import router as dashboard_router
 from .routes.alerts import router as alerts_router
+from .routes.coupons import router as coupons_router
 from .chaos_state import get_chaos, record_request
 
 logging.basicConfig(level=logging.INFO)
@@ -111,6 +112,7 @@ app.include_router(customers_router)
 app.include_router(suppliers_router)
 app.include_router(dashboard_router)
 app.include_router(alerts_router)
+app.include_router(coupons_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -217,8 +219,22 @@ async def startup_event():
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             ''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS coupons (
+                    id UUID PRIMARY KEY,
+                    code VARCHAR(50) NOT NULL UNIQUE,
+                    discount_type VARCHAR(20) NOT NULL,
+                    discount_value REAL NOT NULL,
+                    min_order_amount REAL DEFAULT 0.0,
+                    max_uses INTEGER DEFAULT 0,
+                    current_uses INTEGER DEFAULT 0,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    expires_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            ''')
             conn.commit()
-            logger.info("Database initialized and 'products', 'orders', 'order_items' tables created or verified.")
+            logger.info("Database initialized and 'products', 'orders', 'order_items', 'coupons' tables created or verified.")
 
             # Migration: Ensure description column exists for existing databases
             try:
@@ -262,6 +278,20 @@ async def startup_event():
                 conn.commit()
             except Exception as e:
                 logger.warning(f"Migration warning (reorder_threshold): {e}")
+
+            # Migration: Add coupon_code column to orders
+            try:
+                cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(50)")
+                conn.commit()
+            except Exception as e:
+                logger.warning(f"Migration warning (coupon_code): {e}")
+
+            # Migration: Add discount_amount column to orders
+            try:
+                cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount REAL DEFAULT 0.0")
+                conn.commit()
+            except Exception as e:
+                logger.warning(f"Migration warning (discount_amount): {e}")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
     finally:
