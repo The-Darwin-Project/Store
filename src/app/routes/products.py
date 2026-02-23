@@ -10,6 +10,7 @@ from typing import Optional
 import uuid
 
 from ..models import Product, ProductCreate, ProductUpdate
+from .alerts import check_and_create_alert
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -123,6 +124,14 @@ async def patch_product(product_id: str, updates: ProductUpdate, request: Reques
                 (merged.name, merged.price, merged.stock, merged.sku, merged.image_data, merged.description, merged.supplier_id, merged.reorder_threshold, product_id)
             )
             conn.commit()
+
+            # Check for restock alert if stock or threshold changed
+            if 'stock' in provided or 'reorder_threshold' in provided:
+                try:
+                    check_and_create_alert(conn, product_id)
+                except Exception:
+                    pass  # Best-effort
+
             return merged
     finally:
         pool.putconn(conn)

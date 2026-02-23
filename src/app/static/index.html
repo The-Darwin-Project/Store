@@ -649,6 +649,9 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="suppliers-tab" type="button" role="tab" onclick="switchTab('suppliers')">Suppliers</button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="alerts-tab" type="button" role="tab" onclick="switchTab('alerts')">Alerts <span id="alerts-badge" class="badge bg-danger" style="font-size: 0.7rem; vertical-align: top; display: none;">0</span></button>
+            </li>
         </ul>
 
         <!-- Tab Content -->
@@ -980,6 +983,39 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Alerts Tab -->
+            <div class="tab-pane" id="alerts">
+                <div class="panel">
+                    <h2>Restock Alerts</h2>
+                    <div style="margin-bottom: 1rem;">
+                        <select id="alerts-filter" onchange="loadAlerts()" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: 8px;">
+                            <option value="">All Alerts</option>
+                            <option value="active" selected>Active</option>
+                            <option value="ordered">Ordered</option>
+                            <option value="dismissed">Dismissed</option>
+                        </select>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Stock</th>
+                                    <th>Threshold</th>
+                                    <th>Supplier</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="alerts-table">
+                                <tr><td colspan="7" class="empty-state">No alerts.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Activity Log -->
@@ -988,7 +1024,7 @@
             <div id="log"></div>
         </div>
     </div>
-    
+
     <!-- Edit Modal -->
     <div class="modal-overlay" id="edit-modal">
         <div class="custom-modal">
@@ -1184,7 +1220,8 @@
                     inventory: 'Search products...',
                     orders: 'Search orders...',
                     customers: 'Search customers...',
-                    suppliers: 'Search suppliers...'
+                    suppliers: 'Search suppliers...',
+                    alerts: 'Search alerts...'
                 };
                 searchEl.placeholder = placeholders[tabName] || 'Search...';
             }
@@ -1193,6 +1230,7 @@
             if (tabName === 'customers') loadCustomers();
             if (tabName === 'cart') loadCustomerDropdown();
             if (tabName === 'suppliers') loadSuppliers();
+            if (tabName === 'alerts') loadAlerts();
             applySearch();
         }
 
@@ -2041,6 +2079,8 @@
                     renderCustomerList(_customersCache);
                 } else if (activeTab === 'suppliers') {
                     renderSupplierList();
+                } else if (activeTab === 'alerts') {
+                    renderAlerts(_alertsCache);
                 }
                 return;
             }
@@ -2080,6 +2120,12 @@
                     matches(s.phone)
                 );
                 renderSupplierList(filtered);
+            } else if (activeTab === 'alerts') {
+                const filtered = _alertsCache.filter(a =>
+                    matches(a.message) ||
+                    matches(a.status)
+                );
+                renderAlerts(filtered);
             }
         }
 
@@ -2140,14 +2186,105 @@
         }
         // ---- End Dashboard Logic ----
 
+        // ---- Alerts Logic ----
+        let _alertsCache = [];
+
+        async function loadAlerts() {
+            try {
+                const filter = document.getElementById('alerts-filter')?.value || '';
+                const url = filter ? `/alerts?status=${filter}` : '/alerts';
+                const alerts = await apiCall(url);
+                _alertsCache = alerts || [];
+                renderAlerts(_alertsCache);
+                updateAlertsBadge();
+            } catch (error) {
+                log('Failed to load alerts: ' + error.message, 'error');
+            }
+        }
+
+        async function updateAlertsBadge() {
+            try {
+                const active = await apiCall('/alerts?status=active');
+                const badge = document.getElementById('alerts-badge');
+                const count = active ? active.length : 0;
+                if (count > 0) {
+                    badge.textContent = count;
+                    badge.style.display = 'inline';
+                } else {
+                    badge.style.display = 'none';
+                }
+            } catch (error) {
+                // Silent fail for badge update
+            }
+        }
+
+        function renderAlerts(alerts) {
+            const tbody = document.getElementById('alerts-table');
+            if (!alerts || alerts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No alerts.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = alerts.map(a => {
+                const productName = a.message.match(/Restock needed: '([^']+)'/)?.[1] || '-';
+                const supplierMatch = a.message.match(/Supplier: ([^.]+)/);
+                const supplierName = supplierMatch ? supplierMatch[1] : '-';
+                const date = a.created_at ? new Date(a.created_at).toLocaleString() : 'N/A';
+                const statusClass = a.status === 'active' ? 'low' : a.status === 'ordered' ? '' : '';
+                const statusBadge = `<span class="status-badge status-${a.status === 'active' ? 'pending' : a.status === 'ordered' ? 'processing' : 'delivered'}">${escapeHtml(a.status)}</span>`;
+
+                let actions = '';
+                if (a.status === 'active') {
+                    actions = `<button class="small" onclick="markAlertOrdered('${a.id}')">Mark as Ordered</button>
+                               <button class="small secondary" onclick="dismissAlert('${a.id}')">Dismiss</button>`;
+                } else if (a.status === 'ordered') {
+                    actions = `<button class="small secondary" onclick="dismissAlert('${a.id}')">Dismiss</button>`;
+                } else {
+                    actions = '<span style="color: var(--text-secondary);">-</span>';
+                }
+
+                return `<tr>
+                    <td>${escapeHtml(productName)}</td>
+                    <td class="stock ${statusClass}">${a.current_stock != null ? a.current_stock : '-'}</td>
+                    <td>${a.reorder_threshold != null ? a.reorder_threshold : '-'}</td>
+                    <td>${escapeHtml(supplierName)}</td>
+                    <td>${statusBadge}</td>
+                    <td>${date}</td>
+                    <td class="actions">${actions}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function markAlertOrdered(alertId) {
+            try {
+                await apiCall(`/alerts/${alertId}`, 'PATCH', { status: 'ordered' });
+                log('Alert marked as ordered', 'success');
+                await loadAlerts();
+            } catch (error) {
+                log('Failed to update alert: ' + error.message, 'error');
+            }
+        }
+
+        async function dismissAlert(alertId) {
+            try {
+                await apiCall(`/alerts/${alertId}`, 'PATCH', { status: 'dismissed' });
+                log('Alert dismissed', 'success');
+                await loadAlerts();
+            } catch (error) {
+                log('Failed to dismiss alert: ' + error.message, 'error');
+            }
+        }
+        // ---- End Alerts Logic ----
+
         // Initial load and auto-refresh
         loadDashboard();
         loadSuppliers().then(() => loadProducts());
         renderCart();
         renderCartCount();
         loadCustomerDropdown();
+        updateAlertsBadge();
         setInterval(loadProducts, 5000);
         setInterval(loadSuppliers, 5000);
+        setInterval(updateAlertsBadge, 10000);
         log('Darwin Store initialized', 'success');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
