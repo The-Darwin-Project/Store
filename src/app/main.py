@@ -36,6 +36,7 @@ from .routes.alerts import router as alerts_router
 from .routes.coupons import router as coupons_router
 from .routes.invoices import router as invoices_router
 from .routes.reviews import router as reviews_router
+from .routes.campaigns import router as campaigns_router
 from .routes.auth import router as auth_router, validate_session
 from .chaos_state import get_chaos, record_request
 
@@ -129,6 +130,7 @@ app.include_router(alerts_router)
 app.include_router(coupons_router)
 app.include_router(invoices_router)
 app.include_router(reviews_router)
+app.include_router(campaigns_router)
 app.include_router(auth_router)
 
 
@@ -291,6 +293,24 @@ async def startup_event():
                     comment TEXT DEFAULT '',
                     created_at TIMESTAMP DEFAULT NOW(),
                     UNIQUE(product_id, customer_id)
+                )
+            ''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS campaigns (
+                    id UUID PRIMARY KEY,
+                    title VARCHAR(255) NOT NULL,
+                    type VARCHAR(20) NOT NULL CHECK (type IN ('banner', 'discount_promo', 'product_spotlight')),
+                    content TEXT DEFAULT '',
+                    image_url TEXT,
+                    link_url TEXT,
+                    coupon_code VARCHAR(50),
+                    product_id UUID REFERENCES products(id),
+                    start_date TIMESTAMP NOT NULL,
+                    end_date TIMESTAMP NOT NULL,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    priority INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    CONSTRAINT valid_date_range CHECK (end_date > start_date)
                 )
             ''')
             conn.commit()

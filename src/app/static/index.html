@@ -42,6 +42,8 @@
         <div class="tab-content">
             <!-- Catalog Tab -->
             <div class="tab-pane active" id="catalog">
+                <div class="campaign-banners-container" id="campaign-banners"></div>
+                <div class="campaign-promos-container" id="campaign-promos"></div>
                 <div class="catalog-grid" id="catalog-grid">
                     <div class="empty-state" style="grid-column: 1 / -1;">No products yet.</div>
                 </div>
@@ -291,6 +293,75 @@
             applySearch();
         }
 
+        // ---- Campaign Logic ----
+
+        let _campaignsCache = [];
+
+        async function loadActiveCampaigns() {
+            try {
+                _campaignsCache = await apiCall('/campaigns/active');
+                renderCampaigns();
+            } catch (error) {
+                console.warn('Failed to load campaigns:', error.message);
+            }
+        }
+
+        function renderCampaigns() {
+            const bannersContainer = document.getElementById('campaign-banners');
+            const promosContainer = document.getElementById('campaign-promos');
+            bannersContainer.innerHTML = '';
+            promosContainer.innerHTML = '';
+
+            const banners = _campaignsCache.filter(c => c.type === 'banner');
+            const promos = _campaignsCache.filter(c => c.type === 'discount_promo');
+
+            if (banners.length) {
+                bannersContainer.innerHTML = banners.map(c => {
+                    const bgStyle = c.image_url ? `background-image: url('${c.image_url}')` : '';
+                    const cursorStyle = c.link_url ? 'cursor: pointer' : 'cursor: default';
+                    const clickHandler = c.link_url
+                        ? `onclick="window.open('${c.link_url}', '_blank')"`
+                        : '';
+                    return `<div class="campaign-banner" ${clickHandler} style="${cursorStyle}">
+                        <div class="campaign-banner-bg" style="${bgStyle}"></div>
+                        <div class="campaign-banner-content">
+                            <h3>${escapeHtml(c.title)}</h3>
+                            <p>${escapeHtml(c.content || '')}</p>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+
+            if (promos.length) {
+                promosContainer.innerHTML = promos.map(c => {
+                    const couponBtn = c.coupon_code
+                        ? `<button class="promo-copy-btn" onclick="copyCouponCode('${escapeHtml(c.coupon_code)}', this)">Code: ${escapeHtml(c.coupon_code)} — Click to Copy</button>`
+                        : '';
+                    return `<div class="campaign-promo">
+                        <span class="promo-text">${escapeHtml(c.title)}${c.content ? ': ' + escapeHtml(c.content) : ''}</span>
+                        ${couponBtn}
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        async function copyCouponCode(code, btn) {
+            try {
+                await navigator.clipboard.writeText(code);
+                const original = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = 'var(--success)';
+                btn.style.color = '#000';
+                setTimeout(() => {
+                    btn.textContent = original;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                }, 2000);
+            } catch (err) {
+                console.warn('Clipboard write failed:', err);
+            }
+        }
+
         // ---- Catalog Logic ----
 
         let _productsCache = [];
@@ -317,7 +388,7 @@
                 return;
             }
 
-            grid.innerHTML = products.map(p => {
+            function renderProductCard(p, isSpotlight) {
                 const imageHtml = p.image_data
                     ? `<img class="catalog-card-img" src="${p.image_data}" alt="${escapeHtml(p.name)}">`
                     : `<div class="catalog-card-img-placeholder">No Image</div>`;
@@ -331,8 +402,12 @@
                 const ratingData = _ratingsCache[p.id] || { average_rating: 0, review_count: 0 };
                 const ratingHtml = `<div class="card-rating">${renderStars(ratingData.average_rating)} <span class="rating-count">(${ratingData.review_count})</span></div>`;
 
+                const spotlightClass = isSpotlight ? ' spotlight' : '';
+                const spotlightBadge = isSpotlight ? '<span class="spotlight-badge">Featured</span>' : '';
+
                 return `
-                    <div class="catalog-card" onclick="openProductDetail('${p.id}')" style="cursor:pointer;">
+                    <div class="catalog-card${spotlightClass}" onclick="openProductDetail('${p.id}')" style="cursor:pointer;">
+                        ${spotlightBadge}
                         ${imageHtml}
                         <div class="catalog-card-body">
                             <h3>${escapeHtml(p.name)}</h3>
@@ -343,7 +418,21 @@
                         </div>
                     </div>
                 `;
-            }).join('');
+            }
+
+            // Prepend spotlight products from active campaigns
+            const spotlights = (_campaignsCache || []).filter(c => c.type === 'product_spotlight');
+            const spotlightIds = new Set(spotlights.map(c => c.product_id).filter(Boolean));
+            const spotlightCards = spotlights
+                .map(c => products.find(p => p.id === c.product_id))
+                .filter(Boolean)
+                .map(p => renderProductCard(p, true));
+
+            const regularCards = products
+                .filter(p => !spotlightIds.has(p.id))
+                .map(p => renderProductCard(p, false));
+
+            grid.innerHTML = spotlightCards.concat(regularCards).join('');
         }
 
         // ---- Shopping Cart Logic ----
@@ -1114,6 +1203,7 @@
         // ---- Initialization ----
 
         loadProducts();
+        loadActiveCampaigns();
         renderCart();
         renderCartCount();
         loadCustomerDropdown();
