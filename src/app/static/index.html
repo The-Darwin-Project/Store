@@ -713,6 +713,9 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="coupons-tab" type="button" role="tab" onclick="switchTab('coupons')">Coupons</button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="invoices-tab" type="button" role="tab" onclick="switchTab('invoices')">Invoices</button>
+            </li>
         </ul>
 
         <!-- Tab Content -->
@@ -1202,6 +1205,30 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Invoices Tab -->
+            <div class="tab-pane" id="invoices">
+                <div class="panel">
+                    <h2>Invoice History</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Invoice #</th>
+                                    <th>Customer</th>
+                                    <th>Order ID</th>
+                                    <th>Total</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoices-table">
+                                <tr><td colspan="6" class="empty-state">No invoices yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Activity Log -->
@@ -1341,6 +1368,7 @@
         let _suppliersCache = [];
         let _ordersCache = [];
         let _unassignedOrdersCache = [];
+        let _invoicesCache = [];
 
         async function updateOrderStatus(orderId, newStatus) {
             try {
@@ -1514,7 +1542,8 @@
                     customers: 'Search customers...',
                     suppliers: 'Search suppliers...',
                     alerts: 'Search alerts...',
-                    coupons: 'Search coupons...'
+                    coupons: 'Search coupons...',
+                    invoices: 'Search invoices...'
                 };
                 searchEl.placeholder = placeholders[tabName] || 'Search...';
             }
@@ -1525,6 +1554,7 @@
             if (tabName === 'suppliers') loadSuppliers();
             if (tabName === 'alerts') loadAlerts();
             if (tabName === 'coupons') loadCoupons();
+            if (tabName === 'invoices') loadInvoices();
             applySearch();
         }
 
@@ -2595,6 +2625,8 @@
                     renderSupplierList();
                 } else if (activeTab === 'alerts') {
                     renderAlerts(_alertsCache);
+                } else if (activeTab === 'invoices') {
+                    renderInvoices(_invoicesCache);
                 }
                 return;
             }
@@ -2642,6 +2674,14 @@
                     matches(a.status)
                 );
                 renderAlerts(filtered);
+            } else if (activeTab === 'invoices') {
+                const filtered = _invoicesCache.filter(i =>
+                    matches(i.invoice_number) ||
+                    matches(i.customer_snapshot.name) ||
+                    matches(i.customer_snapshot.company) ||
+                    matches(i.order_id)
+                );
+                renderInvoices(filtered);
             }
         }
 
@@ -2890,6 +2930,41 @@
         document.getElementById('add-coupon-form').addEventListener('submit', createCoupon);
 
         // ---- End Coupon Management ----
+
+        // ---- Invoice Management ----
+        async function loadInvoices() {
+            try {
+                const invoices = await apiCall('/invoices');
+                _invoicesCache = invoices || [];
+                applySearch();
+            } catch (error) {
+                log('Failed to load invoices: ' + error.message, 'error');
+            }
+        }
+
+        function renderInvoices(invoices) {
+            const tbody = document.getElementById('invoices-table');
+            if (!invoices || invoices.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No invoices yet.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = invoices.map(i => {
+                const date = i.created_at ? new Date(i.created_at).toLocaleString() : 'N/A';
+                const invoiceNum = 'INV-' + String(i.invoice_number).padStart(4, '0');
+                const customerName = i.customer_snapshot.name + (i.customer_snapshot.company ? ` (${i.customer_snapshot.company})` : '');
+                return `<tr>
+                    <td>${date}</td>
+                    <td><strong>${invoiceNum}</strong></td>
+                    <td>${escapeHtml(customerName)}</td>
+                    <td title="${i.order_id}">${i.order_id.substring(0, 8)}...</td>
+                    <td class="price">$${i.grand_total.toFixed(2)}</td>
+                    <td class="actions">
+                        <button class="small secondary" onclick="viewInvoice('${i.id}')">View</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+        // ---- End Invoice Management ----
 
         // Initial load and auto-refresh
         loadDashboard();
