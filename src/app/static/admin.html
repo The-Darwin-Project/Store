@@ -44,6 +44,9 @@
                 <button class="nav-link" id="coupons-tab" type="button" role="tab" onclick="switchTab('coupons')">Coupons</button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="campaigns-tab" type="button" role="tab" onclick="switchTab('campaigns')">Campaigns</button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="invoices-tab" type="button" role="tab" onclick="switchTab('invoices')">Invoices</button>
             </li>
             <li class="nav-item" role="presentation">
@@ -457,6 +460,111 @@
                 </div>
             </div>
 
+            <!-- Campaigns Tab -->
+            <div class="tab-pane" id="campaigns">
+                <div class="panel">
+                    <h2>Create Campaign</h2>
+                    <form id="add-campaign-form">
+                        <div class="form-row">
+                            <div class="form-group flex-grow">
+                                <label for="campaign-title">Title</label>
+                                <input type="text" id="campaign-title" placeholder="Campaign title" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="campaign-type">Type</label>
+                                <select id="campaign-type" onchange="onCampaignTypeChange()"
+                                        style="background: var(--bg-card); color: var(--text-primary);
+                                        border: 1px solid rgba(255,255,255,0.2); padding: 0.75rem 1rem;
+                                        border-radius: 8px; font-size: 1rem;">
+                                    <option value="banner">Banner</option>
+                                    <option value="discount_promo">Discount Promo</option>
+                                    <option value="product_spotlight">Product Spotlight</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-top: 0.75rem;">
+                            <div class="form-group flex-grow">
+                                <label for="campaign-content">Content</label>
+                                <textarea id="campaign-content" rows="2" placeholder="Banner text or promo description"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="campaign-image-url">Image URL</label>
+                                <input type="text" id="campaign-image-url" placeholder="https://...">
+                            </div>
+                            <div class="form-group">
+                                <label for="campaign-link-url">Link URL</label>
+                                <input type="text" id="campaign-link-url" placeholder="https://...">
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-top: 0.75rem;">
+                            <div class="form-group">
+                                <label for="campaign-coupon-code">Coupon Code</label>
+                                <input type="text" id="campaign-coupon-code" placeholder="e.g. SUMMER20"
+                                       style="text-transform: uppercase;">
+                            </div>
+                            <div class="form-group" id="campaign-product-group" style="display: none;">
+                                <label for="campaign-product-id">Product</label>
+                                <select id="campaign-product-id"
+                                        style="background: var(--bg-card); color: var(--text-primary);
+                                        border: 1px solid rgba(255,255,255,0.2); padding: 0.75rem 1rem;
+                                        border-radius: 8px; font-size: 1rem;">
+                                    <option value="">-- Select product --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="campaign-priority">Priority</label>
+                                <input type="number" id="campaign-priority" min="0" value="0" placeholder="0">
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-top: 0.75rem;">
+                            <div class="form-group">
+                                <label for="campaign-start-date">Start Date</label>
+                                <input type="datetime-local" id="campaign-start-date" required
+                                       style="background: var(--bg-card); color: var(--text-primary);
+                                       border: 1px solid rgba(255,255,255,0.2); padding: 0.75rem 1rem;
+                                       border-radius: 8px; font-size: 1rem;">
+                            </div>
+                            <div class="form-group">
+                                <label for="campaign-end-date">End Date</label>
+                                <input type="datetime-local" id="campaign-end-date" required
+                                       style="background: var(--bg-card); color: var(--text-primary);
+                                       border: 1px solid rgba(255,255,255,0.2); padding: 0.75rem 1rem;
+                                       border-radius: 8px; font-size: 1rem;">
+                            </div>
+                            <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; padding-top: 1.5rem;">
+                                <input type="checkbox" id="campaign-is-active" checked
+                                       style="width: auto; accent-color: var(--accent);">
+                                <label for="campaign-is-active" style="margin: 0;">Active</label>
+                            </div>
+                            <div class="form-group">
+                                <button type="submit">Create Campaign</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="panel">
+                    <h2>Campaign List</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Type</th>
+                                    <th>Dates</th>
+                                    <th>Coupon</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="campaigns-table">
+                                <tr><td colspan="7" class="empty-state">No campaigns yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Invoices Tab -->
             <div class="tab-pane" id="invoices">
                 <div class="panel">
@@ -699,6 +807,7 @@
                     suppliers: 'Search suppliers...',
                     alerts: 'Search alerts...',
                     coupons: 'Search coupons...',
+                    campaigns: 'Search campaigns...',
                     invoices: 'Search invoices...',
                     settings: 'Search...'
                 };
@@ -710,6 +819,7 @@
             if (tabName === 'suppliers') loadSuppliers();
             if (tabName === 'alerts') loadAlerts();
             if (tabName === 'coupons') loadCoupons();
+            if (tabName === 'campaigns') loadCampaigns();
             if (tabName === 'invoices') loadInvoices();
             applySearch();
         }
@@ -1667,6 +1777,132 @@
         }
 
         document.getElementById('add-coupon-form').addEventListener('submit', createCoupon);
+
+        // ---- Campaign Management ----
+
+        function onCampaignTypeChange() {
+            const type = document.getElementById('campaign-type').value;
+            const productGroup = document.getElementById('campaign-product-group');
+            if (type === 'product_spotlight') {
+                productGroup.style.display = '';
+                loadCampaignProducts();
+            } else {
+                productGroup.style.display = 'none';
+            }
+        }
+
+        async function loadCampaignProducts() {
+            try {
+                const products = await apiCall('/products');
+                const select = document.getElementById('campaign-product-id');
+                select.innerHTML = '<option value="">-- Select product --</option>' +
+                    products.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+            } catch (error) {
+                log('Failed to load products for campaign: ' + error.message, 'error');
+            }
+        }
+
+        async function loadCampaigns() {
+            try {
+                const campaigns = await apiCall('/campaigns');
+                const tbody = document.getElementById('campaigns-table');
+                if (!campaigns.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No campaigns yet.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = campaigns.map(c => {
+                    const now = new Date();
+                    const startDate = new Date(c.start_date);
+                    const endDate = new Date(c.end_date);
+
+                    let statusText = 'Active';
+                    let statusClass = 'status-delivered';
+                    if (!c.is_active) { statusText = 'Inactive'; statusClass = 'status-cancelled'; }
+                    else if (endDate < now) { statusText = 'Ended'; statusClass = 'status-returned'; }
+                    else if (startDate > now) { statusText = 'Scheduled'; statusClass = 'status-processing'; }
+
+                    const typeLabels = { banner: 'Banner', discount_promo: 'Discount Promo', product_spotlight: 'Spotlight' };
+                    const dateRange = `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
+                    const couponDisplay = c.coupon_code ? escapeHtml(c.coupon_code) : '-';
+
+                    return `<tr>
+                        <td><strong>${escapeHtml(c.title)}</strong></td>
+                        <td>${typeLabels[c.type] || c.type}</td>
+                        <td>${dateRange}</td>
+                        <td>${couponDisplay}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>${c.priority}</td>
+                        <td>
+                            <button class="small ${c.is_active ? 'secondary' : ''}"
+                                    onclick="toggleCampaignActive('${c.id}', ${!c.is_active})">
+                                ${c.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button class="small danger" onclick="deleteCampaign('${c.id}', '${escapeHtml(c.title).replace(/'/g, "\\'")}')">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch (error) {
+                log('Failed to load campaigns: ' + error.message, 'error');
+            }
+        }
+
+        async function createCampaign(event) {
+            event.preventDefault();
+            const title = document.getElementById('campaign-title').value.trim();
+            const type = document.getElementById('campaign-type').value;
+            const content = document.getElementById('campaign-content').value.trim();
+            const image_url = document.getElementById('campaign-image-url').value.trim() || null;
+            const link_url = document.getElementById('campaign-link-url').value.trim() || null;
+            const coupon_code = document.getElementById('campaign-coupon-code').value.trim().toUpperCase() || null;
+            const product_id = type === 'product_spotlight'
+                ? document.getElementById('campaign-product-id').value || null
+                : null;
+            const priority = parseInt(document.getElementById('campaign-priority').value) || 0;
+            const startInput = document.getElementById('campaign-start-date').value;
+            const endInput = document.getElementById('campaign-end-date').value;
+            const is_active = document.getElementById('campaign-is-active').checked;
+
+            const start_date = startInput ? new Date(startInput).toISOString() : null;
+            const end_date = endInput ? new Date(endInput).toISOString() : null;
+
+            try {
+                await apiCall('/campaigns', 'POST', {
+                    title, type, content, image_url, link_url, coupon_code,
+                    product_id, start_date, end_date, is_active, priority
+                });
+                log(`Campaign "${title}" created`, 'success');
+                document.getElementById('add-campaign-form').reset();
+                document.getElementById('campaign-product-group').style.display = 'none';
+                loadCampaigns();
+            } catch (error) {
+                log('Failed to create campaign: ' + error.message, 'error');
+            }
+        }
+
+        async function toggleCampaignActive(campaignId, newState) {
+            try {
+                await apiCall(`/campaigns/${campaignId}`, 'PATCH', { is_active: newState });
+                log(`Campaign ${newState ? 'activated' : 'deactivated'}`, 'success');
+                loadCampaigns();
+            } catch (error) {
+                log('Failed to update campaign: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteCampaign(campaignId, title) {
+            if (!confirm(`Delete campaign "${title}"? This cannot be undone.`)) return;
+            try {
+                await apiCall(`/campaigns/${campaignId}`, 'DELETE');
+                log(`Campaign "${title}" deleted`, 'success');
+                loadCampaigns();
+            } catch (error) {
+                log('Failed to delete campaign: ' + error.message, 'error');
+            }
+        }
+
+        document.getElementById('add-campaign-form').addEventListener('submit', createCampaign);
 
         // ---- Invoice Logic ----
 

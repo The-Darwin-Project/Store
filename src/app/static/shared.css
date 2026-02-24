@@ -715,6 +715,77 @@ input[type="email"]:focus {
 }
 .review-form-section .form-group { margin-bottom: 0.75rem; }
 
+/* Campaign Banners */
+.campaign-banners-container { margin-bottom: 1.5rem; }
+.campaign-banner {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+.campaign-banner-bg {
+    position: absolute; inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0.3;
+}
+.campaign-banner-content {
+    position: relative; z-index: 1;
+    padding: 1.5rem;
+}
+.campaign-banner-content h3 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+.campaign-banner-content p { color: var(--text-secondary); }
+
+/* Discount Promo Bar */
+.campaign-promos-container { margin-bottom: 1.5rem; }
+.campaign-promo {
+    background: rgba(233, 69, 96, 0.15);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+.promo-text { font-weight: 600; }
+.promo-copy-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+.promo-copy-btn:hover { background: var(--accent-hover); }
+
+/* Product Spotlight Card */
+.catalog-card.spotlight {
+    border: 2px solid var(--accent);
+    position: relative;
+}
+.spotlight-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: var(--accent);
+    color: #fff;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    z-index: 2;
+}
+
 /* Invoice print styles */
 @media print {
     body * { visibility: hidden; }

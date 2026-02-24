@@ -352,6 +352,59 @@ class AverageRating(BaseModel):
     review_count: int
 
 
+class CampaignType(str, Enum):
+    BANNER = "banner"
+    DISCOUNT_PROMO = "discount_promo"
+    PRODUCT_SPOTLIGHT = "product_spotlight"
+
+
+class CampaignCreate(BaseModel):
+    """Schema for creating a new campaign."""
+    title: str = Field(min_length=1, max_length=255)
+    type: CampaignType
+    content: Optional[str] = Field(default="")
+    image_url: Optional[str] = None
+    link_url: Optional[str] = None
+    coupon_code: Optional[str] = None
+    product_id: Optional[str] = None
+    start_date: datetime
+    end_date: datetime
+    is_active: bool = True
+    priority: int = Field(default=0, ge=0)
+
+
+class CampaignUpdate(BaseModel):
+    """Schema for partial campaign updates."""
+    title: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    type: Optional[CampaignType] = None
+    content: Optional[str] = None
+    image_url: Optional[str] = None
+    link_url: Optional[str] = None
+    coupon_code: Optional[str] = None
+    product_id: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    is_active: Optional[bool] = None
+    priority: Optional[int] = Field(default=None, ge=0)
+
+
+class Campaign(BaseModel):
+    """Campaign schema for responses."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    title: str
+    type: CampaignType
+    content: Optional[str] = ""
+    image_url: Optional[str] = None
+    link_url: Optional[str] = None
+    coupon_code: Optional[str] = None
+    product_id: Optional[str] = None
+    start_date: datetime
+    end_date: datetime
+    is_active: bool = True
+    priority: int = 0
+    created_at: Optional[datetime] = None
+
+
 class InvoiceLineItem(BaseModel):
     """A single line item in an invoice."""
     product_name: str
