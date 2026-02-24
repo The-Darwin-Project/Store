@@ -639,6 +639,36 @@ input[type="email"]:focus {
 .discount-section { margin-top: 0.5rem; font-size: 0.9rem; }
 .discount-line { color: var(--accent); }
 
+/* Auth button styles */
+.admin-login-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.admin-login-btn:hover {
+    background: var(--accent);
+    color: #fff;
+}
+.admin-logout-btn {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.admin-logout-btn:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
 /* Invoice print styles */
 @media print {
     body * { visibility: hidden; }

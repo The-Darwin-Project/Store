@@ -12,6 +12,7 @@
         <header>
             <div class="header-row">
                 <h1>Darwin Store Admin</h1>
+                <button class="admin-logout-btn" onclick="adminLogout()" title="Logout">Logout</button>
             </div>
             <p class="subtitle">Back Office Management</p>
             <div class="search-bar" style="margin-top: 1rem;">
@@ -44,6 +45,9 @@
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="invoices-tab" type="button" role="tab" onclick="switchTab('invoices')">Invoices</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="settings-tab" type="button" role="tab" onclick="switchTab('settings')">Settings</button>
             </li>
         </ul>
 
@@ -476,6 +480,33 @@
                     </div>
                 </div>
             </div>
+            <!-- Settings Tab -->
+            <div class="tab-pane" id="settings">
+                <div class="panel">
+                    <h2>Change Admin Password</h2>
+                    <form id="change-password-form">
+                        <div class="form-group" style="max-width: 400px;">
+                            <label for="current-password">Current Password</label>
+                            <input type="password" id="current-password" placeholder="Enter current password" required
+                                   style="background: var(--bg-card); border: 1px solid rgba(255,255,255,0.2); color: var(--text-primary); padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; width: 100%;">
+                        </div>
+                        <div class="form-group" style="max-width: 400px; margin-top: 1rem;">
+                            <label for="new-password">New Password</label>
+                            <input type="password" id="new-password" placeholder="Enter new password (min 8 chars)" required minlength="8"
+                                   style="background: var(--bg-card); border: 1px solid rgba(255,255,255,0.2); color: var(--text-primary); padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; width: 100%;">
+                        </div>
+                        <div class="form-group" style="max-width: 400px; margin-top: 1rem;">
+                            <label for="confirm-password">Confirm New Password</label>
+                            <input type="password" id="confirm-password" placeholder="Confirm new password" required minlength="8"
+                                   style="background: var(--bg-card); border: 1px solid rgba(255,255,255,0.2); color: var(--text-primary); padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; width: 100%;">
+                        </div>
+                        <div id="password-change-msg" style="margin-top: 1rem; display: none;"></div>
+                        <div style="margin-top: 1.5rem;">
+                            <button type="submit">Change Password</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
         <!-- Activity Log -->
@@ -668,7 +699,8 @@
                     suppliers: 'Search suppliers...',
                     alerts: 'Search alerts...',
                     coupons: 'Search coupons...',
-                    invoices: 'Search invoices...'
+                    invoices: 'Search invoices...',
+                    settings: 'Search...'
                 };
                 searchEl.placeholder = placeholders[tabName] || 'Search...';
             }
@@ -1828,6 +1860,58 @@
         }
 
         document.getElementById('global-search').addEventListener('input', applySearch);
+
+        // ---- Admin Logout ----
+
+        async function adminLogout() {
+            try {
+                await fetch('/auth/logout', { method: 'POST' });
+            } catch (e) {
+                // Best effort
+            }
+            window.location.href = '/';
+        }
+
+        // ---- Settings: Change Password ----
+
+        document.getElementById('change-password-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const current = document.getElementById('current-password').value;
+            const newPw = document.getElementById('new-password').value;
+            const confirm = document.getElementById('confirm-password').value;
+            const msgEl = document.getElementById('password-change-msg');
+
+            if (newPw !== confirm) {
+                msgEl.textContent = 'New passwords do not match.';
+                msgEl.style.color = 'var(--danger)';
+                msgEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                const resp = await fetch('/auth/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_password: current, new_password: newPw })
+                });
+                if (resp.ok) {
+                    msgEl.textContent = 'Password changed successfully.';
+                    msgEl.style.color = 'var(--success)';
+                    msgEl.style.display = 'block';
+                    document.getElementById('change-password-form').reset();
+                    log('Admin password changed', 'success');
+                } else {
+                    const err = await resp.json();
+                    msgEl.textContent = err.detail || 'Failed to change password.';
+                    msgEl.style.color = 'var(--danger)';
+                    msgEl.style.display = 'block';
+                }
+            } catch (error) {
+                msgEl.textContent = 'Failed to change password. Please try again.';
+                msgEl.style.color = 'var(--danger)';
+                msgEl.style.display = 'block';
+            }
+        });
 
         // ---- Initialization ----
 
