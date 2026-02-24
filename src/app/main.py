@@ -35,6 +35,7 @@ from .routes.dashboard import router as dashboard_router
 from .routes.alerts import router as alerts_router
 from .routes.coupons import router as coupons_router
 from .routes.invoices import router as invoices_router
+from .routes.reviews import router as reviews_router
 from .routes.auth import router as auth_router, validate_session
 from .chaos_state import get_chaos, record_request
 
@@ -127,6 +128,7 @@ app.include_router(dashboard_router)
 app.include_router(alerts_router)
 app.include_router(coupons_router)
 app.include_router(invoices_router)
+app.include_router(reviews_router)
 app.include_router(auth_router)
 
 
@@ -278,6 +280,17 @@ async def startup_event():
                     id INTEGER PRIMARY KEY DEFAULT 1,
                     password_hash VARCHAR(255) NOT NULL,
                     CONSTRAINT single_row CHECK (id = 1)
+                )
+            ''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS reviews (
+                    id UUID PRIMARY KEY,
+                    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+                    customer_id UUID NOT NULL REFERENCES customers(id),
+                    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+                    comment TEXT DEFAULT '',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(product_id, customer_id)
                 )
             ''')
             conn.commit()

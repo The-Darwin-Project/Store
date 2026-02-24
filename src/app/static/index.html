@@ -195,6 +195,16 @@
         </div>
     </div>
 
+    <!-- Product Detail Modal -->
+    <div class="modal-overlay" id="product-detail-modal">
+        <div class="custom-modal" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
+            <div id="product-detail-content"></div>
+            <div class="modal-actions">
+                <button type="button" class="secondary" onclick="closeProductDetail()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let _customersCache = [];
 
@@ -217,6 +227,29 @@
             const div = document.createElement('div');
             div.textContent = text || '';
             return div.innerHTML;
+        }
+
+        // Star rating rendering
+        function renderStars(rating, maxStars = 5) {
+            let html = '';
+            const fullStars = Math.floor(rating);
+            const halfStar = rating - fullStars >= 0.5;
+            for (let i = 0; i < fullStars; i++) html += '<span class="star full">&#9733;</span>';
+            if (halfStar) html += '<span class="star half">&#9733;</span>';
+            const empty = maxStars - fullStars - (halfStar ? 1 : 0);
+            for (let i = 0; i < empty; i++) html += '<span class="star empty">&#9734;</span>';
+            return html;
+        }
+
+        // Ratings cache
+        let _ratingsCache = {};
+
+        async function loadRatings(productIds) {
+            const promises = productIds.map(id =>
+                apiCall('/products/' + id + '/average-rating').catch(() => ({ product_id: id, average_rating: 0, review_count: 0 }))
+            );
+            const results = await Promise.all(promises);
+            results.forEach(r => { _ratingsCache[r.product_id] = r; });
         }
 
         // API helper with error handling
@@ -266,6 +299,9 @@
             try {
                 const products = await apiCall('/products');
                 _productsCache = products || [];
+                if (_productsCache.length > 0) {
+                    await loadRatings(_productsCache.map(p => p.id));
+                }
                 renderCatalog(_productsCache);
                 applySearch();
             } catch (error) {
@@ -289,15 +325,19 @@
                 const badgeText = p.stock > 0 ? 'In Stock' : 'Out of Stock';
 
                 const addBtnHtml = p.stock > 0
-                    ? `<button class="btn-add-cart" onclick="addToCart('${p.id}', '${escapeHtml(p.name).replace(/'/g, "\\'")}', ${p.price})">Add to Cart</button>`
+                    ? `<button class="btn-add-cart" onclick="event.stopPropagation(); addToCart('${p.id}', '${escapeHtml(p.name).replace(/'/g, "\\'")}', ${p.price})">Add to Cart</button>`
                     : '';
 
+                const ratingData = _ratingsCache[p.id] || { average_rating: 0, review_count: 0 };
+                const ratingHtml = `<div class="card-rating">${renderStars(ratingData.average_rating)} <span class="rating-count">(${ratingData.review_count})</span></div>`;
+
                 return `
-                    <div class="catalog-card">
+                    <div class="catalog-card" onclick="openProductDetail('${p.id}')" style="cursor:pointer;">
                         ${imageHtml}
                         <div class="catalog-card-body">
                             <h3>${escapeHtml(p.name)}</h3>
                             <div class="card-price">$${p.price.toFixed(2)}</div>
+                            ${ratingHtml}
                             <span class="stock-badge ${badgeClass}">${badgeText}</span>
                             ${addBtnHtml}
                         </div>
@@ -694,14 +734,17 @@
                 const date = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A';
                 const shortId = o.id.substring(0, 8);
                 const invoiceBtn = (o.status === 'delivered' || o.status === 'returned') && o.invoice_id
-                    ? `<button class="small secondary" onclick="viewInvoice('${o.invoice_id}')">View Invoice</button>`
+                    ? `<button class="small secondary" onclick="event.stopPropagation(); viewInvoice('${o.invoice_id}')">View Invoice</button>`
+                    : '';
+                const reviewBtn = o.status === 'delivered' && o.items && o.items.length > 0
+                    ? `<button class="small secondary" onclick="event.stopPropagation(); openProductDetail('${o.items[0].product_id}')">Review Products</button>`
                     : '';
                 return `
                     <tr class="order-row" onclick="toggleOrderDetail('${o.id}')">
                         <td>${date}</td>
                         <td title="${o.id}">${shortId}...</td>
                         <td class="price">$${o.total_amount.toFixed(2)}</td>
-                        <td>${renderStatusBadge(o.status)} ${invoiceBtn}</td>
+                        <td>${renderStatusBadge(o.status)} ${invoiceBtn} ${reviewBtn}</td>
                     </tr>
                     <tr class="order-detail-row" id="order-detail-${o.id}">
                         ${renderOrderDetail(o)}
@@ -720,6 +763,172 @@
                 _ordersCache = [];
             }
         }
+
+        // ---- Product Detail Modal ----
+
+        let _selectedRating = 0;
+        let _currentDetailProductId = null;
+
+        async function openProductDetail(productId) {
+            _currentDetailProductId = productId;
+            const content = document.getElementById('product-detail-content');
+            content.innerHTML = '<div class="empty-state">Loading...</div>';
+            document.getElementById('product-detail-modal').classList.add('active');
+
+            try {
+                const [product, ratingData, reviews] = await Promise.all([
+                    apiCall('/products/' + productId),
+                    apiCall('/products/' + productId + '/average-rating'),
+                    apiCall('/products/' + productId + '/reviews')
+                ]);
+                content.innerHTML = renderProductDetailContent(product, ratingData, reviews);
+                loadReviewCustomerDropdown();
+                renderStarPicker();
+            } catch (error) {
+                content.innerHTML = '<div class="empty-state" style="color:var(--danger);">Failed to load product details.</div>';
+            }
+        }
+
+        function renderProductDetailContent(product, ratingData, reviews) {
+            const imageHtml = product.image_data
+                ? `<img src="${product.image_data}" alt="${escapeHtml(product.name)}" style="width:100%; max-height:250px; object-fit:cover; border-radius:8px; margin-bottom:1rem;">`
+                : '';
+
+            const reviewsHtml = reviews.length > 0
+                ? reviews.map(r => {
+                    const date = r.created_at ? new Date(r.created_at).toLocaleDateString() : '';
+                    return `<div class="review-item">
+                        <div class="review-header">
+                            <span class="review-author">${escapeHtml(r.customer_name || 'Anonymous')}</span>
+                            <span class="review-date">${date}</span>
+                        </div>
+                        <div>${renderStars(r.rating)}</div>
+                        ${r.comment ? `<div class="review-comment">${escapeHtml(r.comment)}</div>` : ''}
+                    </div>`;
+                }).join('')
+                : '<div class="empty-state" style="padding:1rem;">No reviews yet. Be the first to review this product!</div>';
+
+            return `
+                <div class="product-detail-header">
+                    ${imageHtml}
+                    <h3>${escapeHtml(product.name)}</h3>
+                    <div class="product-detail-rating">
+                        <span class="card-price" style="margin:0;">$${product.price.toFixed(2)}</span>
+                        <span>${renderStars(ratingData.average_rating)}</span>
+                        <span class="rating-count">(${ratingData.review_count} reviews)</span>
+                    </div>
+                    ${product.description ? `<div class="product-detail-description">${escapeHtml(product.description)}</div>` : ''}
+                </div>
+                <div class="reviews-section">
+                    <h4>Customer Reviews</h4>
+                    <div class="reviews-list">${reviewsHtml}</div>
+                </div>
+                <div class="review-form-section">
+                    <h4>Write a Review</h4>
+                    <div class="form-group">
+                        <label>Customer</label>
+                        <select id="review-customer">
+                            <option value="">-- Select a customer --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Rating</label>
+                        <div id="star-picker" class="star-picker"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Comment (optional)</label>
+                        <textarea id="review-comment" rows="3" maxlength="1000" placeholder="Share your experience..."></textarea>
+                    </div>
+                    <button onclick="submitReview('${product.id}')">Submit Review</button>
+                </div>
+            `;
+        }
+
+        function loadReviewCustomerDropdown() {
+            const select = document.getElementById('review-customer');
+            if (!select) return;
+            select.innerHTML = '<option value="">-- Select a customer --</option>';
+            _customersCache.forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.id;
+                option.textContent = c.name + ' (' + c.email + ')';
+                select.appendChild(option);
+            });
+        }
+
+        function renderStarPicker() {
+            const container = document.getElementById('star-picker');
+            if (!container) return;
+            _selectedRating = 0;
+            container.innerHTML = [1,2,3,4,5].map(n =>
+                '<span class="star-pick" data-rating="' + n + '" onclick="setReviewRating(' + n + ')" ' +
+                'onmouseenter="previewRating(' + n + ')" onmouseleave="resetRatingPreview()">&#9733;</span>'
+            ).join('');
+        }
+
+        function setReviewRating(n) {
+            _selectedRating = n;
+            updateStarPickerDisplay(n);
+        }
+
+        function previewRating(n) {
+            updateStarPickerDisplay(n);
+        }
+
+        function resetRatingPreview() {
+            updateStarPickerDisplay(_selectedRating);
+        }
+
+        function updateStarPickerDisplay(activeCount) {
+            const stars = document.querySelectorAll('#star-picker .star-pick');
+            stars.forEach((star, i) => {
+                if (i < activeCount) {
+                    star.classList.add('selected');
+                } else {
+                    star.classList.remove('selected');
+                }
+            });
+        }
+
+        async function submitReview(productId) {
+            const customerId = document.getElementById('review-customer').value;
+            if (!customerId) {
+                log('Please select a customer to submit a review', 'error');
+                return;
+            }
+            if (_selectedRating === 0) {
+                log('Please select a star rating', 'error');
+                return;
+            }
+            const comment = document.getElementById('review-comment').value.trim();
+
+            try {
+                await apiCall('/products/' + productId + '/reviews', 'POST', {
+                    customer_id: customerId,
+                    rating: _selectedRating,
+                    comment: comment
+                });
+                log('Review submitted successfully!', 'success');
+                // Refresh ratings cache and reopen modal
+                await loadRatings([productId]);
+                renderCatalog(_productsCache);
+                applySearch();
+                await openProductDetail(productId);
+            } catch (error) {
+                log('Review failed: ' + error.message, 'error');
+            }
+        }
+
+        function closeProductDetail() {
+            document.getElementById('product-detail-modal').classList.remove('active');
+            _selectedRating = 0;
+            _currentDetailProductId = null;
+        }
+
+        // Close product detail modal on overlay click
+        document.getElementById('product-detail-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'product-detail-modal') closeProductDetail();
+        });
 
         // ---- Invoice Viewing ----
 
@@ -805,6 +1014,7 @@
         // Close modals on Escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                closeProductDetail();
                 closeInvoiceModal();
                 closeLoginDialog();
             }
