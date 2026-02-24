@@ -119,12 +119,22 @@ app.include_router(invoices_router)
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    """Serve the Store UI."""
+    """Serve the Storefront UI."""
     static_dir = Path(__file__).parent / "static"
     index_file = static_dir / "index.html"
     if index_file.exists():
         return HTMLResponse(content=index_file.read_text())
     return HTMLResponse(content="<h1>Darwin Store</h1><p>Static files not found</p>")
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin():
+    """Serve the Admin UI."""
+    static_dir = Path(__file__).parent / "static"
+    admin_file = static_dir / "admin.html"
+    if admin_file.exists():
+        return HTMLResponse(content=admin_file.read_text())
+    return HTMLResponse(content="<h1>Darwin Store Admin</h1><p>Static files not found</p>")
 
 
 @app.get("/health")
