@@ -283,17 +283,15 @@ async def startup_event():
             conn.commit()
             logger.info("Database initialized and 'products', 'orders', 'order_items', 'coupons', 'invoices' tables created or verified.")
 
-            # Seed default admin password if table is empty
+            # Seed default admin password (ON CONFLICT DO NOTHING keeps existing password)
             import bcrypt
-            cur.execute("SELECT COUNT(*) FROM admin_settings")
-            if cur.fetchone()[0] == 0:
-                default_hash = bcrypt.hashpw(b"darwin2026", bcrypt.gensalt()).decode("utf-8")
-                cur.execute(
-                    "INSERT INTO admin_settings (id, password_hash) VALUES (1, %s)",
-                    (default_hash,)
-                )
-                conn.commit()
-                logger.info("Default admin password seeded")
+            default_hash = bcrypt.hashpw(b"darwin2026", bcrypt.gensalt()).decode("utf-8")
+            cur.execute(
+                "INSERT INTO admin_settings (id, password_hash) VALUES (1, %s) ON CONFLICT (id) DO NOTHING",
+                (default_hash,)
+            )
+            conn.commit()
+            logger.info("Admin settings initialized")
 
             # Migration: Ensure description column exists for existing databases
             try:
