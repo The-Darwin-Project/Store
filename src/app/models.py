@@ -327,6 +327,31 @@ class CouponValidationResult(BaseModel):
     error: Optional[str] = None
 
 
+class ReviewCreate(BaseModel):
+    """Schema for creating a product review."""
+    customer_id: str
+    rating: int = Field(ge=1, le=5)
+    comment: Optional[str] = Field(default="", max_length=1000)
+
+
+class Review(BaseModel):
+    """Review schema for responses."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    product_id: str
+    customer_id: str
+    customer_name: Optional[str] = None
+    rating: int = Field(ge=1, le=5)
+    comment: Optional[str] = ""
+    created_at: Optional[datetime] = None
+
+
+class AverageRating(BaseModel):
+    """Average rating response for a product."""
+    product_id: str
+    average_rating: float
+    review_count: int
+
+
 class InvoiceLineItem(BaseModel):
     """A single line item in an invoice."""
     product_name: str

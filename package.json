@@ -7,7 +7,7 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "npx playwright test tests/test_shopping_cart.spec.js tests/verify_ui.spec.js tests/verify_frontend_customers.spec.js tests/verify_shopping_cart.spec.js tests/verify_search.spec.js tests/verify_dashboard.spec.js tests/verify_invoice_ui.spec.js",
+    "test": "npx playwright test tests/test_shopping_cart.spec.js tests/verify_ui.spec.js tests/verify_frontend_customers.spec.js tests/verify_shopping_cart.spec.js tests/verify_search.spec.js tests/verify_dashboard.spec.js tests/verify_invoice_ui.spec.js tests/verify_reviews_ui.spec.js",
     "test:all": "npx playwright test"
   },
   "repository": {
