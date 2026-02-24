@@ -16,3 +16,6 @@ psutil
 
 # Database (for future Postgres integration)
 psycopg2-binary
+
+# Authentication
+bcrypt

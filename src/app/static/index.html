@@ -12,6 +12,7 @@
         <header>
             <div class="header-row">
                 <h1>Darwin Store</h1>
+                <button class="admin-login-btn" onclick="openLoginDialog()" title="Admin Login">Admin</button>
                 <span class="cart-icon-wrapper" onclick="switchTab('cart')" title="View Cart">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.16 14.26l.04-.12.96-1.74h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0 0 20.12 3H5.21l-.94-2H1v2h2l3.6 7.59-1.35 2.44C4.52 14.37 5.48 16 7 16h12v-2H7.42c-.14 0-.25-.11-.25-.25z"/></svg>
                     <span class="cart-badge hidden" id="cart-badge">0</span>
@@ -172,6 +173,25 @@
                 <button type="button" class="secondary" onclick="closeInvoiceModal()">Close</button>
                 <button type="button" onclick="printInvoice()">Print</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div class="modal-overlay" id="login-modal">
+        <div class="custom-modal">
+            <h3>Admin Login</h3>
+            <div id="login-error" style="color: var(--danger); margin-bottom: 1rem; display: none;"></div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" placeholder="Enter admin password" required
+                           style="background: var(--bg-card); border: 1px solid rgba(255,255,255,0.2); color: var(--text-primary); padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; width: 100%;">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="secondary" onclick="closeLoginDialog()">Cancel</button>
+                    <button type="submit">Login</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -782,10 +802,11 @@
             if (e.target.id === 'invoice-modal') closeInvoiceModal();
         });
 
-        // Close modal on Escape key
+        // Close modals on Escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 closeInvoiceModal();
+                closeLoginDialog();
             }
         });
 
@@ -828,6 +849,53 @@
         }
 
         document.getElementById('global-search').addEventListener('input', applySearch);
+
+        // ---- Admin Login ----
+
+        function openLoginDialog() {
+            document.getElementById('login-error').style.display = 'none';
+            document.getElementById('login-password').value = '';
+            document.getElementById('login-modal').classList.add('active');
+            document.getElementById('login-password').focus();
+        }
+
+        function closeLoginDialog() {
+            document.getElementById('login-modal').classList.remove('active');
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('login-password').value;
+            try {
+                const resp = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                if (resp.ok) {
+                    window.location.href = '/admin';
+                } else {
+                    const err = await resp.json();
+                    const errEl = document.getElementById('login-error');
+                    errEl.textContent = err.detail || 'Invalid password';
+                    errEl.style.display = 'block';
+                }
+            } catch (error) {
+                const errEl = document.getElementById('login-error');
+                errEl.textContent = 'Login failed. Please try again.';
+                errEl.style.display = 'block';
+            }
+        });
+
+        document.getElementById('login-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'login-modal') closeLoginDialog();
+        });
+
+        // Check for auth redirect error
+        if (new URLSearchParams(window.location.search).get('auth_error')) {
+            log('Please log in to access the admin panel', 'error');
+            window.history.replaceState({}, '', '/');
+        }
 
         // ---- Initialization ----
 

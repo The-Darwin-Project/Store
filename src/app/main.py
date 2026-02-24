@@ -24,7 +24,7 @@ from psycopg2.pool import SimpleConnectionPool
 
 from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .routes.products import router as products_router
@@ -35,6 +35,7 @@ from .routes.dashboard import router as dashboard_router
 from .routes.alerts import router as alerts_router
 from .routes.coupons import router as coupons_router
 from .routes.invoices import router as invoices_router
+from .routes.auth import router as auth_router, validate_session
 from .chaos_state import get_chaos, record_request
 
 logging.basicConfig(level=logging.INFO)
@@ -96,6 +97,16 @@ class ChaosMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class AdminAuthMiddleware(BaseHTTPMiddleware):
+    """Protect /admin route with session-based authentication."""
+
+    async def dispatch(self, request: Request, call_next):
+        if request.url.path == "/admin":
+            if not validate_session(request):
+                return RedirectResponse(url="/?auth_error=1", status_code=303)
+        return await call_next(request)
+
+
 # Create FastAPI app
 app = FastAPI(
     title="Darwin Store",
@@ -103,8 +114,9 @@ app = FastAPI(
     version=SERVICE_VERSION
 )
 
-# Add chaos middleware
+# Add middleware (Starlette processes in reverse order: AdminAuth runs first, then Chaos)
 app.add_middleware(ChaosMiddleware)
+app.add_middleware(AdminAuthMiddleware)
 
 # Mount routes
 app.include_router(products_router)
@@ -115,6 +127,7 @@ app.include_router(dashboard_router)
 app.include_router(alerts_router)
 app.include_router(coupons_router)
 app.include_router(invoices_router)
+app.include_router(auth_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -260,8 +273,27 @@ async def startup_event():
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             ''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS admin_settings (
+                    id INTEGER PRIMARY KEY DEFAULT 1,
+                    password_hash VARCHAR(255) NOT NULL,
+                    CONSTRAINT single_row CHECK (id = 1)
+                )
+            ''')
             conn.commit()
             logger.info("Database initialized and 'products', 'orders', 'order_items', 'coupons', 'invoices' tables created or verified.")
+
+            # Seed default admin password if table is empty
+            import bcrypt
+            cur.execute("SELECT COUNT(*) FROM admin_settings")
+            if cur.fetchone()[0] == 0:
+                default_hash = bcrypt.hashpw(b"darwin2026", bcrypt.gensalt()).decode("utf-8")
+                cur.execute(
+                    "INSERT INTO admin_settings (id, password_hash) VALUES (1, %s)",
+                    (default_hash,)
+                )
+                conn.commit()
+                logger.info("Default admin password seeded")
 
             # Migration: Ensure description column exists for existing databases
             try:
