@@ -6,7 +6,7 @@
 # Retrying GitOps sync - Nudge 6
 image:
   repository: ghcr.io/the-darwin-project/store
-  tag: "6e6332b"
+  tag: "5ce838e"
   pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: []
