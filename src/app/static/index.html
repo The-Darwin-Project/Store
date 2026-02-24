@@ -646,6 +646,25 @@
         }
         .discount-section { margin-top: 0.5rem; font-size: 0.9rem; }
         .discount-line { color: var(--accent); }
+
+        /* Invoice print styles */
+        @media print {
+            body * { visibility: hidden; }
+            #invoice-printable, #invoice-printable * { visibility: visible; }
+            #invoice-printable {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+                color: black;
+                padding: 2rem;
+            }
+            .modal-actions { display: none !important; }
+            .modal-overlay { background: none !important; }
+            .price { color: #000 !important; }
+            .discount-line { color: #c00 !important; }
+        }
     </style>
 </head>
 <body>
@@ -885,6 +904,36 @@
                                 <label for="cust-email">Email</label>
                                 <input type="email" id="cust-email" placeholder="customer@example.com" required>
                             </div>
+                            <div class="form-group flex-grow">
+                                <label for="cust-company">Company</label>
+                                <input type="text" id="cust-company" placeholder="Company name">
+                            </div>
+                            <div class="form-group flex-grow">
+                                <label for="cust-phone">Phone</label>
+                                <input type="text" id="cust-phone" placeholder="Phone number">
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-top: 0.75rem;">
+                            <div class="form-group flex-grow">
+                                <label for="cust-street">Street</label>
+                                <input type="text" id="cust-street" placeholder="Street address">
+                            </div>
+                            <div class="form-group flex-grow">
+                                <label for="cust-city">City</label>
+                                <input type="text" id="cust-city" placeholder="City">
+                            </div>
+                            <div class="form-group flex-grow">
+                                <label for="cust-state">State</label>
+                                <input type="text" id="cust-state" placeholder="State">
+                            </div>
+                            <div class="form-group">
+                                <label for="cust-zip">Zip</label>
+                                <input type="text" id="cust-zip" placeholder="Zip" style="width: 100px;">
+                            </div>
+                            <div class="form-group flex-grow">
+                                <label for="cust-country">Country</label>
+                                <input type="text" id="cust-country" placeholder="Country">
+                            </div>
                             <div class="form-group">
                                 <button type="submit">Add Customer</button>
                             </div>
@@ -896,6 +945,10 @@
                     <div id="customer-list">
                         <div class="empty-state">No customers yet.</div>
                     </div>
+                </div>
+                <div class="panel" id="customer-detail-panel" style="display: none;">
+                    <h2 id="customer-detail-title">Customer Details</h2>
+                    <div id="customer-detail-content"></div>
                 </div>
                 <div class="panel customer-orders-section" id="customer-orders-panel" style="display: none;">
                     <h2 id="customer-orders-title">Customer Orders</h2>
@@ -1272,6 +1325,18 @@
         </div>
     </div>
 
+    <!-- Invoice Modal -->
+    <div class="modal-overlay" id="invoice-modal">
+        <div class="custom-modal" style="max-width: 700px;">
+            <div id="invoice-content">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="secondary" onclick="closeInvoiceModal()">Close</button>
+                <button type="button" onclick="printInvoice()">Print</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let _suppliersCache = [];
         let _ordersCache = [];
@@ -1322,6 +1387,100 @@
                 html += ` <button class="small danger" onclick="updateOrderStatus('${orderId}', 'cancelled')">Cancel</button>`;
             }
             return html;
+        }
+
+        function renderInvoiceActions(order) {
+            if (order.status !== 'delivered' && order.status !== 'returned') {
+                return '';
+            }
+            if (order.invoice_id) {
+                return `<button class="small secondary" onclick="viewInvoice('${order.invoice_id}')">View Invoice</button>`;
+            }
+            return `<button class="small secondary" onclick="generateInvoice('${order.id}')">Generate Invoice</button>`;
+        }
+
+        async function generateInvoice(orderId) {
+            try {
+                const invoice = await apiCall(`/orders/${orderId}/invoice`, 'POST');
+                log(`Invoice INV-${String(invoice.invoice_number).padStart(4, '0')} generated`, 'success');
+                loadOrders();
+            } catch (error) {
+                log(`Failed to generate invoice: ${error.message}`, 'error');
+            }
+        }
+
+        async function viewInvoice(invoiceId) {
+            try {
+                const inv = await apiCall(`/invoices/${invoiceId}`);
+                const cs = inv.customer_snapshot;
+                const invoiceNum = 'INV-' + String(inv.invoice_number).padStart(4, '0');
+                const date = new Date(inv.created_at).toLocaleDateString();
+
+                let addressHtml = `<strong>${escapeHtml(cs.name)}</strong><br>`;
+                if (cs.company) addressHtml += `${escapeHtml(cs.company)}<br>`;
+                if (cs.shipping_street) addressHtml += `${escapeHtml(cs.shipping_street)}<br>`;
+                if (cs.shipping_city || cs.shipping_state || cs.shipping_zip) {
+                    addressHtml += `${escapeHtml(cs.shipping_city || '')}, ${escapeHtml(cs.shipping_state || '')} ${escapeHtml(cs.shipping_zip || '')}<br>`;
+                }
+                if (cs.shipping_country) addressHtml += `${escapeHtml(cs.shipping_country)}<br>`;
+                if (cs.email) addressHtml += `${escapeHtml(cs.email)}<br>`;
+                if (cs.phone) addressHtml += `${escapeHtml(cs.phone)}`;
+
+                const itemsRows = inv.line_items.map(item => `
+                    <tr>
+                        <td>${escapeHtml(item.product_name)}</td>
+                        <td>${escapeHtml(item.sku)}</td>
+                        <td class="price">$${item.unit_price.toFixed(2)}</td>
+                        <td>${item.quantity}</td>
+                        <td class="price">$${item.line_total.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+
+                let totalsHtml = `<p>Subtotal: <strong class="price">$${inv.subtotal.toFixed(2)}</strong></p>`;
+                if (inv.coupon_code && inv.discount_amount > 0) {
+                    totalsHtml += `<p class="discount-line">Discount (${escapeHtml(inv.coupon_code)}): -$${inv.discount_amount.toFixed(2)}</p>`;
+                }
+                totalsHtml += `<p style="font-size:1.2rem;">Grand Total: <strong class="price">$${inv.grand_total.toFixed(2)}</strong></p>`;
+
+                document.getElementById('invoice-content').innerHTML = `
+                    <div id="invoice-printable">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem;">
+                            <div>
+                                <h3 style="margin:0;">Invoice ${invoiceNum}</h3>
+                                <p style="color:var(--text-secondary); margin:0.25rem 0;">Date: ${date}</p>
+                                <p style="color:var(--text-secondary); margin:0;">Order: ${inv.order_id.substring(0, 8)}...</p>
+                            </div>
+                            <div style="text-align:right;">
+                                <h4 style="margin:0; color:var(--accent);">Darwin Store</h4>
+                            </div>
+                        </div>
+                        <div style="margin-bottom:1.5rem; padding:1rem; background:var(--bg-card); border-radius:8px;">
+                            <h4 style="margin:0 0 0.5rem; font-size:0.85rem; color:var(--text-secondary); text-transform:uppercase;">Bill To</h4>
+                            ${addressHtml}
+                        </div>
+                        <table class="line-items-table" style="width:100%; margin-bottom:1rem;">
+                            <thead>
+                                <tr><th>Product</th><th>SKU</th><th>Unit Price</th><th>Qty</th><th>Total</th></tr>
+                            </thead>
+                            <tbody>${itemsRows}</tbody>
+                        </table>
+                        <div style="text-align:right; margin-top:1rem;">
+                            ${totalsHtml}
+                        </div>
+                    </div>
+                `;
+                document.getElementById('invoice-modal').classList.add('active');
+            } catch (error) {
+                log(`Failed to load invoice: ${error.message}`, 'error');
+            }
+        }
+
+        function printInvoice() {
+            window.print();
+        }
+
+        function closeInvoiceModal() {
+            document.getElementById('invoice-modal').classList.remove('active');
         }
 
         // Utility: Log messages
@@ -1632,7 +1791,13 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 closeEditModal();
+                closeInvoiceModal();
             }
+        });
+
+        // Close invoice modal on overlay click
+        document.getElementById('invoice-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'invoice-modal') closeInvoiceModal();
         });
 
         // ---- Coupon Logic ----
@@ -1902,7 +2067,7 @@
                             <td title="${o.id}">${shortId}...</td>
                             <td class="price">$${o.total_amount.toFixed(2)}</td>
                             <td>${renderStatusBadge(o.status)}</td>
-                            <td class="actions" onclick="event.stopPropagation()">${renderStatusActions(o.id, o.status)}</td>
+                            <td class="actions" onclick="event.stopPropagation()">${renderStatusActions(o.id, o.status)} ${renderInvoiceActions(o)}</td>
                         </tr>
                         <tr class="order-detail-row" id="order-detail-${o.id}">
                             ${renderOrderDetail(o)}
@@ -2122,17 +2287,27 @@
             if (!customers || customers.length === 0) {
                 container.innerHTML = '<div class="empty-state">No customers yet. Add one above!</div>';
                 document.getElementById('customer-orders-panel').style.display = 'none';
+                document.getElementById('customer-detail-panel').style.display = 'none';
                 return;
             }
 
             container.innerHTML = customers.map(c => {
                 const date = c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A';
                 const selectedClass = _selectedCustomerId === c.id ? 'selected' : '';
+                const companyHtml = c.company ? `<span style="color: var(--text-secondary); margin-left: 0.5rem;">(${escapeHtml(c.company)})</span>` : '';
+                let addrParts = [];
+                if (c.shipping_city) addrParts.push(c.shipping_city);
+                if (c.shipping_state) addrParts.push(c.shipping_state);
+                if (c.shipping_country) addrParts.push(c.shipping_country);
+                const addrHtml = addrParts.length > 0
+                    ? `<div style="color: var(--text-secondary); font-size: 0.8rem;">${escapeHtml(addrParts.join(', '))}</div>`
+                    : '';
                 return `
                     <div class="customer-list-item ${selectedClass}" onclick="selectCustomer('${c.id}')">
                         <div>
-                            <strong>${escapeHtml(c.name)}</strong>
+                            <strong>${escapeHtml(c.name)}</strong>${companyHtml}
                             <span style="color: var(--text-secondary); margin-left: 0.5rem;">${escapeHtml(c.email)}</span>
+                            ${addrHtml}
                         </div>
                         <span style="color: var(--text-secondary); font-size: 0.85rem;">${date}</span>
                     </div>
@@ -2147,6 +2322,27 @@
             const customer = _customersCache.find(c => c.id === customerId);
             document.getElementById('customer-orders-title').textContent =
                 customer ? `Orders for ${customer.name}` : 'Customer Orders';
+
+            // Show customer detail panel
+            if (customer) {
+                const detailPanel = document.getElementById('customer-detail-panel');
+                detailPanel.style.display = 'block';
+                document.getElementById('customer-detail-title').textContent = `Details for ${customer.name}`;
+                let detailHtml = `<p><strong>Email:</strong> ${escapeHtml(customer.email)}</p>`;
+                if (customer.company) detailHtml += `<p><strong>Company:</strong> ${escapeHtml(customer.company)}</p>`;
+                if (customer.phone) detailHtml += `<p><strong>Phone:</strong> ${escapeHtml(customer.phone)}</p>`;
+                let addrParts = [];
+                if (customer.shipping_street) addrParts.push(customer.shipping_street);
+                if (customer.shipping_city) addrParts.push(customer.shipping_city);
+                if (customer.shipping_state) addrParts.push(customer.shipping_state);
+                if (customer.shipping_zip) addrParts.push(customer.shipping_zip);
+                if (customer.shipping_country) addrParts.push(customer.shipping_country);
+                if (addrParts.length > 0) {
+                    detailHtml += `<p><strong>Shipping Address:</strong> ${escapeHtml(addrParts.join(', '))}</p>`;
+                }
+                document.getElementById('customer-detail-content').innerHTML = detailHtml;
+            }
+
             await loadCustomerOrders(customerId);
         }
 
@@ -2198,8 +2394,23 @@
                 log('Customer name and email are required', 'error');
                 return;
             }
+            const payload = { name, email };
+            const company = document.getElementById('cust-company').value.trim();
+            const phone = document.getElementById('cust-phone').value.trim();
+            const street = document.getElementById('cust-street').value.trim();
+            const city = document.getElementById('cust-city').value.trim();
+            const state = document.getElementById('cust-state').value.trim();
+            const zip = document.getElementById('cust-zip').value.trim();
+            const country = document.getElementById('cust-country').value.trim();
+            if (company) payload.company = company;
+            if (phone) payload.phone = phone;
+            if (street) payload.shipping_street = street;
+            if (city) payload.shipping_city = city;
+            if (state) payload.shipping_state = state;
+            if (zip) payload.shipping_zip = zip;
+            if (country) payload.shipping_country = country;
             try {
-                const customer = await apiCall('/customers', 'POST', { name, email });
+                const customer = await apiCall('/customers', 'POST', payload);
                 log(`Created customer: ${customer.name}`, 'success');
                 document.getElementById('add-customer-form').reset();
                 await loadCustomers();
@@ -2413,7 +2624,9 @@
             } else if (activeTab === 'customers') {
                 const filtered = _customersCache.filter(c =>
                     matches(c.name) ||
-                    matches(c.email)
+                    matches(c.email) ||
+                    matches(c.company) ||
+                    matches(c.phone)
                 );
                 renderCustomerList(filtered);
             } else if (activeTab === 'suppliers') {

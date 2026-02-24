@@ -33,11 +33,11 @@ def test_list_orders_uses_sql_cast_for_uuid_array(mock_pool_cls):
     oid2_str = "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
     
     # Mock return values
-    # First query: SELECT ... FROM orders
+    # First query: SELECT ... FROM orders (9 columns: id, created_at, total_amount, status, customer_id, coupon_code, discount_amount, customer_name, invoice_id)
     mock_cursor.fetchall.side_effect = [
         [
-            (oid1_str, "2023-01-01", 100.0, "pending", None, None, 0.0, None),
-            (oid2_str, "2023-01-02", 200.0, "pending", None, None, 0.0, None)
+            (oid1_str, "2023-01-01", 100.0, "pending", None, None, 0.0, None, None),
+            (oid2_str, "2023-01-02", 200.0, "pending", None, None, 0.0, None, None)
         ],
         # Second query: SELECT ... FROM order_items
         []

@@ -4,7 +4,12 @@
 from fastapi import APIRouter, HTTPException, Request
 import uuid
 
-from ..models import Order, OrderItem, OrderCreate, OrderStatusUpdate, OrderStatus, ORDER_STATUS_TRANSITIONS
+import json
+
+from ..models import (
+    Order, OrderItem, OrderCreate, OrderStatusUpdate, OrderStatus,
+    ORDER_STATUS_TRANSITIONS, Invoice, InvoiceLineItem, CustomerSnapshot
+)
 from .alerts import check_and_create_alert
 from .coupons import validate_coupon_for_cart
 
@@ -20,9 +25,11 @@ async def list_orders(request: Request) -> list[Order]:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT o.id, o.created_at, o.total_amount, o.status, o.customer_id, "
-                "o.coupon_code, o.discount_amount, c.name AS customer_name "
+                "o.coupon_code, o.discount_amount, c.name AS customer_name, "
+                "i.id AS invoice_id "
                 "FROM orders o "
                 "LEFT JOIN customers c ON o.customer_id = c.id "
+                "LEFT JOIN invoices i ON i.order_id = o.id "
                 "ORDER BY o.created_at DESC"
             )
             order_rows = cur.fetchall()
@@ -65,6 +72,7 @@ async def list_orders(request: Request) -> list[Order]:
                     coupon_code=row[5],
                     discount_amount=row[6] if row[6] is not None else 0.0,
                     customer_name=row[7],
+                    invoice_id=str(row[8]) if row[8] else None,
                     items=items_by_order.get(str(row[0]), [])
                 ))
 
@@ -401,5 +409,129 @@ async def update_order_status(order_id: str, body: OrderStatusUpdate, request: R
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to update order status: {str(e)}")
+    finally:
+        pool.putconn(conn)
+
+
+@router.post("/{order_id}/invoice", response_model=Invoice, status_code=201)
+async def generate_invoice(order_id: str, request: Request) -> Invoice:
+    """Generate an invoice for a delivered order."""
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            # 1. Fetch the order
+            cur.execute(
+                "SELECT id, status, customer_id, total_amount, coupon_code, discount_amount "
+                "FROM orders WHERE id = %s",
+                (order_id,)
+            )
+            order_row = cur.fetchone()
+            if not order_row:
+                raise HTTPException(status_code=404, detail="Order not found")
+
+            order_status = order_row[1]
+            customer_id = order_row[2]
+            order_total = order_row[3]
+            coupon_code = order_row[4]
+            discount_amount = order_row[5] if order_row[5] is not None else 0.0
+
+            if order_status != "delivered":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invoice can only be generated for delivered orders (current status: {order_status})"
+                )
+
+            # 2. Check for existing invoice
+            cur.execute("SELECT id FROM invoices WHERE order_id = %s", (order_id,))
+            if cur.fetchone():
+                raise HTTPException(status_code=409, detail="Invoice already exists for this order")
+
+            # 3. Fetch customer snapshot
+            cur.execute(
+                "SELECT name, email, company, phone, shipping_street, shipping_city, "
+                "shipping_state, shipping_zip, shipping_country FROM customers WHERE id = %s",
+                (customer_id,)
+            )
+            cust_row = cur.fetchone()
+            if not cust_row:
+                raise HTTPException(status_code=404, detail="Customer not found for this order")
+
+            customer_snapshot = CustomerSnapshot(
+                name=cust_row[0],
+                email=cust_row[1],
+                company=cust_row[2],
+                phone=cust_row[3],
+                shipping_street=cust_row[4],
+                shipping_city=cust_row[5],
+                shipping_state=cust_row[6],
+                shipping_zip=cust_row[7],
+                shipping_country=cust_row[8],
+            )
+
+            # 4. Fetch order items joined with products
+            cur.execute(
+                "SELECT oi.quantity, oi.price_at_purchase, p.name, p.sku "
+                "FROM order_items oi "
+                "LEFT JOIN products p ON oi.product_id = p.id "
+                "WHERE oi.order_id = %s",
+                (order_id,)
+            )
+            item_rows = cur.fetchall()
+
+            line_items = []
+            subtotal = 0.0
+            for item_row in item_rows:
+                qty = item_row[0]
+                unit_price = item_row[1]
+                product_name = item_row[2] or "Unknown product"
+                sku = item_row[3] or "N/A"
+                line_total = round(qty * unit_price, 2)
+                subtotal += line_total
+                line_items.append(InvoiceLineItem(
+                    product_name=product_name,
+                    sku=sku,
+                    unit_price=unit_price,
+                    quantity=qty,
+                    line_total=line_total,
+                ))
+
+            subtotal = round(subtotal, 2)
+            grand_total = order_total
+
+            # 5. Insert invoice
+            invoice_id = str(uuid.uuid4())
+            cur.execute(
+                "INSERT INTO invoices (id, order_id, customer_id, customer_snapshot, line_items, "
+                "subtotal, coupon_code, discount_amount, grand_total) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
+                "RETURNING invoice_number, created_at",
+                (
+                    invoice_id, order_id, str(customer_id),
+                    json.dumps(customer_snapshot.model_dump()),
+                    json.dumps([li.model_dump() for li in line_items]),
+                    subtotal, coupon_code, discount_amount, grand_total
+                )
+            )
+            result_row = cur.fetchone()
+            conn.commit()
+
+            return Invoice(
+                id=invoice_id,
+                invoice_number=result_row[0],
+                order_id=order_id,
+                customer_snapshot=customer_snapshot,
+                line_items=line_items,
+                subtotal=subtotal,
+                coupon_code=coupon_code,
+                discount_amount=discount_amount,
+                grand_total=grand_total,
+                created_at=result_row[1],
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to generate invoice: {str(e)}")
     finally:
         pool.putconn(conn)
