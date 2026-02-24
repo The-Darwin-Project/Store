@@ -138,7 +138,7 @@ test.describe('Customer Invoice System UI', () => {
     });
 
     // Serve HTML from file system
-    const htmlPath = path.resolve(__dirname, '../src/app/static/index.html');
+    const htmlPath = path.resolve(__dirname, '../src/app/static/admin.html');
     const htmlContent = fs.readFileSync(htmlPath, 'utf8');
 
     await page.route('http://localhost/', async route => {

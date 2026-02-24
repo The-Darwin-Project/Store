@@ -5,7 +5,7 @@ const fs = require('fs');
 test.describe('Darwin Store Dashboard UI', () => {
   test.beforeEach(async ({ page }) => {
     // Load the local HTML file
-    const htmlPath = path.resolve(__dirname, '../src/app/static/index.html');
+    const htmlPath = path.resolve(__dirname, '../src/app/static/admin.html');
     const htmlContent = fs.readFileSync(htmlPath, 'utf8');
 
     await page.route('http://localhost/', async route => {

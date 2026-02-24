@@ -58,9 +58,18 @@ test.describe('Darwin Store UI Redesign', () => {
     await page.route('**/orders**', async route => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     });
+    await page.route('**/dashboard', async route => {
+      await route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ total_revenue: 0, orders_by_status: {}, top_products: [], low_stock_alerts: [] })
+      });
+    });
+    await page.route('**/alerts**', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
 
     // Load the local HTML file
-    const htmlPath = path.resolve(__dirname, '../src/app/static/index.html');
+    const htmlPath = path.resolve(__dirname, '../src/app/static/admin.html');
     const htmlContent = fs.readFileSync(htmlPath, 'utf8');
 
     await page.route('http://localhost/', async route => {
