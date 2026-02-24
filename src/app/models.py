@@ -100,18 +100,45 @@ class Supplier(BaseModel):
     created_at: Optional[datetime] = None
 
 
+class CustomerCreate(BaseModel):
+    """Schema for creating a new customer."""
+    name: str
+    email: str
+    company: Optional[str] = None
+    phone: Optional[str] = None
+    shipping_street: Optional[str] = None
+    shipping_city: Optional[str] = None
+    shipping_state: Optional[str] = None
+    shipping_zip: Optional[str] = None
+    shipping_country: Optional[str] = None
+
+
+class CustomerUpdate(BaseModel):
+    """Schema for partial customer updates."""
+    name: Optional[str] = None
+    email: Optional[str] = None
+    company: Optional[str] = None
+    phone: Optional[str] = None
+    shipping_street: Optional[str] = None
+    shipping_city: Optional[str] = None
+    shipping_state: Optional[str] = None
+    shipping_zip: Optional[str] = None
+    shipping_country: Optional[str] = None
+
+
 class Customer(BaseModel):
     """Customer model."""
     id: str = Field(default_factory=lambda: str(uuid4()))
     name: str
     email: str
+    company: Optional[str] = None
+    phone: Optional[str] = None
+    shipping_street: Optional[str] = None
+    shipping_city: Optional[str] = None
+    shipping_state: Optional[str] = None
+    shipping_zip: Optional[str] = None
+    shipping_country: Optional[str] = None
     created_at: Optional[datetime] = None
-
-
-class CustomerCreate(BaseModel):
-    """Schema for creating a new customer."""
-    name: str
-    email: str
 
 
 class OrderItemCreate(BaseModel):
@@ -148,6 +175,7 @@ class Order(BaseModel):
     customer_name: Optional[str] = None
     coupon_code: Optional[str] = None
     discount_amount: float = 0.0
+    invoice_id: Optional[str] = None
 
 
 class Dependency(BaseModel):
@@ -297,3 +325,39 @@ class CouponValidationResult(BaseModel):
     discount_amount: float = 0.0
     final_total: float = 0.0
     error: Optional[str] = None
+
+
+class InvoiceLineItem(BaseModel):
+    """A single line item in an invoice."""
+    product_name: str
+    sku: str
+    unit_price: float
+    quantity: int
+    line_total: float
+
+
+class CustomerSnapshot(BaseModel):
+    """Customer data frozen at invoice generation time."""
+    name: str
+    email: str
+    company: Optional[str] = None
+    phone: Optional[str] = None
+    shipping_street: Optional[str] = None
+    shipping_city: Optional[str] = None
+    shipping_state: Optional[str] = None
+    shipping_zip: Optional[str] = None
+    shipping_country: Optional[str] = None
+
+
+class Invoice(BaseModel):
+    """Invoice schema for responses."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    invoice_number: int
+    order_id: str
+    customer_snapshot: CustomerSnapshot
+    line_items: list[InvoiceLineItem]
+    subtotal: float
+    coupon_code: Optional[str] = None
+    discount_amount: float = 0.0
+    grand_total: float
+    created_at: Optional[datetime] = None

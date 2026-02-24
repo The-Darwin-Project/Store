@@ -3,9 +3,33 @@
 from fastapi import APIRouter, HTTPException, Request
 import uuid
 
-from ..models import Customer, CustomerCreate, Order
+from ..models import Customer, CustomerCreate, CustomerUpdate, Order
 
 router = APIRouter(prefix="/customers", tags=["customers"])
+
+CUSTOMER_COLUMNS = [
+    "id", "name", "email", "company", "phone",
+    "shipping_street", "shipping_city", "shipping_state",
+    "shipping_zip", "shipping_country", "created_at"
+]
+
+CUSTOMER_SELECT = ", ".join(CUSTOMER_COLUMNS)
+
+
+def _row_to_customer(row) -> Customer:
+    return Customer(
+        id=str(row[0]),
+        name=row[1],
+        email=row[2],
+        company=row[3],
+        phone=row[4],
+        shipping_street=row[5],
+        shipping_city=row[6],
+        shipping_state=row[7],
+        shipping_zip=row[8],
+        shipping_country=row[9],
+        created_at=row[10],
+    )
 
 
 @router.post("", response_model=Customer, status_code=201)
@@ -17,16 +41,27 @@ async def create_customer(customer: CustomerCreate, request: Request) -> Custome
         with conn.cursor() as cur:
             customer_id = str(uuid.uuid4())
             cur.execute(
-                "INSERT INTO customers (id, name, email) VALUES (%s, %s, %s) RETURNING created_at",
-                (customer_id, customer.name, customer.email)
+                "INSERT INTO customers (id, name, email, company, phone, "
+                "shipping_street, shipping_city, shipping_state, shipping_zip, shipping_country) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING created_at",
+                (customer_id, customer.name, customer.email, customer.company,
+                 customer.phone, customer.shipping_street, customer.shipping_city,
+                 customer.shipping_state, customer.shipping_zip, customer.shipping_country)
             )
             created_at = cur.fetchone()[0]
             conn.commit()
-            
+
             return Customer(
                 id=customer_id,
                 name=customer.name,
                 email=customer.email,
+                company=customer.company,
+                phone=customer.phone,
+                shipping_street=customer.shipping_street,
+                shipping_city=customer.shipping_city,
+                shipping_state=customer.shipping_state,
+                shipping_zip=customer.shipping_zip,
+                shipping_country=customer.shipping_country,
                 created_at=created_at
             )
     except HTTPException:
@@ -47,14 +82,70 @@ async def list_customers(request: Request) -> list[Customer]:
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, name, email, created_at FROM customers ORDER BY created_at DESC")
+            cur.execute(f"SELECT {CUSTOMER_SELECT} FROM customers ORDER BY created_at DESC")
             rows = cur.fetchall()
-            return [
-                Customer(id=str(row[0]), name=row[1], email=row[2], created_at=row[3])
-                for row in rows
-            ]
+            return [_row_to_customer(row) for row in rows]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list customers: {str(e)}")
+    finally:
+        pool.putconn(conn)
+
+
+@router.get("/{customer_id}", response_model=Customer)
+async def get_customer(customer_id: str, request: Request) -> Customer:
+    """Get a single customer by ID."""
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT {CUSTOMER_SELECT} FROM customers WHERE id = %s", (customer_id,))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Customer not found")
+            return _row_to_customer(row)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get customer: {str(e)}")
+    finally:
+        pool.putconn(conn)
+
+
+@router.patch("/{customer_id}", response_model=Customer)
+async def update_customer(customer_id: str, updates: CustomerUpdate, request: Request) -> Customer:
+    """Partially update a customer."""
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        update_data = updates.model_dump(exclude_unset=True)
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        set_clauses = []
+        values = []
+        for field, value in update_data.items():
+            set_clauses.append(f"{field} = %s")
+            values.append(value)
+        values.append(customer_id)
+
+        with conn.cursor() as cur:
+            cur.execute(
+                f"UPDATE customers SET {', '.join(set_clauses)} WHERE id = %s "
+                f"RETURNING {CUSTOMER_SELECT}",
+                values
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Customer not found")
+            conn.commit()
+            return _row_to_customer(row)
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        if "unique" in str(e).lower():
+            raise HTTPException(status_code=409, detail="A customer with this email already exists")
+        raise HTTPException(status_code=500, detail=f"Failed to update customer: {str(e)}")
     finally:
         pool.putconn(conn)
 

@@ -34,6 +34,7 @@ from .routes.suppliers import router as suppliers_router
 from .routes.dashboard import router as dashboard_router
 from .routes.alerts import router as alerts_router
 from .routes.coupons import router as coupons_router
+from .routes.invoices import router as invoices_router
 from .chaos_state import get_chaos, record_request
 
 logging.basicConfig(level=logging.INFO)
@@ -113,6 +114,7 @@ app.include_router(suppliers_router)
 app.include_router(dashboard_router)
 app.include_router(alerts_router)
 app.include_router(coupons_router)
+app.include_router(invoices_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -233,8 +235,23 @@ async def startup_event():
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             ''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS invoices (
+                    id UUID PRIMARY KEY,
+                    invoice_number SERIAL UNIQUE,
+                    order_id UUID NOT NULL UNIQUE REFERENCES orders(id),
+                    customer_id UUID REFERENCES customers(id),
+                    customer_snapshot JSONB NOT NULL,
+                    line_items JSONB NOT NULL,
+                    subtotal REAL NOT NULL,
+                    coupon_code VARCHAR(50),
+                    discount_amount REAL DEFAULT 0.0,
+                    grand_total REAL NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            ''')
             conn.commit()
-            logger.info("Database initialized and 'products', 'orders', 'order_items', 'coupons' tables created or verified.")
+            logger.info("Database initialized and 'products', 'orders', 'order_items', 'coupons', 'invoices' tables created or verified.")
 
             # Migration: Ensure description column exists for existing databases
             try:
@@ -292,6 +309,19 @@ async def startup_event():
                 conn.commit()
             except Exception as e:
                 logger.warning(f"Migration warning (discount_amount): {e}")
+
+            # Migration: Add shipping address fields to customers
+            try:
+                cur.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS company VARCHAR(255)")
+                cur.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS phone VARCHAR(50)")
+                cur.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS shipping_street VARCHAR(255)")
+                cur.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS shipping_city VARCHAR(255)")
+                cur.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS shipping_state VARCHAR(100)")
+                cur.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS shipping_zip VARCHAR(20)")
+                cur.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS shipping_country VARCHAR(100)")
+                conn.commit()
+            except Exception as e:
+                logger.warning(f"Migration warning (customer address fields): {e}")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
     finally:
