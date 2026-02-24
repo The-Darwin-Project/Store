@@ -818,6 +818,10 @@
                         <span class="rating-count">(${ratingData.review_count} reviews)</span>
                     </div>
                     ${product.description ? `<div class="product-detail-description">${escapeHtml(product.description)}</div>` : ''}
+                    ${product.stock > 0
+                        ? `<button class="btn-add-cart" onclick="addToCart('${product.id}', '${escapeHtml(product.name).replace(/'/g, "\\'")}', ${product.price})"
+                            style="width:100%;">Add to Cart</button>`
+                        : '<span class="stock-badge out-of-stock">Out of Stock</span>'}
                 </div>
                 <div class="reviews-section">
                     <h4>Customer Reviews</h4>
