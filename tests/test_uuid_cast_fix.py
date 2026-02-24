@@ -45,10 +45,10 @@ def test_get_orders_with_uuid_objects(mock_pool_cls):
     now = datetime.datetime.now()
 
     mock_cursor.fetchall.side_effect = [
-        # Query 1: orders table returns uuid.UUID objects (+ customer_name from LEFT JOIN)
+        # Query 1: orders table returns uuid.UUID objects (+ customer_name, invoice_id from LEFT JOINs)
         [
-            (order_id_1, now, 50.0, "pending", None, None, 0.0, None),
-            (order_id_2, now, 30.0, "pending", None, None, 0.0, None),
+            (order_id_1, now, 50.0, "pending", None, None, 0.0, None, None),
+            (order_id_2, now, 30.0, "pending", None, None, 0.0, None, None),
         ],
         # Query 2: order_items table returns uuid.UUID objects (+ product_name from LEFT JOIN)
         [
@@ -99,7 +99,7 @@ def test_get_orders_passes_string_ids_to_query(mock_pool_cls):
     order_id = uuid.UUID("33333333-3333-3333-3333-333333333333")
 
     mock_cursor.fetchall.side_effect = [
-        [(order_id, datetime.datetime.now(), 10.0, "pending", None, None, 0.0, None)],
+        [(order_id, datetime.datetime.now(), 10.0, "pending", None, None, 0.0, None, None)],
         [],  # no items
     ]
 

@@ -59,12 +59,13 @@ def test_create_customer(client_with_db):
 
 def test_list_customers(client_with_db):
     client, mock_db = client_with_db
+    # 11 columns: id, name, email, company, phone, shipping_street, shipping_city, shipping_state, shipping_zip, shipping_country, created_at
     mock_db.fetchall.return_value = [
-        (MOCK_CUSTOMER_ID, "Test User", "test@example.com", "2023-01-01T00:00:00")
+        (MOCK_CUSTOMER_ID, "Test User", "test@example.com", None, None, None, None, None, None, None, "2023-01-01T00:00:00")
     ]
-    
+
     response = client.get("/customers")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
