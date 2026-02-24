@@ -2,22 +2,15 @@ const { test, expect } = require('@playwright/test');
 const path = require('path');
 const fs = require('fs');
 
-test.describe('Darwin Store Customer Feature', () => {
+// Shared mock setup for customer feature tests
+function setupMocks(page, customers) {
   const MOCK_CUSTOMER_ID = 'cust-123';
   const MOCK_ORDER_ID = 'ord-456';
   const MOCK_PRODUCT_ID = 'prod-789';
 
-  test.beforeEach(async ({ page }) => {
-    // State
-    const customers = [{
-      id: MOCK_CUSTOMER_ID,
-      name: 'Existing Customer',
-      email: 'existing@example.com',
-      created_at: '2023-01-01T00:00:00'
-    }];
-
+  return Promise.all([
     // 1. Mock /products
-    await page.route('**/products', async route => {
+    page.route('**/products', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -30,10 +23,10 @@ test.describe('Darwin Store Customer Feature', () => {
           image_data: null
         }])
       });
-    });
+    }),
 
     // 2. Mock /customers GET and POST
-    await page.route('**/customers', async route => {
+    page.route('**/customers', async route => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
@@ -55,10 +48,10 @@ test.describe('Darwin Store Customer Feature', () => {
           body: JSON.stringify(newCustomer)
         });
       }
-    });
+    }),
 
     // 3. Mock /orders
-    await page.route('**/orders', async route => {
+    page.route('**/orders', async route => {
       if (route.request().method() === 'POST') {
         const data = route.request().postDataJSON();
         if (!data.customer_id) {
@@ -80,10 +73,10 @@ test.describe('Darwin Store Customer Feature', () => {
       } else {
         await route.fulfill({ status: 200, body: '[]' });
       }
-    });
+    }),
 
     // 4. Mock /customers/{id}/orders
-    await page.route(`**/customers/${MOCK_CUSTOMER_ID}/orders`, async route => {
+    page.route(`**/customers/${MOCK_CUSTOMER_ID}/orders`, async route => {
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
@@ -95,17 +88,56 @@ test.describe('Darwin Store Customer Feature', () => {
                 customer_id: MOCK_CUSTOMER_ID
             }])
         });
-    });
+    }),
 
     // 5. Mock DELETE /customers/{id}/orders/{order_id}
-    await page.route(`**/customers/${MOCK_CUSTOMER_ID}/orders/${MOCK_ORDER_ID}`, async route => {
+    page.route(`**/customers/${MOCK_CUSTOMER_ID}/orders/${MOCK_ORDER_ID}`, async route => {
         if (route.request().method() === 'DELETE') {
             await route.fulfill({ status: 204 });
         }
+    })
+  ]);
+}
+
+test.describe('Darwin Store Customer Feature - Admin', () => {
+  const MOCK_CUSTOMER_ID = 'cust-123';
+  const MOCK_ORDER_ID = 'ord-456';
+
+  test.beforeEach(async ({ page }) => {
+    const customers = [{
+      id: MOCK_CUSTOMER_ID,
+      name: 'Existing Customer',
+      email: 'existing@example.com',
+      created_at: '2023-01-01T00:00:00'
+    }];
+
+    // Mock /suppliers (needed by admin)
+    await page.route('**/suppliers', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     });
 
-    // Load the local HTML file
-    const htmlPath = path.resolve(__dirname, '../src/app/static/index.html');
+    // Mock /dashboard (needed by admin)
+    await page.route('**/dashboard', async route => {
+      await route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ total_revenue: 0, orders_by_status: {}, top_products: [], low_stock_alerts: [] })
+      });
+    });
+
+    // Mock /alerts (needed by admin)
+    await page.route('**/alerts**', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+
+    // Mock /orders/unassigned
+    await page.route('**/orders/unassigned', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+
+    await setupMocks(page, customers);
+
+    // Load admin HTML
+    const htmlPath = path.resolve(__dirname, '../src/app/static/admin.html');
     const htmlContent = fs.readFileSync(htmlPath, 'utf8');
 
     await page.route('http://localhost/', async route => {
@@ -127,82 +159,98 @@ test.describe('Darwin Store Customer Feature', () => {
 
   test('should create a new customer via Customers tab', async ({ page }) => {
     await page.click('#customers-tab');
-    
+
     await page.fill('#cust-name', 'New Tab Customer');
     await page.fill('#cust-email', 'tab@example.com');
     await page.click('button:has-text("Add Customer")');
-    
-    // Verify log message or reload (we mocked POST but list reload depends on subsequent GET)
-    // The mocked GET only returns the initial customer. 
-    // In a real app, the list would update. 
-    // But our log shows success.
+
     await expect(page.locator('#log')).toContainText('Created customer: New Tab Customer');
   });
 
   test('should display orders for selected customer and allow detach', async ({ page }) => {
     await page.click('#customers-tab');
-    
+
     // Select the customer
     await page.click('.customer-list-item');
-    
+
     // Check orders table
     const orderRow = page.locator('#customer-orders-table tr').first();
     await expect(orderRow).toContainText(MOCK_ORDER_ID.substring(0, 8));
-    
-    // Click detach
-    // We need to handle the dialog? No, it's just a button in this implementation (no confirm modal for detach based on code reading)
-    // Wait, let's check index.html again. 
-    // <button class="small danger" onclick="detachOrder('${customerId}', '${o.id}')">Detach</button>
-    // No modal.
-    
+
     await orderRow.locator('button:has-text("Detach")').click();
-    
+
     await expect(page.locator('#log')).toContainText(`Order ${MOCK_ORDER_ID.substring(0, 8)}... detached`);
+  });
+});
+
+test.describe('Darwin Store Customer Feature - Storefront', () => {
+  const MOCK_CUSTOMER_ID = 'cust-123';
+  const MOCK_ORDER_ID = 'ord-456';
+
+  test.beforeEach(async ({ page }) => {
+    const customers = [{
+      id: MOCK_CUSTOMER_ID,
+      name: 'Existing Customer',
+      email: 'existing@example.com',
+      created_at: '2023-01-01T00:00:00'
+    }];
+
+    await setupMocks(page, customers);
+
+    // Load storefront HTML
+    const htmlPath = path.resolve(__dirname, '../src/app/static/index.html');
+    const htmlContent = fs.readFileSync(htmlPath, 'utf8');
+
+    await page.route('http://localhost/', async route => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'text/html',
+            body: htmlContent
+        });
+    });
+
+    await page.goto('http://localhost/');
   });
 
   test('should enforce customer selection during checkout', async ({ page }) => {
-    // 1. Navigate to Catalog tab (Dashboard is now default) and add item to cart
-    await page.click('#catalog-tab');
+    // 1. Add item to cart (Catalog is now default)
     await page.click('button:has-text("Add to Cart")');
-    
+
     // 2. Go to Cart
     await page.click('#cart-tab');
-    
+
     // 3. Try checkout without customer
-    // Ensure dropdown is empty or default
-    await page.selectOption('#checkout-customer', ''); 
+    await page.selectOption('#checkout-customer', '');
     await page.click('#checkout-btn');
-    
+
     // Should see error in log
     await expect(page.locator('#log')).toContainText('Please select a customer');
-    
+
     // 4. Select customer and checkout
     await page.selectOption('#checkout-customer', MOCK_CUSTOMER_ID);
     await page.click('#checkout-btn');
-    
+
     // Success modal should appear
     await expect(page.locator('#order-success-modal')).toHaveClass(/active/);
     await expect(page.locator('#order-details')).toContainText(MOCK_ORDER_ID);
   });
 
   test('should allow creating new customer during checkout', async ({ page }) => {
-    // 1. Navigate to Catalog tab (Dashboard is now default) and add to cart
-    await page.click('#catalog-tab');
+    // 1. Add to cart (Catalog is now default)
     await page.click('button:has-text("Add to Cart")');
     await page.click('#cart-tab');
-    
+
     // 2. Open inline form
     await page.click('button:has-text("New Customer")');
     await expect(page.locator('#inline-new-customer')).toBeVisible();
-    
+
     // 3. Create customer
     await page.fill('#new-cust-name', 'Inline Customer');
     await page.fill('#new-cust-email', 'inline@example.com');
-    await page.click('button:has-text("Create")'); // Inside the inline form
-    
+    await page.click('button:has-text("Create")');
+
     // 4. Verify log and selection
     await expect(page.locator('#log')).toContainText('Created customer: Inline Customer');
-    // The dropdown should now be set to the new customer (id: new-cust-id)
     await expect(page.locator('#checkout-customer')).toHaveValue('new-cust-id');
   });
 });

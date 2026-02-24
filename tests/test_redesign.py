@@ -66,13 +66,22 @@ class TestStoreRedesign(unittest.TestCase):
         self.assertIn("new_d", params)
 
     def test_frontend_static_content(self):
-        """Verify index.html contains new UI elements."""
+        """Verify index.html contains storefront UI elements."""
         index_path = os.path.join(os.path.dirname(__file__), '../src/app/static/index.html')
         with open(index_path, 'r') as f:
             content = f.read()
-            
+
         self.assertIn('id="viewTabs"', content)
         self.assertIn('id="catalog-tab"', content)
+        self.assertIn('id="cart-tab"', content)
+
+    def test_admin_static_content(self):
+        """Verify admin.html contains admin UI elements."""
+        admin_path = os.path.join(os.path.dirname(__file__), '../src/app/static/admin.html')
+        with open(admin_path, 'r') as f:
+            content = f.read()
+
+        self.assertIn('id="viewTabs"', content)
         self.assertIn('id="inventory-tab"', content)
         self.assertRegex(content, r'<th>\s*Description\s*</th>')
         self.assertIn('id="add-description"', content)
