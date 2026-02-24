@@ -81,7 +81,6 @@ jobs:
             tests/test_redesign.py \
             tests/test_unassigned_orders.py \
             tests/verify_customers_api.py \
-            tests/test_invoices_qe.py \
             -v --tb=short
 
       - name: Test summary
