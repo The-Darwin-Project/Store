@@ -8,6 +8,12 @@ image:
   repository: ghcr.io/the-darwin-project/store
   tag: "a476065"
   pullPolicy: IfNotPresent
+  frontend:
+    tag: 39ad605
+  backend:
+    tag: 39ad605
+  chaos:
+    tag: 39ad605
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: []
 # -- Replica count
