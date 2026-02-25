@@ -31,9 +31,11 @@ jobs:
 
       - name: Validate Docker image builds
         run: |
-          echo "Building Docker image to validate branch changes..."
-          docker build -f Dockerfile -t ci-validate:${{ github.sha }} .
-          echo "Docker build validation passed"
+          echo "Building Docker images to validate branch changes..."
+          docker build -f Dockerfile.frontend -t ci-frontend:${{ github.sha }} .
+          docker build -f Dockerfile.backend -t ci-backend:${{ github.sha }} .
+          docker build -f Dockerfile.chaos -t ci-chaos:${{ github.sha }} .
+          echo "Docker build validation passed (all 3 images)"
 
       - name: Check for helm values.yaml conflicts
         run: |

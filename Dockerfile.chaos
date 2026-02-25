@@ -1,0 +1,17 @@
+FROM registry.access.redhat.com/ubi9/ubi:latest
+
+USER 0
+RUN dnf install -y python3 python3-pip && dnf clean all
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Copy src as a package (chaos imports from src.app.chaos_state)
+COPY src src
+
+USER 1001
+EXPOSE 9000
+
+CMD ["uvicorn", "src.chaos.main:app", "--host", "0.0.0.0", "--port", "9000"]

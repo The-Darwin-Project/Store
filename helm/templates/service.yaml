@@ -1,41 +1,60 @@
-# Store/helm/templates/service.yaml
 ---
-# Store API Service (port 8080)
+# Frontend Service (nginx, port 8080)
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}
+  name: {{ .Release.Name }}-frontend
   labels:
-    app: darwin-store
-    app.kubernetes.io/name: darwin-store
+    app: darwin-store-frontend
+    app.kubernetes.io/name: darwin-store-frontend
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  type: {{ .Values.service.store.type }}
+  type: {{ .Values.service.frontend.type }}
   ports:
-    - port: {{ .Values.service.store.port }}
-      targetPort: store
+    - port: {{ .Values.service.frontend.port }}
+      targetPort: http
       protocol: TCP
       name: http
   selector:
-    app: darwin-store
+    app: darwin-store-frontend
     app.kubernetes.io/instance: {{ .Release.Name }}
 ---
-# Chaos Controller Service (port 9000)
+# Backend API Service (FastAPI, port 8080)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-backend
+  labels:
+    app: darwin-store-backend
+    app.kubernetes.io/name: darwin-store-backend
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.backend.type }}
+  ports:
+    - port: {{ .Values.service.backend.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: darwin-store-backend
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+# Chaos Controller Service (FastAPI, port 9000)
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Release.Name }}-chaos
   labels:
-    app: darwin-chaos
-    app.kubernetes.io/name: darwin-chaos
+    app: darwin-store-chaos
+    app.kubernetes.io/name: darwin-store-chaos
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
   type: {{ .Values.service.chaos.type }}
   ports:
     - port: {{ .Values.service.chaos.port }}
-      targetPort: chaos
+      targetPort: http
       protocol: TCP
       name: http
   selector:
-    app: darwin-store
+    app: darwin-store-chaos
     app.kubernetes.io/instance: {{ .Release.Name }}

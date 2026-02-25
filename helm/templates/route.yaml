@@ -22,7 +22,7 @@ spec:
     targetPort: http
   to:
     kind: Service
-    name: {{ .Release.Name }}
+    name: {{ .Release.Name }}-frontend
     weight: 100
   {{- if .Values.route.tls.enabled }}
   tls:

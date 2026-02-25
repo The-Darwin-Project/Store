@@ -1,23 +1,25 @@
-# Store/helm/templates/deployment.yaml
+# Store/helm/templates/deployment-backend.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}
+  name: {{ .Release.Name }}-backend
   labels:
-    app: darwin-store
-    app.kubernetes.io/name: darwin-store
+    app: darwin-store-backend
+    app.kubernetes.io/name: darwin-store-backend
     app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: backend
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.replicaCount.backend }}
   selector:
     matchLabels:
-      app: darwin-store
+      app: darwin-store-backend
       app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: darwin-store
+        app: darwin-store-backend
         app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: backend
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- if .Values.restartedAt }}
@@ -71,17 +73,14 @@ spec:
               cpu: 100m
               memory: 64Mi
       containers:
-        - name: store
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - name: backend
+          image: "{{ .Values.image.backend.repository }}:{{ .Values.image.backend.tag }}"
+          imagePullPolicy: {{ .Values.image.backend.pullPolicy }}
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           ports:
-            - name: store
+            - name: http
               containerPort: 8080
-              protocol: TCP
-            - name: chaos
-              containerPort: 9000
               protocol: TCP
           envFrom:
             - configMapRef:
@@ -99,18 +98,20 @@ spec:
               value: {{ .Values.postgres.auth.password | quote }}
             - name: DB_NAME
               value: "postgres"
+            - name: CHAOS_CONTROLLER_URL
+              value: "http://{{ .Release.Name }}-chaos:{{ .Values.service.chaos.port }}"
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
             httpGet:
               path: /health
-              port: store
+              port: http
           readinessProbe:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
             httpGet:
               path: /health
-              port: store
+              port: http
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml .Values.resources.backend | nindent 12 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
