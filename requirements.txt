@@ -8,8 +8,9 @@ uvicorn[standard]
 # Data validation
 pydantic
 
-# HTTP client (for telemetry)
+# HTTP client (for telemetry and chaos state polling)
 requests
+httpx
 
 # System metrics
 psutil

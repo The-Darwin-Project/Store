@@ -16,15 +16,15 @@ import os
 import asyncio
 import random
 import logging
-from pathlib import Path
+import time
 from typing import Optional
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import SimpleConnectionPool
+import httpx
 
 from fastapi import FastAPI, Request, Response
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .routes.products import router as products_router
@@ -38,7 +38,7 @@ from .routes.invoices import router as invoices_router
 from .routes.reviews import router as reviews_router
 from .routes.campaigns import router as campaigns_router
 from .routes.auth import router as auth_router, validate_session
-from .chaos_state import get_chaos, record_request
+from .chaos_state import ChaosState, record_request
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,19 +53,44 @@ DB_NAME = os.getenv("DB_NAME", "darwin")
 DB_USER = os.getenv("DB_USER", "darwin")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "darwin")
 
+CHAOS_CONTROLLER_URL = os.getenv("CHAOS_CONTROLLER_URL", "http://darwin-store-chaos:9000")
+
 db_pool: Optional[SimpleConnectionPool] = None
+
+# Simple cache for chaos state fetched from chaos controller (avoid HTTP call on every request)
+_chaos_cache: dict = {"state": None, "expires": 0.0}
+CHAOS_CACHE_TTL = 1.0  # seconds
+
+
+async def _get_remote_chaos() -> ChaosState:
+    """Fetch chaos state from the chaos controller service via HTTP."""
+    now = time.time()
+    if _chaos_cache["state"] is not None and now < _chaos_cache["expires"]:
+        return _chaos_cache["state"]
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            resp = await client.get(f"{CHAOS_CONTROLLER_URL}/api/status")
+            if resp.status_code == 200:
+                data = resp.json().get("chaos", {})
+                state = ChaosState(**data)
+                _chaos_cache["state"] = state
+                _chaos_cache["expires"] = now + CHAOS_CACHE_TTL
+                return state
+    except Exception:
+        pass
+    return ChaosState()  # Safe default: no chaos
 
 
 class ChaosMiddleware(BaseHTTPMiddleware):
     """
     Middleware for chaos injection.
-    
-    Reads chaos state from shared file and applies:
+
+    Fetches chaos state from the chaos controller via HTTP and applies:
     - Latency injection (delay requests)
     - Error injection (return 500s probabilistically)
     - Error rate tracking
     """
-    
+
     async def dispatch(self, request: Request, call_next):
         # Gate: skip chaos injection when CHAOS_MODE is disabled.
         # NOTE: Only gates latency/error injection (middleware).
@@ -73,8 +98,8 @@ class ChaosMiddleware(BaseHTTPMiddleware):
         if CHAOS_MODE == "disabled":
             return await call_next(request)
 
-        # Read current chaos state from shared file
-        chaos = get_chaos()
+        # Fetch current chaos state from chaos controller via HTTP
+        chaos = await _get_remote_chaos()
         
         # 1. Latency injection
         if chaos.latency_ms > 0:
@@ -132,26 +157,6 @@ app.include_router(invoices_router)
 app.include_router(reviews_router)
 app.include_router(campaigns_router)
 app.include_router(auth_router)
-
-
-@app.get("/", response_class=HTMLResponse)
-async def index():
-    """Serve the Storefront UI."""
-    static_dir = Path(__file__).parent / "static"
-    index_file = static_dir / "index.html"
-    if index_file.exists():
-        return HTMLResponse(content=index_file.read_text())
-    return HTMLResponse(content="<h1>Darwin Store</h1><p>Static files not found</p>")
-
-
-@app.get("/admin", response_class=HTMLResponse)
-async def admin():
-    """Serve the Admin UI."""
-    static_dir = Path(__file__).parent / "static"
-    admin_file = static_dir / "admin.html"
-    if admin_file.exists():
-        return HTMLResponse(content=admin_file.read_text())
-    return HTMLResponse(content="<h1>Darwin Store Admin</h1><p>Static files not found</p>")
 
 
 @app.get("/health")
@@ -411,10 +416,5 @@ async def shutdown_event():
         db_pool.closeall()
         logger.info("Database connection pool closed.")
 
-
-# Mount static files (must be after routes)
-static_dir = Path(__file__).parent / "static"
-if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # Trigger CI

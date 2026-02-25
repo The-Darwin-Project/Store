@@ -1,0 +1,64 @@
+# Store/helm/templates/deployment-chaos.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-chaos
+  labels:
+    app: darwin-store-chaos
+    app.kubernetes.io/name: darwin-store-chaos
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: chaos
+spec:
+  replicas: {{ .Values.replicaCount.chaos }}
+  selector:
+    matchLabels:
+      app: darwin-store-chaos
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: darwin-store-chaos
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: chaos
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: chaos
+          image: "{{ .Values.image.chaos.repository }}:{{ .Values.image.chaos.tag }}"
+          imagePullPolicy: {{ .Values.image.chaos.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 9000
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources.chaos | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

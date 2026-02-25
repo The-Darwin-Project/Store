@@ -13,3 +13,5 @@ data:
   SERVICE_VERSION: {{ .Values.app.version | quote }}
   # Chaos mode
   CHAOS_MODE: {{ .Values.config.chaos_mode | quote }}
+  # Chaos controller URL (used by backend to fetch chaos state via HTTP)
+  CHAOS_CONTROLLER_URL: "http://{{ .Release.Name }}-chaos:{{ .Values.service.chaos.port }}"
