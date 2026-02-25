@@ -2,35 +2,21 @@
 # Darwin Store - Helm values
 # Target Platform: OpenShift 4.x / Red Hat UBI 9
 
-# -- Image configuration (3 components)
+# -- Image configuration
+# Retrying GitOps sync - Nudge 6
 image:
-  frontend:
-    repository: ghcr.io/the-darwin-project/store-frontend
-    tag: "a476065"
-    pullPolicy: IfNotPresent
-  backend:
-    repository: ghcr.io/the-darwin-project/store-backend
-    tag: "a476065"
-    pullPolicy: IfNotPresent
-  chaos:
-    repository: ghcr.io/the-darwin-project/store-chaos
-    tag: "a476065"
-    pullPolicy: IfNotPresent
+  repository: ghcr.io/the-darwin-project/store
+  tag: "a476065"
+  pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: []
-# -- Replica counts (per component)
-replicaCount:
-  frontend: 2
-  backend: 2
-  chaos: 1
+# -- Replica count
+replicaCount: 2
 # -- Rollout trigger
 restartedAt: "2026-02-23T12:12:00Z"
 # -- Service configuration
 service:
-  frontend:
-    type: ClusterIP
-    port: 8080
-  backend:
+  store:
     type: ClusterIP
     port: 8080
   chaos:
@@ -83,29 +69,14 @@ postgres:
     limits:
       memory: 2Gi
       cpu: 1
-# -- Resource limits (per component)
+# -- Store app resource limits
 resources:
-  frontend:
-    requests:
-      memory: 64Mi
-      cpu: 20m
-    limits:
-      memory: 128Mi
-      cpu: 100m
-  backend:
-    requests:
-      memory: 120Mi
-      cpu: 50m
-    limits:
-      memory: 320Mi
-      cpu: 300m
-  chaos:
-    requests:
-      memory: 120Mi
-      cpu: 50m
-    limits:
-      memory: 320Mi
-      cpu: 300m
+  requests:
+    memory: 120Mi
+    cpu: 50m
+  limits:
+    memory: 320Mi
+    cpu: 300m
 # -- Pod-level security context
 # OpenShift assigns arbitrary UID from namespace range
 # Do NOT set runAsUser - let OpenShift assign it
