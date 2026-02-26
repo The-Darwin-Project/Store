@@ -1,8 +1,9 @@
 # Store/src/app/main.py
 # @ai-rules:
-# 1. [CHAOS_MODE]: Env var gates ChaosMiddleware. "disabled" = middleware short-circuits. Only affects latency/error injection.
+# 1. [CHAOS_MODE]: Env var gates ChaosMiddleware. "disabled" = middleware short-circuits. Gates latency/error injection and CPU burn.
 # 2. [Middleware order]: ChaosMiddleware must be added before routes. It wraps all incoming requests.
 # 3. [Discovery]: Service discovery via darwin.io/* K8s annotations on the Deployment. No app-side telemetry.
+# 4. [CPU burn]: Backend spawns local CPU burn threads when chaos state has cpu_threads > 0. Threads managed by _sync_cpu_threads().
 """
 Darwin Store - FastAPI application entry point.
 
@@ -17,6 +18,7 @@ import asyncio
 import random
 import logging
 import time
+import threading
 from typing import Optional
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -61,6 +63,52 @@ db_pool: Optional[SimpleConnectionPool] = None
 _chaos_cache: dict = {"state": None, "expires": 0.0}
 CHAOS_CACHE_TTL = 1.0  # seconds
 
+# CPU burn thread management (local to backend process)
+_cpu_threads: list[threading.Thread] = []
+_cpu_stop_flag = threading.Event()
+_cpu_lock = threading.Lock()
+
+
+def _cpu_burn_worker(worker_id: int):
+    """
+    Burns CPU until stop flag is set.
+
+    Mirrors the chaos controller's implementation so the backend pod
+    shows real CPU stress when chaos CPU load is activated.
+    """
+    logger.info(f"Backend CPU burn worker {worker_id} started")
+    counter = 0
+    while not _cpu_stop_flag.is_set():
+        for _ in range(100):
+            _ = sum(x * x * x for x in range(50000))
+        counter += 1
+        if counter % 100 == 0:
+            pass  # Check the stop flag
+    logger.info(f"Backend CPU burn worker {worker_id} stopped")
+
+
+def _sync_cpu_threads(desired: int):
+    """Start or stop local CPU burn threads to match the desired count."""
+    global _cpu_threads
+    with _cpu_lock:
+        active = sum(1 for t in _cpu_threads if t.is_alive())
+        if active == desired:
+            return
+        # Stop all existing threads first, then start the desired count
+        if _cpu_threads:
+            _cpu_stop_flag.set()
+            for t in _cpu_threads:
+                if t.is_alive():
+                    t.join(timeout=2.0)
+            _cpu_threads = []
+            _cpu_stop_flag.clear()
+        if desired > 0:
+            for i in range(desired):
+                t = threading.Thread(target=_cpu_burn_worker, args=(i,), daemon=True)
+                t.start()
+                _cpu_threads.append(t)
+            logger.info(f"Backend CPU burn: {desired} threads active")
+
 
 async def _get_remote_chaos() -> ChaosState:
     """Fetch chaos state from the chaos controller service via HTTP."""
@@ -75,9 +123,11 @@ async def _get_remote_chaos() -> ChaosState:
                 state = ChaosState(**data)
                 _chaos_cache["state"] = state
                 _chaos_cache["expires"] = now + CHAOS_CACHE_TTL
+                _sync_cpu_threads(state.cpu_threads)
                 return state
     except Exception:
         pass
+    _sync_cpu_threads(0)
     return ChaosState()  # Safe default: no chaos
 
 
@@ -93,8 +143,7 @@ class ChaosMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         # Gate: skip chaos injection when CHAOS_MODE is disabled.
-        # NOTE: Only gates latency/error injection (middleware).
-        # CPU/memory attacks are direct resource consumption in the chaos process.
+        # NOTE: Gates latency/error injection (middleware) and CPU burn threads.
         if CHAOS_MODE == "disabled":
             return await call_next(request)
 
@@ -409,9 +458,11 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Close database connections on shutdown."""
+    """Close database connections and stop CPU burn threads on shutdown."""
     global db_pool
-    
+
+    _sync_cpu_threads(0)
+
     if db_pool:
         db_pool.closeall()
         logger.info("Database connection pool closed.")
