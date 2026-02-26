@@ -276,7 +276,7 @@
             <h2>Current Status</h2>
             <div class="status-grid">
                 <div class="status-item">
-                    <div class="status-label">CPU Load</div>
+                    <div class="status-label">HTTP Load</div>
                     <div class="status-value" id="status-cpu">OFF</div>
                 </div>
                 <div class="status-item">
@@ -299,17 +299,17 @@
         </div>
         
         <div class="attack-panel">
-            <h3>CPU Attack</h3>
-            <p>Burn CPU with multiple threads to spike container resource usage.</p>
+            <h3>HTTP Load Test</h3>
+            <p>Send concurrent GET requests to the backend API to generate real CPU and network load.</p>
             <div class="attack-controls">
                 <div class="input-group">
-                    <label for="cpu-threads">Intensity:</label>
-                    <input type="range" id="cpu-threads" min="0" max="8" value="4" 
+                    <label for="cpu-threads">Concurrency:</label>
+                    <input type="range" id="cpu-threads" min="0" max="8" value="4"
                            oninput="document.getElementById('cpu-threads-label').textContent = this.value">
                     <span id="cpu-threads-label" style="min-width: 20px; text-align: center;">4</span>
-                    <label>threads</label>
+                    <label>workers</label>
                 </div>
-                <button onclick="attackCPU()">Apply CPU Load</button>
+                <button onclick="attackCPU()">Start Load Test</button>
                 <button class="reset" onclick="stopCPU()">Stop</button>
             </div>
             <div class="intensity-guide" style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary);">
@@ -413,9 +413,9 @@
         
         function updateStatus(chaos, cpuThreads, memoryMb) {
             const cpuEl = document.getElementById('status-cpu');
-            const threads = chaos.cpu_threads || 0;
-            cpuEl.textContent = threads > 0 ? `${threads} threads` : 'OFF';
-            cpuEl.className = `status-value ${threads > 0 ? 'active' : 'inactive'}`;
+            const workers = chaos.cpu_threads || 0;
+            cpuEl.textContent = workers > 0 ? `${workers} workers` : 'OFF';
+            cpuEl.className = `status-value ${workers > 0 ? 'active' : 'inactive'}`;
             
             const memEl = document.getElementById('status-memory');
             memEl.textContent = memoryMb > 0 ? `${memoryMb} MB` : 'OFF';
@@ -451,14 +451,14 @@
         }
 
         async function attackCPU() {
-            const threads = parseInt(document.getElementById('cpu-threads').value) || 0;
-            await postSettings({cpu_threads: threads}, `CPU load: ${threads} threads`);
+            const workers = parseInt(document.getElementById('cpu-threads').value) || 0;
+            await postSettings({cpu_threads: workers}, `HTTP load: ${workers} workers`);
         }
-        
+
         async function stopCPU() {
             document.getElementById('cpu-threads').value = 0;
             document.getElementById('cpu-threads-label').textContent = '0';
-            await postSettings({cpu_threads: 0}, 'CPU stopped');
+            await postSettings({cpu_threads: 0}, 'HTTP load stopped');
         }
         
         async function attackMemory() {

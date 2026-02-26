@@ -33,6 +33,9 @@ spec:
           imagePullPolicy: {{ .Values.image.chaos.pullPolicy }}
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          env:
+            - name: BACKEND_URL
+              value: "http://{{ .Release.Name }}-backend:{{ .Values.service.backend.port }}"
           ports:
             - name: http
               containerPort: 9000
