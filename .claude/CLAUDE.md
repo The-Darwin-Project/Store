@@ -58,7 +58,8 @@ Full guide: `TESTING.md`
 
 ## Forbidden
 
-- Do NOT modify `helm/values.yaml` image tag (CI-managed)
+- Do NOT modify `helm/values.yaml` image tags (CI-managed via build-push.yaml)
+- Operational fields (replicaCount, resources, config) in values.yaml CAN be modified via feature branches
 - Do NOT modify `.github/workflows/` (SysAdmin's domain)
 - Do NOT force push
 - Do NOT add runtime deps to `requirements-test.txt`

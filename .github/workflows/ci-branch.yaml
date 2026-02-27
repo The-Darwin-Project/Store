@@ -37,16 +37,29 @@ jobs:
           docker build -f Dockerfile.chaos -t ci-chaos:${{ github.sha }} .
           echo "Docker build validation passed (all 3 images)"
 
+      - name: Install yq
+        uses: mikefarah/yq@master
+
       - name: Check for helm values.yaml conflicts
         run: |
           git fetch origin main
-          MAIN_TAG=$(git show origin/main:helm/values.yaml | grep 'tag:' | head -1 | awk '{print $2}' | tr -d '"')
-          BRANCH_TAG=$(grep 'tag:' helm/values.yaml | head -1 | awk '{print $2}' | tr -d '"')
-          if [ "$MAIN_TAG" != "$BRANCH_TAG" ]; then
-            echo "WARNING: Branch modified image.tag ($BRANCH_TAG vs main's $MAIN_TAG)"
-            echo "Resetting image.tag to main's value to prevent CI tag overwrite"
-            git checkout origin/main -- helm/values.yaml
+          MAIN_FRONTEND_TAG=$(git show origin/main:helm/values.yaml | yq '.image.frontend.tag')
+          MAIN_BACKEND_TAG=$(git show origin/main:helm/values.yaml | yq '.image.backend.tag')
+          MAIN_CHAOS_TAG=$(git show origin/main:helm/values.yaml | yq '.image.chaos.tag')
+          BRANCH_FRONTEND_TAG=$(yq '.image.frontend.tag' helm/values.yaml)
+          BRANCH_BACKEND_TAG=$(yq '.image.backend.tag' helm/values.yaml)
+          BRANCH_CHAOS_TAG=$(yq '.image.chaos.tag' helm/values.yaml)
+          TAGS_CHANGED=false
+          if [ "$MAIN_FRONTEND_TAG" != "$BRANCH_FRONTEND_TAG" ] || \
+             [ "$MAIN_BACKEND_TAG" != "$BRANCH_BACKEND_TAG" ] || \
+             [ "$MAIN_CHAOS_TAG" != "$BRANCH_CHAOS_TAG" ]; then
+            echo "WARNING: Branch modified image tags — resetting to main's values"
+            yq -i ".image.frontend.tag = \"$MAIN_FRONTEND_TAG\"" helm/values.yaml
+            yq -i ".image.backend.tag = \"$MAIN_BACKEND_TAG\"" helm/values.yaml
+            yq -i ".image.chaos.tag = \"$MAIN_CHAOS_TAG\"" helm/values.yaml
+            TAGS_CHANGED=true
           fi
+          echo "Image tags validated (changed=$TAGS_CHANGED)"
 
       - name: Summary
         run: |
@@ -144,16 +157,23 @@ jobs:
           fetch-depth: 0
           token: ${{ vars.USE_GITHUB_APP == 'true' && steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 
-      - name: Reset helm values.yaml to main
+      - name: Install yq
+        uses: mikefarah/yq@master
+
+      - name: Reset image tags to main (preserve other values.yaml changes)
         run: |
           git fetch origin main
-          if ! git diff --quiet origin/main -- helm/values.yaml; then
-            echo "Resetting helm/values.yaml to main's version (agent should not modify image tag)"
-            git checkout origin/main -- helm/values.yaml
+          MAIN_FRONTEND_TAG=$(git show origin/main:helm/values.yaml | yq '.image.frontend.tag')
+          MAIN_BACKEND_TAG=$(git show origin/main:helm/values.yaml | yq '.image.backend.tag')
+          MAIN_CHAOS_TAG=$(git show origin/main:helm/values.yaml | yq '.image.chaos.tag')
+          yq -i ".image.frontend.tag = \"$MAIN_FRONTEND_TAG\"" helm/values.yaml
+          yq -i ".image.backend.tag = \"$MAIN_BACKEND_TAG\"" helm/values.yaml
+          yq -i ".image.chaos.tag = \"$MAIN_CHAOS_TAG\"" helm/values.yaml
+          if ! git diff --quiet helm/values.yaml; then
             git add helm/values.yaml
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git diff --cached --quiet || git commit -m "ci: reset helm values.yaml to main [skip ci]"
+            git commit -m "ci: reset image tags to main [skip ci]"
             git push
           fi
 
