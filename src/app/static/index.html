@@ -247,11 +247,15 @@
         let _ratingsCache = {};
 
         async function loadRatings(productIds) {
-            const promises = productIds.map(id =>
-                apiCall('/products/' + id + '/average-rating').catch(() => ({ product_id: id, average_rating: 0, review_count: 0 }))
-            );
-            const results = await Promise.all(promises);
-            results.forEach(r => { _ratingsCache[r.product_id] = r; });
+            if (!productIds.length) return;
+            try {
+                const results = await apiCall('/products/average-ratings/batch?product_ids=' + productIds.join(','));
+                results.forEach(r => { _ratingsCache[r.product_id] = r; });
+            } catch {
+                productIds.forEach(id => {
+                    if (!_ratingsCache[id]) _ratingsCache[id] = { product_id: id, average_rating: 0, review_count: 0 };
+                });
+            }
         }
 
         // API helper with error handling
