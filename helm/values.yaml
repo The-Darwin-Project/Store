@@ -21,7 +21,7 @@ imagePullSecrets: []
 # -- Replica counts (per component)
 replicaCount:
   frontend: 2
-  backend: 4
+  backend: 2
   chaos: 1
 # -- Rollout trigger
 restartedAt: "2026-02-23T12:12:00Z"
