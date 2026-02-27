@@ -5,12 +5,49 @@
 # 3. [Gotcha]: Validate product_id and customer_id existence before insert.
 """Product review endpoints for Darwin Store."""
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 import uuid
 
 from ..models import ReviewCreate, Review, AverageRating
 
 router = APIRouter(prefix="/products", tags=["reviews"])
+
+
+@router.get("/average-ratings/batch", response_model=list[AverageRating])
+async def get_batch_average_ratings(
+    request: Request,
+    product_ids: str = Query(..., description="Comma-separated product UUIDs"),
+) -> list[AverageRating]:
+    """Get average ratings for multiple products in a single query."""
+    ids = [pid.strip() for pid in product_ids.split(",") if pid.strip()]
+    if not ids:
+        return []
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            placeholders = ",".join(["%s"] * len(ids))
+            cur.execute(
+                f"SELECT product_id, COALESCE(AVG(rating), 0), COUNT(*) "
+                f"FROM reviews WHERE product_id IN ({placeholders}) "
+                f"GROUP BY product_id",
+                ids,
+            )
+            results = {
+                str(row[0]): AverageRating(
+                    product_id=str(row[0]),
+                    average_rating=round(float(row[1]), 1),
+                    review_count=row[2],
+                )
+                for row in cur.fetchall()
+            }
+        # Return a result for every requested id (0 rating if no reviews)
+        return [
+            results.get(pid, AverageRating(product_id=pid, average_rating=0, review_count=0))
+            for pid in ids
+        ]
+    finally:
+        pool.putconn(conn)
 
 
 @router.get("/{product_id}/reviews", response_model=list[Review])

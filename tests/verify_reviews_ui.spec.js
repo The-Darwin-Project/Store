@@ -37,6 +37,15 @@ const MOCK_REVIEWS = [
 
 test.describe('Product Reviews and Detail View', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock batch average-ratings endpoint (used by catalog loadRatings)
+    await page.route('**/products/average-ratings/batch*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([MOCK_RATING])
+      });
+    });
+
     // Mock average-rating (must be before /products to take priority)
     await page.route(`**/products/${PRODUCT_ID}/average-rating`, async route => {
       await route.fulfill({
