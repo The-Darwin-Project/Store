@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Request
 import uuid
+from psycopg2 import errors as pg_errors
 
 from ..models import Customer, CustomerCreate, CustomerUpdate, Order
 
@@ -197,5 +198,40 @@ async def detach_order(customer_id: str, order_id: str, request: Request):
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to detach order: {str(e)}")
+    finally:
+        pool.putconn(conn)
+
+
+@router.delete("/{customer_id}", status_code=204)
+async def delete_customer(customer_id: str, request: Request):
+    """Delete a customer by ID.
+
+    Returns 204 on success, 404 if not found, 409 if FK constraints
+    (orders, invoices, reviews) block deletion.
+    """
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM customers WHERE id = %s", (customer_id,))
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Customer not found")
+            conn.commit()
+    except HTTPException:
+        raise
+    except pg_errors.ForeignKeyViolation:
+        conn.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete customer: referenced by orders, invoices, or reviews",
+        )
+    except Exception as e:
+        conn.rollback()
+        if "violates foreign key" in str(e).lower() or "integrity" in str(e).lower():
+            raise HTTPException(
+                status_code=409,
+                detail="Cannot delete customer: referenced by orders, invoices, or reviews",
+            )
+        raise HTTPException(status_code=500, detail=f"Failed to delete customer: {str(e)}")
     finally:
         pool.putconn(conn)
