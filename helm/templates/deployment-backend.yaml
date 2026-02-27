@@ -42,7 +42,7 @@ spec:
         - name: wait-for-postgres
           image: "{{ .Values.image.backend.repository }}:{{ .Values.image.backend.tag }}"
           command:
-            - python
+            - python3
             - -c
             - |
               import socket, time, sys
