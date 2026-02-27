@@ -52,7 +52,8 @@ See `TESTING.md` for the full QE guide.
 
 ## CI/CD
 
-- `ci-branch.yaml`: Runs pytest + Playwright before auto-merge to main on `feat/**` branches
+- `ci-branch.yaml`: Runs pytest + Playwright before auto-merge on `feat/fix/chore/refactor` branches with source changes
+- `ci-branch-gitops.yaml`: Auto-merges `feat/fix/chore/refactor` branches with GitOps-only changes (helm/docs)
 - `build-push.yaml`: Builds Docker image and pushes to GHCR on main push, updates `helm/values.yaml` tag
 - Dockerfile uses `registry.access.redhat.com/ubi9/ubi:latest`
 

@@ -1,9 +1,10 @@
 # Store/.github/workflows/ci-branch.yaml
-# CI validation for agent feature branches (feat/*)
+# CI validation for agent branches (feat/fix/chore/refactor) with SOURCE code changes
 # On success: auto-creates PR and merges to main
 # Main branch build-push.yaml then builds the image + updates helm tag
 #
-# Flow: Agent pushes to feat/evt-xxx → CI validates + tests → auto-merge to main → build-push triggers
+# Flow: Agent pushes to {type}/evt-xxx → CI validates + tests → auto-merge to main → build-push triggers
+# GitOps-only changes (helm/docs) are handled by ci-branch-gitops.yaml instead
 #
 # Quality gates (all must pass before auto-merge):
 #   1. validate: Docker build + Helm tag safety
@@ -16,6 +17,17 @@ on:
   push:
     branches:
       - "feat/**"
+      - "fix/**"
+      - "chore/**"
+      - "refactor/**"
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "Dockerfile.*"
+      - "nginx/**"
+      - "requirements*.txt"
+      - "package.json"
+      - "playwright.config.js"
 
 env:
   REGISTRY: ghcr.io

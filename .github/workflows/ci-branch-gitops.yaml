@@ -1,0 +1,105 @@
+# Store/.github/workflows/ci-branch-gitops.yaml
+# Lightweight auto-merge for GitOps-only changes (helm, docs, workflow files)
+# No Docker builds, no pytest, no Playwright -- just auto-merge
+#
+# Safety: check-scope guard detects if source files are also in the push.
+# If source files are present, auto-merge is SKIPPED (ci-branch.yaml handles it).
+# This prevents racing ci-branch.yaml and merging untested code.
+
+name: GitOps Auto-Merge
+
+on:
+  push:
+    branches:
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
+      - "refactor/**"
+    paths:
+      - "helm/**"
+      - "*.md"
+      - ".github/**"
+
+jobs:
+  check-scope:
+    runs-on: ubuntu-latest
+    outputs:
+      gitops-only: ${{ steps.check.outputs.gitops_only }}
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect source file changes
+        id: check
+        run: |
+          git fetch origin main
+          SOURCE_CHANGES=$(git diff --name-only origin/main...HEAD -- \
+            src/ tests/ Dockerfile.frontend Dockerfile.backend Dockerfile.chaos \
+            nginx/ requirements.txt requirements-test.txt package.json playwright.config.js \
+            | wc -l)
+          if [ "$SOURCE_CHANGES" -eq 0 ]; then
+            echo "gitops_only=true" >> $GITHUB_OUTPUT
+            echo "GitOps-only change detected -- will auto-merge"
+          else
+            echo "gitops_only=false" >> $GITHUB_OUTPUT
+            echo "Source files detected ($SOURCE_CHANGES files) -- deferring merge to ci-branch.yaml"
+          fi
+
+  auto-merge:
+    needs: check-scope
+    if: needs.check-scope.outputs.gitops-only == 'true'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        if: vars.USE_GITHUB_APP == 'true'
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.DARWIN_APP_ID }}
+          private-key: ${{ secrets.DARWIN_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ vars.USE_GITHUB_APP == 'true' && steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+
+      - name: Create PR and auto-merge
+        env:
+          GH_TOKEN: ${{ vars.USE_GITHUB_APP == 'true' && steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ github.ref_name }}"
+
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -z "$EXISTING_PR" ]; then
+            gh pr create \
+              --title "Auto: ${BRANCH}" \
+              --body "Automated PR from Darwin agent branch. GitOps-only change (no source code modified)." \
+              --head "$BRANCH" \
+              --base main
+          fi
+
+          MERGED=false
+          for i in 1 2 3; do
+            if gh pr merge "$BRANCH" --merge --delete-branch --admin 2>/dev/null; then
+              MERGED=true
+              break
+            fi
+            echo "Merge attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+
+          if [ "$MERGED" = "false" ]; then
+            gh pr merge "$BRANCH" --merge --delete-branch || echo "WARNING: Auto-merge failed"
+          fi
+
+          echo "## GitOps Auto-Merged" >> $GITHUB_STEP_SUMMARY
+          echo "Branch **${BRANCH}** merged to main (GitOps-only)" >> $GITHUB_STEP_SUMMARY

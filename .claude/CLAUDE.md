@@ -53,7 +53,8 @@ Full guide: `TESTING.md`
 
 ## CI/CD
 
-- `feat/**` branches: `ci-branch.yaml` runs pytest + Playwright, then auto-merges
+- `feat/fix/chore/refactor` branches with source changes: `ci-branch.yaml` runs pytest + Playwright, then auto-merges
+- `feat/fix/chore/refactor` branches with GitOps-only changes (helm/docs): `ci-branch-gitops.yaml` auto-merges without tests
 - `main` pushes: `build-push.yaml` builds image, pushes to GHCR, updates Helm tag
 
 ## Forbidden
