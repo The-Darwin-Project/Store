@@ -91,17 +91,21 @@ async def list_alerts(request: Request, status: str = None) -> list[Alert]:
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
+            base_query = (
+                "SELECT a.id, a.type, a.message, a.status, a.product_id, a.supplier_id, "
+                "a.current_stock, a.reorder_threshold, a.created_at, "
+                "p.name AS product_name, s.name AS supplier_name "
+                "FROM alerts a "
+                "LEFT JOIN products p ON a.product_id = p.id "
+                "LEFT JOIN suppliers s ON a.supplier_id = s.id"
+            )
             if status:
                 cur.execute(
-                    "SELECT id, type, message, status, product_id, supplier_id, current_stock, reorder_threshold, created_at "
-                    "FROM alerts WHERE status = %s ORDER BY created_at DESC",
+                    base_query + " WHERE a.status = %s ORDER BY a.created_at DESC",
                     (status,)
                 )
             else:
-                cur.execute(
-                    "SELECT id, type, message, status, product_id, supplier_id, current_stock, reorder_threshold, created_at "
-                    "FROM alerts ORDER BY created_at DESC"
-                )
+                cur.execute(base_query + " ORDER BY a.created_at DESC")
             rows = cur.fetchall()
             return [
                 Alert(
@@ -109,7 +113,9 @@ async def list_alerts(request: Request, status: str = None) -> list[Alert]:
                     product_id=str(row[4]) if row[4] else None,
                     supplier_id=str(row[5]) if row[5] else None,
                     current_stock=row[6], reorder_threshold=row[7],
-                    created_at=row[8]
+                    created_at=row[8],
+                    product_name=row[9],
+                    supplier_name=row[10],
                 )
                 for row in rows
             ]
@@ -167,12 +173,27 @@ async def update_alert_status(alert_id: str, body: AlertStatusUpdate, request: R
             if not row:
                 raise HTTPException(status_code=404, detail="Alert not found")
             conn.commit()
+            # Look up product and supplier names
+            product_name = None
+            supplier_name = None
+            if row[4]:
+                cur.execute("SELECT name FROM products WHERE id = %s", (str(row[4]),))
+                p = cur.fetchone()
+                if p:
+                    product_name = p[0]
+            if row[5]:
+                cur.execute("SELECT name FROM suppliers WHERE id = %s", (str(row[5]),))
+                s = cur.fetchone()
+                if s:
+                    supplier_name = s[0]
             return Alert(
                 id=str(row[0]), type=row[1], message=row[2], status=row[3],
                 product_id=str(row[4]) if row[4] else None,
                 supplier_id=str(row[5]) if row[5] else None,
                 current_stock=row[6], reorder_threshold=row[7],
-                created_at=row[8]
+                created_at=row[8],
+                product_name=product_name,
+                supplier_name=supplier_name,
             )
     except HTTPException:
         raise

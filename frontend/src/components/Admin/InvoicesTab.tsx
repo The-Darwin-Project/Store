@@ -27,8 +27,8 @@ export function InvoicesTab({ log, searchQuery }: Props) {
 
   const filtered = searchQuery
     ? invoiceList.filter(i =>
-        i.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (i.customer_name || '').toLowerCase().includes(searchQuery.toLowerCase()))
+        String(i.invoice_number).toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (i.customer_snapshot?.name || '').toLowerCase().includes(searchQuery.toLowerCase()))
     : invoiceList;
 
   return (
@@ -38,7 +38,7 @@ export function InvoicesTab({ log, searchQuery }: Props) {
         <div className="ds-table-container">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr><th>Date</th><th>Invoice #</th><th>Customer</th><th>Order ID</th><th>Total</th><th>Actions</th></tr>
+              <tr><th>Date</th><th>Invoice #</th><th>Customer</th><th>Order ID</th><th>Grand Total</th><th>Actions</th></tr>
             </thead>
             <tbody id="invoices-table">
               {filtered.length === 0 ? (
@@ -47,9 +47,9 @@ export function InvoicesTab({ log, searchQuery }: Props) {
                 <tr key={inv.id}>
                   <td>{new Date(inv.created_at).toLocaleDateString()}</td>
                   <td>{inv.invoice_number}</td>
-                  <td>{inv.customer_name || '-'}</td>
+                  <td>{inv.customer_snapshot?.name || '-'}</td>
                   <td>{inv.order_id.substring(0, 8)}...</td>
-                  <td className="price">${(Number(inv.total) || 0).toFixed(2)}</td>
+                  <td className="price">${(Number(inv.grand_total) || 0).toFixed(2)}</td>
                   <td>
                     <Button variant="secondary" size="sm" onClick={() => setSelectedInvoice(inv)}>View</Button>
                   </td>

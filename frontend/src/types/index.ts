@@ -136,17 +136,30 @@ export interface CouponValidationResult {
   message?: string;
 }
 
+export interface InvoiceLineItem {
+  product_name: string;
+  sku: string;
+  unit_price: number;
+  quantity: number;
+  line_total: number;
+}
+
+export interface CustomerSnapshot {
+  name: string;
+  email: string;
+  company?: string | null;
+  phone?: string | null;
+}
+
 export interface Invoice {
   id: string;
   invoice_number: string;
   order_id: string;
-  customer_id?: string | null;
-  customer_name?: string | null;
-  customer_email?: string | null;
-  items: OrderItem[];
+  customer_snapshot: CustomerSnapshot;
+  line_items: InvoiceLineItem[];
   subtotal: number;
   discount_amount: number;
-  total: number;
+  grand_total: number;
   coupon_code?: string | null;
   created_at: string;
 }
