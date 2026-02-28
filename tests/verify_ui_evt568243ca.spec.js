@@ -23,7 +23,7 @@ const MOCK_ACTIVE_CAMPAIGNS = [
   {
     id: 'camp-banner',
     title: 'Grand Summer Sale',
-    campaign_type: 'banner',
+    type: 'banner',
     content: 'Everything 50% off this week!',
     image_url: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200',
     link_url: null,
@@ -38,7 +38,7 @@ const MOCK_ACTIVE_CAMPAIGNS = [
   {
     id: 'camp-promo',
     title: 'Flash Deal',
-    campaign_type: 'discount_promo',
+    type: 'discount_promo',
     content: 'Save 20% on everything',
     image_url: null,
     link_url: null,
@@ -56,7 +56,7 @@ const MOCK_ACTIVE_CAMPAIGNS_NO_IMAGE = [
   {
     id: 'camp-no-img',
     title: 'No Image Banner',
-    campaign_type: 'banner',
+    type: 'banner',
     content: 'Sale without an image',
     image_url: null,
     link_url: null,

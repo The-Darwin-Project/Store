@@ -48,7 +48,7 @@ export function CampaignsTab({ log, searchQuery }: Props) {
     try {
       const campaign = await campaignsApi.create({
         title: title.trim(),
-        campaign_type: campaignType as Campaign['campaign_type'],
+        type: campaignType as Campaign['type'],
         content: content.trim() || null,
         image_url: imageUrl.trim() || null,
         link_url: linkUrl.trim() || null,
@@ -165,7 +165,7 @@ export function CampaignsTab({ log, searchQuery }: Props) {
               ) : filtered.map(c => (
                 <tr key={c.id}>
                   <td>{c.title}</td>
-                  <td>{(c.campaign_type || '').replace('_', ' ')}</td>
+                  <td>{(c.type || '').replace('_', ' ')}</td>
                   <td>{new Date(c.start_date).toLocaleDateString()} - {new Date(c.end_date).toLocaleDateString()}</td>
                   <td>{c.coupon_code || '-'}</td>
                   <td>{c.is_active ? '\u2705 Active' : '\u274C Inactive'}</td>
