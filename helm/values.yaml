@@ -139,3 +139,17 @@ config:
   chaos_mode: "disabled"
   archAware:
     enabled: false
+# -- Post-deploy smoke tests (ArgoCD PostSync hook)
+postDeployTests:
+  enabled: false
+  image:
+    repository: ghcr.io/the-darwin-project/store-playwright
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m

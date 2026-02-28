@@ -1,0 +1,51 @@
+{{- if .Values.postDeployTests.enabled }}
+# Post-deploy smoke tests — runs as an ArgoCD PostSync hook
+# after every deployment to verify the Store is healthy.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-post-deploy-tests
+  labels:
+    app: darwin-store-tests
+    app.kubernetes.io/name: darwin-store-tests
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: darwin-store-tests
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: Never
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: playwright
+          image: "{{ .Values.postDeployTests.image.repository }}:{{ .Values.postDeployTests.image.tag }}"
+          imagePullPolicy: {{ .Values.postDeployTests.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          env:
+            - name: STORE_URL
+              value: "http://{{ .Release.Name }}-frontend:{{ .Values.service.frontend.port }}"
+            - name: BACKEND_URL
+              value: "http://{{ .Release.Name }}-backend:{{ .Values.service.backend.port }}"
+            - name: CHAOS_URL
+              value: "http://{{ .Release.Name }}-chaos:{{ .Values.service.chaos.port }}"
+            - name: IMAGE_TAG
+              value: "{{ .Values.image.frontend.tag }}"
+            - name: GIT_SHA
+              value: "{{ .Values.image.frontend.tag }}"
+          resources:
+            {{- toYaml .Values.postDeployTests.resources | nindent 12 }}
+{{- end }}
