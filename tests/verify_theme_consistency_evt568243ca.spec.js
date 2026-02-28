@@ -394,9 +394,9 @@ test.describe('4. Live Deployment — Card/Modal theme consistency', () => {
   }
 
   test.skip(({ }, testInfo) => {
-    // Skip live tests if SKIP_LIVE env is set, or if STORE_URL is localhost
-    return process.env.SKIP_LIVE === '1';
-  }, 'Live tests skipped via SKIP_LIVE=1');
+    // Skip live tests in CI (GitHub Actions sets CI=true) or when SKIP_LIVE is set
+    return !!process.env.CI || !!process.env.SKIP_LIVE;
+  }, 'Live tests skipped in CI / SKIP_LIVE mode');
 
   test('live: catalog card has uniform dark background across all sections', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
