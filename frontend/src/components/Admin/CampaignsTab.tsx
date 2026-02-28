@@ -165,7 +165,7 @@ export function CampaignsTab({ log, searchQuery }: Props) {
               ) : filtered.map(c => (
                 <tr key={c.id}>
                   <td>{c.title}</td>
-                  <td>{c.campaign_type.replace('_', ' ')}</td>
+                  <td>{(c.campaign_type || '').replace('_', ' ')}</td>
                   <td>{new Date(c.start_date).toLocaleDateString()} - {new Date(c.end_date).toLocaleDateString()}</td>
                   <td>{c.coupon_code || '-'}</td>
                   <td>{c.is_active ? '\u2705 Active' : '\u274C Inactive'}</td>
