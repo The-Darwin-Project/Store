@@ -113,23 +113,23 @@ export const invoices = {
 
 // Reviews
 export const reviews = {
-  list: (productId: string) => request<Review[]>(`/reviews/${productId}/reviews`),
+  list: (productId: string) => request<Review[]>(`/products/${productId}/reviews`),
   create: (productId: string, data: ReviewCreate) =>
-    request<Review>(`/reviews/${productId}/reviews`, 'POST', data),
+    request<Review>(`/products/${productId}/reviews`, 'POST', data),
   getAverage: (productId: string) =>
-    request<AverageRating>(`/reviews/${productId}/average-rating`),
+    request<AverageRating>(`/products/${productId}/average-rating`),
   getBatchAverages: async (productIds: string[]): Promise<AverageRating[]> => {
     const BATCH_SIZE = 50;
     if (productIds.length <= BATCH_SIZE) {
       return request<AverageRating[]>(
-        `/reviews/average-ratings/batch?product_ids=${productIds.join(',')}`
+        `/products/average-ratings/batch?product_ids=${productIds.join(',')}`
       );
     }
     const results: AverageRating[] = [];
     for (let i = 0; i < productIds.length; i += BATCH_SIZE) {
       const chunk = productIds.slice(i, i + BATCH_SIZE);
       const batch = await request<AverageRating[]>(
-        `/reviews/average-ratings/batch?product_ids=${chunk.join(',')}`
+        `/products/average-ratings/batch?product_ids=${chunk.join(',')}`
       );
       results.push(...batch);
     }
