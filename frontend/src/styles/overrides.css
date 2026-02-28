@@ -18,6 +18,13 @@
 body {
   --pf-t--global--background--color--primary--default: var(--ds-bg-primary);
   --pf-t--global--background--color--secondary--default: var(--ds-bg-secondary);
+  --pf-t--global--color--brand--default: var(--ds-accent);
+  --pf-t--global--color--brand--hover: var(--ds-accent-hover);
+  --pf-t--global--color--status--success--default: var(--ds-success);
+  --pf-t--global--color--status--warning--default: var(--ds-warning);
+  --pf-t--global--color--status--danger--default: var(--ds-danger);
+  --pf-t--global--text--color--subtle: var(--ds-text-secondary);
+  --pf-t--global--border--color--default: rgba(255, 255, 255, 0.1);
   background: var(--ds-bg-primary);
   color: var(--ds-text-primary);
 }
@@ -335,6 +342,92 @@ select:focus {
   font-weight: 600;
 }
 
+/* Stock badges with background tints */
+.stock-badge.in-stock {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--ds-success);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.stock-badge.out-of-stock {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--ds-danger);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.stock-badge.low-stock {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--ds-warning);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* Campaign banners */
+.campaign-banners-container {
+  margin-bottom: 1.5rem;
+}
+
+.ds-campaign-banner {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--ds-bg-card);
+}
+
+.ds-campaign-banner-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.3;
+}
+
+.ds-campaign-banner-content {
+  position: relative;
+  z-index: 1;
+  padding: 1.5rem;
+}
+
+.ds-campaign-banner-content h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: var(--ds-text-primary);
+}
+
+.ds-campaign-banner-content p {
+  color: var(--ds-text-secondary);
+}
+
+/* Campaign promo bar */
+.campaign-promos-container {
+  margin-bottom: 1.5rem;
+}
+
+.ds-promo-card {
+  background: rgba(233, 69, 96, 0.15);
+  border: 1px solid var(--ds-accent);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
 /* Responsive table */
 .ds-table-container {
   overflow-x: auto;
@@ -351,4 +444,10 @@ h2 {
 h3 {
   font-size: 1rem;
   margin-bottom: 0.75rem;
+}
+
+/* Page alignment -- center content like the pre-React layout */
+.pf-v6-c-page {
+  max-width: 960px;
+  margin: 0 auto;
 }
