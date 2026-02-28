@@ -8,6 +8,7 @@ const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './tests',
+  testIgnore: ['**/post-deploy/**'],
   timeout: 30_000,
   retries: 0,
   use: {
