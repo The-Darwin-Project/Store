@@ -30,12 +30,12 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
       setProductList(data || []);
       if (data && data.length > 0) {
         const ids = data.map(p => p.id);
-        try {
-          const avgRatings = await reviewsApi.getBatchAverages(ids);
+        // Fire ratings fetch without blocking render
+        reviewsApi.getBatchAverages(ids).then(avgRatings => {
           const map: Record<string, AverageRating> = {};
-          avgRatings.forEach(r => { map[r.product_id] = r; });
+          (avgRatings || []).forEach(r => { map[r.product_id] = r; });
           setRatings(map);
-        } catch { /* batch ratings may not be available */ }
+        }).catch(() => { /* batch ratings may not be available */ });
       }
     } catch (error) {
       log(`Failed to load products: ${(error as Error).message}`, 'error');
@@ -49,7 +49,7 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
     } catch { /* ignore campaign load errors */ }
   }, []);
 
-  usePolling(() => { loadProducts(); loadCampaigns(); }, 30000);
+  usePolling(() => { Promise.all([loadProducts(), loadCampaigns()]); }, 30000);
 
   const filtered = searchQuery
     ? productList.filter(p =>
@@ -113,13 +113,12 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
               const qty = addQty[p.id] || 1;
               return (
                 <GalleryItem key={p.id}>
-                  <Card isCompact className="ds-product-card catalog-card" id={`product-card-${p.id}`}>
+                  <Card isCompact className="ds-product-card catalog-card" id={`product-card-${p.id}`}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setSelectedProduct(p)}
+                  >
                     <CardTitle>
-                      <span
-                        className="ds-product-name"
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => setSelectedProduct(p)}
-                      >
+                      <span className="ds-product-name">
                         {p.name}
                       </span>
                     </CardTitle>
@@ -151,7 +150,7 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
                     </CardBody>
                     <CardFooter>
                       {p.stock > 0 && (
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
                           <NumberInput
                             value={qty}
                             min={1}

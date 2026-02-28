@@ -37,7 +37,7 @@ export function DashboardTab({ log }: Props) {
         <CardTitle>Orders by Status</CardTitle>
         <CardBody>
           <div id="dashboard-orders-status">
-            {data && Object.keys(data.orders_by_status).length > 0 ? (
+            {data?.orders_by_status && Object.keys(data.orders_by_status).length > 0 ? (
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                 {Object.entries(data.orders_by_status).map(([status, count]) => (
                   <div key={status} style={{
@@ -65,7 +65,7 @@ export function DashboardTab({ log }: Props) {
               <tr><th>Rank</th><th>Product</th><th>Units Sold</th></tr>
             </thead>
             <tbody id="dashboard-top-products">
-              {data && data.top_products.length > 0 ? (
+              {data && data.top_products && data.top_products.length > 0 ? (
                 data.top_products.map((p, i) => (
                   <tr key={i}><td>{i + 1}</td><td>{p.name}</td><td>{p.units_sold}</td></tr>
                 ))
@@ -85,7 +85,7 @@ export function DashboardTab({ log }: Props) {
               <tr><th>Product</th><th>Stock</th><th>Reorder At</th><th>Supplier</th><th>Contact</th></tr>
             </thead>
             <tbody id="dashboard-low-stock">
-              {data && data.low_stock.length > 0 ? (
+              {data && data.low_stock && data.low_stock.length > 0 ? (
                 data.low_stock.map((item, i) => (
                   <tr key={i}>
                     <td>{item.product_name}</td>

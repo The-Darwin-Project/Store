@@ -230,6 +230,44 @@ select:focus {
   color: var(--ds-text-primary);
 }
 
+/* Dark theme for PatternFly portals (dropdowns, menus, popovers) */
+.pf-v6-c-menu {
+  background: var(--ds-bg-card);
+  color: var(--ds-text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pf-v6-c-menu__item {
+  color: var(--ds-text-primary);
+}
+
+.pf-v6-c-menu__item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pf-v6-c-select__menu,
+.pf-v6-c-dropdown__menu {
+  background: var(--ds-bg-card);
+  color: var(--ds-text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pf-v6-c-popover {
+  --pf-v6-c-popover--BackgroundColor: var(--ds-bg-card);
+  color: var(--ds-text-primary);
+}
+
+/* Modal header and footer dark theme */
+.pf-v6-c-modal-box__header,
+.pf-v6-c-modal-box__footer {
+  background: var(--ds-bg-secondary);
+  color: var(--ds-text-primary);
+}
+
+.pf-v6-c-modal-box__title-text {
+  color: var(--ds-text-primary);
+}
+
 /* Coupon tag */
 .ds-coupon-tag {
   background: rgba(233, 69, 96, 0.2);
