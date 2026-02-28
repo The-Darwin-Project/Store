@@ -12,6 +12,7 @@ module.exports = defineConfig({
   retries: 0,
   use: {
     headless: true,
+    ignoreHTTPSErrors: true,
   },
   projects: [
     { name: 'chromium', use: { browserName: 'chromium' } },
