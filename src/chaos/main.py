@@ -155,14 +155,22 @@ async def _http_load_loop(
 
 
 # Shared deques for tracking chaos-created entity IDs across workers
-_created_products: deque = deque(maxlen=500)
-_created_customers: deque = deque(maxlen=500)
+# No maxlen — all created IDs must be retained for cleanup on stop
+_created_products: deque = deque()
+_created_customers: deque = deque()
 
 
 async def _cleanup_chaos_entities():
-    """Sweep-delete remaining chaos-created products and customers."""
+    """Sweep-delete remaining chaos-created products and customers.
+
+    Two-phase cleanup:
+    1. Fast path — delete tracked IDs from the in-memory deques.
+    2. Full sweep — query the backend for any remaining chaos-* entities
+       (catches items missed if the process restarted or deques were lost).
+    """
     deleted = 0
-    async with httpx.AsyncClient(base_url=BACKEND_URL, timeout=5.0) as client:
+    async with httpx.AsyncClient(base_url=BACKEND_URL, timeout=10.0) as client:
+        # Phase 1: drain tracked IDs
         while _created_products:
             pid = _created_products.popleft()
             try:
@@ -177,6 +185,22 @@ async def _cleanup_chaos_entities():
                 deleted += 1
             except Exception:
                 pass
+
+        # Phase 2: full sweep for any remaining chaos-* entities
+        for resource in ("products", "customers"):
+            try:
+                resp = await client.get(f"/{resource}")
+                if resp.status_code == 200:
+                    for entity in resp.json():
+                        if entity.get("name", "").startswith("chaos-"):
+                            try:
+                                await client.delete(f"/{resource}/{entity['id']}")
+                                deleted += 1
+                            except Exception:
+                                pass
+            except Exception:
+                logger.warning(f"Cleanup: failed to sweep /{resource}")
+
     if deleted:
         logger.info(f"Cleanup: deleted {deleted} chaos entities")
 
