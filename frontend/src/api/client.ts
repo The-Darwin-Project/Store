@@ -118,10 +118,23 @@ export const reviews = {
     request<Review>(`/reviews/${productId}/reviews`, 'POST', data),
   getAverage: (productId: string) =>
     request<AverageRating>(`/reviews/${productId}/average-rating`),
-  getBatchAverages: (productIds: string[]) =>
-    request<AverageRating[]>(
-      `/reviews/average-ratings/batch?product_ids=${productIds.join(',')}`
-    ),
+  getBatchAverages: async (productIds: string[]): Promise<AverageRating[]> => {
+    const BATCH_SIZE = 50;
+    if (productIds.length <= BATCH_SIZE) {
+      return request<AverageRating[]>(
+        `/reviews/average-ratings/batch?product_ids=${productIds.join(',')}`
+      );
+    }
+    const results: AverageRating[] = [];
+    for (let i = 0; i < productIds.length; i += BATCH_SIZE) {
+      const chunk = productIds.slice(i, i + BATCH_SIZE);
+      const batch = await request<AverageRating[]>(
+        `/reviews/average-ratings/batch?product_ids=${chunk.join(',')}`
+      );
+      results.push(...batch);
+    }
+    return results;
+  },
 };
 
 // Campaigns
