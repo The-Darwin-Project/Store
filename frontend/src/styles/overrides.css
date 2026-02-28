@@ -13,11 +13,12 @@
   --ds-danger: #ef4444;
 }
 
-/* Force dark theme */
+/* Force dark theme -- override ALL PF6 background tier tokens */
 .pf-v6-theme-dark,
 body {
   --pf-t--global--background--color--primary--default: var(--ds-bg-primary);
   --pf-t--global--background--color--secondary--default: var(--ds-bg-secondary);
+  --pf-t--global--background--color--floating--default: var(--ds-bg-secondary);
   --pf-t--global--color--brand--default: var(--ds-accent);
   --pf-t--global--color--brand--hover: var(--ds-accent-hover);
   --pf-t--global--color--status--success--default: var(--ds-success);
@@ -34,9 +35,14 @@ body {
   background: var(--ds-bg-secondary);
 }
 
-/* Cards / panels */
-.ds-panel,
+/* Cards / panels -- use PF6 CSS variable so all card parts inherit uniformly */
 .pf-v6-c-card {
+  --pf-v6-c-card--BackgroundColor: var(--ds-bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.ds-panel {
   background: var(--ds-bg-card);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
@@ -184,8 +190,7 @@ tr:hover {
 
 /* Product cards in catalog */
 .ds-product-card {
-  background: var(--ds-bg-card) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  --pf-v6-c-card--BackgroundColor: var(--ds-bg-card);
   overflow: visible !important;
 }
 
@@ -249,13 +254,13 @@ select:focus {
 }
 
 .pf-v6-c-modal-box {
-  background: var(--ds-bg-secondary);
+  --pf-v6-c-modal-box--BackgroundColor: var(--ds-bg-secondary);
   color: var(--ds-text-primary);
 }
 
 /* Dark theme for PatternFly portals (dropdowns, menus, popovers) */
 .pf-v6-c-menu {
-  background: var(--ds-bg-card);
+  --pf-v6-c-menu--BackgroundColor: var(--ds-bg-card);
   color: var(--ds-text-primary);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -283,7 +288,6 @@ select:focus {
 /* Modal header and footer dark theme */
 .pf-v6-c-modal-box__header,
 .pf-v6-c-modal-box__footer {
-  background: var(--ds-bg-secondary);
   color: var(--ds-text-primary);
 }
 
