@@ -1,0 +1,254 @@
+/* Darwin Store dark theme overrides for PatternFly 6 */
+
+:root {
+  --ds-bg-primary: #1a1a2e;
+  --ds-bg-secondary: #16213e;
+  --ds-bg-card: #0f3460;
+  --ds-accent: #e94560;
+  --ds-accent-hover: #ff6b6b;
+  --ds-text-primary: #eee;
+  --ds-text-secondary: #aaa;
+  --ds-success: #4ade80;
+  --ds-warning: #fbbf24;
+  --ds-danger: #ef4444;
+}
+
+/* Force dark theme */
+.pf-v6-theme-dark,
+body {
+  --pf-t--global--background--color--primary--default: var(--ds-bg-primary);
+  --pf-t--global--background--color--secondary--default: var(--ds-bg-secondary);
+  background: var(--ds-bg-primary);
+  color: var(--ds-text-primary);
+}
+
+/* Page sections */
+.pf-v6-c-page__main-section[class*="pf-m-dark"] {
+  background: var(--ds-bg-secondary);
+}
+
+/* Cards / panels */
+.ds-panel,
+.pf-v6-c-card {
+  background: var(--ds-bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ds-text-secondary);
+}
+
+td {
+  padding: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Price styling */
+.price {
+  color: var(--ds-success);
+  font-weight: 600;
+}
+
+/* Stock styling */
+.stock-out {
+  color: var(--ds-danger);
+  font-weight: 700;
+}
+
+.stock-low {
+  color: var(--ds-warning);
+  font-weight: 600;
+}
+
+/* Empty state */
+.ds-empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--ds-text-secondary);
+  font-style: italic;
+}
+
+/* Subtitle */
+.ds-subtitle {
+  color: var(--ds-text-secondary);
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+/* Cart badge */
+.cart-badge {
+  background: var(--ds-accent);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  top: -8px;
+  left: -4px;
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Log panel */
+.ds-log-panel {
+  background: var(--ds-bg-card);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.ds-log-panel h2 {
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ds-text-secondary);
+}
+
+.log-entry {
+  padding: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.85rem;
+}
+
+.log-entry.success {
+  color: var(--ds-success);
+}
+
+.log-entry.error {
+  color: var(--ds-danger);
+}
+
+.log-time {
+  color: var(--ds-text-secondary);
+  margin-right: 0.5rem;
+}
+
+/* Description cell */
+.ds-desc-cell {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Actions column */
+.actions {
+  white-space: nowrap;
+}
+
+/* Product cards in catalog */
+.ds-product-card {
+  background: var(--ds-bg-card) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Form inputs */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="datetime-local"],
+textarea,
+select {
+  background: var(--ds-bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--ds-text-primary);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--ds-accent);
+  outline: none;
+}
+
+/* Tabs override */
+.pf-v6-c-tabs__link {
+  color: var(--ds-text-secondary) !important;
+}
+
+.pf-v6-c-tabs__link.pf-m-current,
+.pf-v6-c-tabs__item.pf-m-current .pf-v6-c-tabs__link {
+  color: var(--ds-text-primary) !important;
+}
+
+/* Gallery for product grid */
+.pf-v6-l-gallery {
+  --pf-v6-l-gallery--GridTemplateColumns--min: 250px;
+}
+
+/* Modal overlay */
+.pf-v6-c-backdrop {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.pf-v6-c-modal-box {
+  background: var(--ds-bg-secondary);
+  color: var(--ds-text-primary);
+}
+
+/* Coupon tag */
+.ds-coupon-tag {
+  background: rgba(233, 69, 96, 0.2);
+  color: var(--ds-accent);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Responsive table */
+.ds-table-container {
+  overflow-x: auto;
+}
+
+/* Panel heading */
+.ds-panel h2,
+h2 {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.ds-panel h3,
+h3 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}

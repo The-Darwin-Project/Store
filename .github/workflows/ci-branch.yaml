@@ -22,6 +22,7 @@ on:
       - "refactor/**"
     paths:
       - "src/**"
+      - "frontend/**"
       - "tests/**"
       - "Dockerfile.*"
       - "nginx/**"

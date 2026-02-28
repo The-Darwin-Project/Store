@@ -27,3 +27,7 @@ Thumbs.db
 # Node
 node_modules/
 test-results/
+
+# Frontend build output
+frontend/dist/
+*.tsbuildinfo
