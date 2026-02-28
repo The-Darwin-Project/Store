@@ -1,0 +1,21 @@
+FROM mcr.microsoft.com/playwright:v1.50.0-noble
+
+USER 0
+
+# Install python3 for JSON parsing in run-tests.sh
+RUN apt-get update && apt-get install -y --no-install-recommends python3 curl && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tests
+
+# Install only Playwright test runner (no browser download — using request context only)
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts && \
+    npx playwright install --with-deps chromium
+
+# Copy post-deploy test files
+COPY tests/post-deploy/ ./
+
+USER 1001
+
+ENTRYPOINT ["bash", "./run-tests.sh"]
