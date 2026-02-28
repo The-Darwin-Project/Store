@@ -252,7 +252,9 @@ class Alert(BaseModel):
     message: str
     status: AlertStatus = AlertStatus.ACTIVE
     product_id: Optional[str] = None
+    product_name: Optional[str] = None
     supplier_id: Optional[str] = None
+    supplier_name: Optional[str] = None
     current_stock: Optional[int] = None
     reorder_threshold: Optional[int] = None
     created_at: Optional[datetime] = None

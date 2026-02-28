@@ -27,10 +27,10 @@ export function InvoiceModal({ invoice, isOpen, onClose }: Props) {
           <div style={{ marginBottom: '1rem' }}>
             <strong>Date:</strong> {new Date(invoice.created_at).toLocaleDateString()}
           </div>
-          {invoice.customer_name && (
+          {invoice.customer_snapshot?.name && (
             <div style={{ marginBottom: '1rem' }}>
-              <strong>Customer:</strong> {invoice.customer_name}
-              {invoice.customer_email && ` (${invoice.customer_email})`}
+              <strong>Customer:</strong> {invoice.customer_snapshot.name}
+              {invoice.customer_snapshot.email && ` (${invoice.customer_snapshot.email})`}
             </div>
           )}
           <div style={{ marginBottom: '0.5rem' }}>
@@ -46,12 +46,12 @@ export function InvoiceModal({ invoice, isOpen, onClose }: Props) {
               </tr>
             </thead>
             <tbody>
-              {invoice.items.map((item, i) => (
+              {(invoice.line_items || []).map((item, i) => (
                 <tr key={i}>
                   <td style={{ padding: '0.5rem' }}>{item.product_name}</td>
                   <td style={{ textAlign: 'right', padding: '0.5rem' }}>{item.quantity}</td>
                   <td style={{ textAlign: 'right', padding: '0.5rem' }}>${(Number(item.unit_price) || 0).toFixed(2)}</td>
-                  <td style={{ textAlign: 'right', padding: '0.5rem' }}>${((Number(item.unit_price) || 0) * (item.quantity || 0)).toFixed(2)}</td>
+                  <td style={{ textAlign: 'right', padding: '0.5rem' }}>${(Number(item.line_total) || 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -64,7 +64,7 @@ export function InvoiceModal({ invoice, isOpen, onClose }: Props) {
               </div>
             )}
             <div style={{ fontWeight: 700, fontSize: '1.25rem', marginTop: '0.5rem' }}>
-              Total: ${(Number(invoice.total) || 0).toFixed(2)}
+              Total: ${(Number(invoice.grand_total) || 0).toFixed(2)}
             </div>
           </div>
         </div>
