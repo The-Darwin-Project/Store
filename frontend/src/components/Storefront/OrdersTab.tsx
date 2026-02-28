@@ -74,7 +74,7 @@ export function OrdersTab({ log, searchQuery, onReviewProduct }: Props) {
                       <td>{expandedId === order.id ? '\u25BC' : '\u25B6'}</td>
                       <td>{new Date(order.created_at).toLocaleDateString()}</td>
                       <td>{order.id.substring(0, 8)}...</td>
-                      <td className="price">${order.total.toFixed(2)}</td>
+                      <td className="price">${(Number(order.total) || 0).toFixed(2)}</td>
                       <td><StatusBadge status={order.status} /></td>
                     </tr>
                     {expandedId === order.id && (
@@ -85,7 +85,7 @@ export function OrdersTab({ log, searchQuery, onReviewProduct }: Props) {
                             <ul>
                               {order.items.map((item, i) => (
                                 <li key={i}>
-                                  {item.product_name} x{item.quantity} @ ${item.unit_price.toFixed(2)} = ${(item.unit_price * item.quantity).toFixed(2)}
+                                  {item.product_name} x{item.quantity} @ ${(Number(item.unit_price) || 0).toFixed(2)} = ${((Number(item.unit_price) || 0) * (item.quantity || 0)).toFixed(2)}
                                 </li>
                               ))}
                             </ul>

@@ -91,7 +91,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
               style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
           )}
           <div>
-            <div className="price" style={{ fontSize: '1.5rem', fontWeight: 700 }}>${product.price.toFixed(2)}</div>
+            <div className="price" style={{ fontSize: '1.5rem', fontWeight: 700 }}>${(Number(product.price) || 0).toFixed(2)}</div>
             <div style={{ margin: '0.5rem 0' }}>SKU: {product.sku}</div>
             <div>Stock: {product.stock}</div>
             {product.description && <p style={{ marginTop: '0.5rem' }}>{product.description}</p>}

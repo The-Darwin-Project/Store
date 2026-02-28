@@ -28,7 +28,7 @@ export function DashboardTab({ log }: Props) {
         <CardTitle>Total Revenue</CardTitle>
         <CardBody>
           <div id="dashboard-revenue" style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--pf-t--global--color--status--success--default)' }}>
-            ${data ? data.total_revenue.toFixed(2) : '0.00'}
+            ${data ? (Number(data.total_revenue) || 0).toFixed(2) : '0.00'}
           </div>
         </CardBody>
       </Card>

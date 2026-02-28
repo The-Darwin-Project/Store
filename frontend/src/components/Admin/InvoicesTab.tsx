@@ -49,7 +49,7 @@ export function InvoicesTab({ log, searchQuery }: Props) {
                   <td>{inv.invoice_number}</td>
                   <td>{inv.customer_name || '-'}</td>
                   <td>{inv.order_id.substring(0, 8)}...</td>
-                  <td className="price">${inv.total.toFixed(2)}</td>
+                  <td className="price">${(Number(inv.total) || 0).toFixed(2)}</td>
                   <td>
                     <Button variant="secondary" size="sm" onClick={() => setSelectedInvoice(inv)}>View</Button>
                   </td>

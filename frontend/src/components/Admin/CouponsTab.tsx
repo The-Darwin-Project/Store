@@ -126,7 +126,7 @@ export function CouponsTab({ log, searchQuery }: Props) {
                   <td>{c.code}</td>
                   <td>{c.discount_type === 'percentage' ? '%' : '$'}</td>
                   <td>{c.discount_value}</td>
-                  <td>${c.min_order_amount.toFixed(2)}</td>
+                  <td>${(Number(c.min_order_amount) || 0).toFixed(2)}</td>
                   <td>{c.current_uses}/{c.max_uses || '\u221E'}</td>
                   <td>{c.expires_at ? new Date(c.expires_at).toLocaleDateString() : 'Never'}</td>
                   <td>{c.is_active ? '\u2705 Active' : '\u274C Inactive'}</td>
