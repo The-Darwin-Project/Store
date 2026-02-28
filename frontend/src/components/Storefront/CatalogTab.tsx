@@ -133,7 +133,7 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
                           />
                         </div>
                       )}
-                      <div className="price card-price" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+                      <div className="price card-price">
                         ${(Number(p.price) || 0).toFixed(2)}
                       </div>
                       {p.stock === 0 ? (
@@ -144,7 +144,7 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
                         <div className="stock-badge in-stock">In stock</div>
                       )}
                       {r && (Number(r.review_count) || 0) > 0 && (
-                        <div className="ds-rating card-rating" style={{ color: '#fbbf24' }}>
+                        <div className="ds-rating card-rating ds-star-filled">
                           {renderStars(Number(r.average_rating) || 0)} ({Number(r.review_count) || 0})
                         </div>
                       )}

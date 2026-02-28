@@ -186,6 +186,22 @@ tr:hover {
 .ds-product-card {
   background: var(--ds-bg-card) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  overflow: visible !important;
+}
+
+/* Card footer -- wrap content so add-to-cart button stays visible */
+.ds-product-card .pf-v6-c-card__footer > div {
+  flex-wrap: wrap;
+}
+
+/* Star rating color */
+.ds-star-filled { color: var(--ds-warning); }
+.ds-star-empty { color: #555; }
+
+/* Card price styling */
+.card-price {
+  font-size: 1.25rem;
+  font-weight: 700;
 }
 
 /* Form inputs */
@@ -446,10 +462,8 @@ h3 {
   margin-bottom: 0.75rem;
 }
 
-/* Page alignment -- suppress phantom sidebar column and center content */
+/* Page layout -- suppress phantom sidebar column, stretch full viewport */
 .pf-v6-c-page {
   grid-template-columns: 1fr !important;
   grid-template-areas: "header" "main" !important;
-  max-width: 960px;
-  margin: 0 auto;
 }
