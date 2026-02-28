@@ -6,15 +6,15 @@
 image:
   frontend:
     repository: ghcr.io/the-darwin-project/store-frontend
-    tag: "fcb1abb"
+    tag: "4da36ff"
     pullPolicy: IfNotPresent
   backend:
     repository: ghcr.io/the-darwin-project/store-backend
-    tag: "fcb1abb"
+    tag: "4da36ff"
     pullPolicy: IfNotPresent
   chaos:
     repository: ghcr.io/the-darwin-project/store-chaos
-    tag: "fcb1abb"
+    tag: "4da36ff"
     pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: []
@@ -144,7 +144,7 @@ postDeployTests:
   enabled: false
   image:
     repository: ghcr.io/the-darwin-project/store-playwright
-    tag: "fcb1abb"
+    tag: "4da36ff"
     pullPolicy: IfNotPresent
   resources:
     requests:
