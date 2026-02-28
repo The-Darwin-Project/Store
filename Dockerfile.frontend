@@ -1,3 +1,12 @@
+# Stage 1: Build the React frontend
+FROM registry.access.redhat.com/ubi9/nodejs-22:latest AS build
+WORKDIR /opt/app-root/src
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# Stage 2: Serve with nginx
 FROM registry.access.redhat.com/ubi9/ubi:latest AS base
 RUN dnf install -y nginx && dnf clean all
 
@@ -11,10 +20,8 @@ RUN sed -i '/^    server {/,/^    }/d' /etc/nginx/nginx.conf && \
 # Copy nginx config
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 
-# Copy static files
-COPY src/app/static/ /usr/share/nginx/html/static/
-COPY src/app/static/index.html /usr/share/nginx/html/index.html
-COPY src/app/static/admin.html /usr/share/nginx/html/admin.html
+# Copy Vite build output
+COPY --from=build /opt/app-root/src/dist/ /usr/share/nginx/html/
 
 # nginx on UBI9 needs writable dirs for OpenShift arbitrary UID
 RUN chmod -R g+rwx /var/log/nginx /var/lib/nginx /run && \
