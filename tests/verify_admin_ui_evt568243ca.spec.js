@@ -20,6 +20,7 @@ const path = require('path');
 const fs = require('fs');
 
 const DIST_DIR = path.resolve(__dirname, '../frontend/dist');
+const DIST_EXISTS = fs.existsSync(path.join(DIST_DIR, 'index.html'));
 
 // ── Mock data (matches actual backend API contract after fix) ──────────────────
 
@@ -139,6 +140,9 @@ async function clickAdminTab(page, eventKey) {
 // ── Section 1: Alerts Tab ──────────────────────────────────────────────────────
 
 test.describe('1. Admin Alerts Tab — product name display (Bug 1 fix verification)', () => {
+  test.beforeEach(({}, testInfo) => {
+    if (!DIST_EXISTS) testInfo.skip(true, 'frontend/dist not built — skipping compiled-app tests');
+  });
 
   test('alerts table renders and is visible after clicking Alerts tab', async ({ page }) => {
     await setupAdmin(page, { alerts: MOCK_ALERTS });
@@ -227,6 +231,9 @@ test.describe('1. Admin Alerts Tab — product name display (Bug 1 fix verificat
 // ── Section 2: Invoices Tab ────────────────────────────────────────────────────
 
 test.describe('2. Admin Invoices Tab — View button without crash (Bug 2 fix verification)', () => {
+  test.beforeEach(({}, testInfo) => {
+    if (!DIST_EXISTS) testInfo.skip(true, 'frontend/dist not built — skipping compiled-app tests');
+  });
 
   test('invoices table renders rows with correct data', async ({ page }) => {
     await setupAdmin(page, { invoices: MOCK_INVOICES });
