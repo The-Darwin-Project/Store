@@ -470,4 +470,5 @@ h3 {
 .pf-v6-c-page {
   grid-template-columns: 1fr !important;
   grid-template-areas: "header" "main" !important;
+  background: var(--ds-bg-primary);
 }
