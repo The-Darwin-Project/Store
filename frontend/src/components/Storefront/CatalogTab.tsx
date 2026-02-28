@@ -143,9 +143,9 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
                       ) : (
                         <div className="stock-badge in-stock" style={{ color: 'var(--pf-t--global--color--status--success--default)' }}>In stock</div>
                       )}
-                      {r && (r.review_count ?? 0) > 0 && (
+                      {r && (Number(r.review_count) || 0) > 0 && (
                         <div className="ds-rating card-rating" style={{ color: '#fbbf24' }}>
-                          {renderStars(r.average_rating ?? 0)} ({r.review_count})
+                          {renderStars(Number(r.average_rating) || 0)} ({Number(r.review_count) || 0})
                         </div>
                       )}
                     </CardBody>

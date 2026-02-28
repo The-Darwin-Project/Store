@@ -95,11 +95,11 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
             <div style={{ margin: '0.5rem 0' }}>SKU: {product.sku}</div>
             <div>Stock: {product.stock}</div>
             {product.description && <p style={{ marginTop: '0.5rem' }}>{product.description}</p>}
-            {avgRating && (avgRating.review_count ?? 0) > 0 && (
+            {avgRating && (Number(avgRating.review_count) || 0) > 0 && (
               <div style={{ marginTop: '0.5rem' }}>
-                {renderStars(Math.round(avgRating.average_rating ?? 0))}
+                {renderStars(Math.round(Number(avgRating.average_rating) || 0))}
                 <span style={{ marginLeft: '0.5rem' }}>
-                  {(avgRating.average_rating ?? 0).toFixed(1)} ({avgRating.review_count} review{avgRating.review_count !== 1 ? 's' : ''})
+                  {(Number(avgRating.average_rating) || 0).toFixed(1)} ({Number(avgRating.review_count) || 0} review{(Number(avgRating.review_count) || 0) !== 1 ? 's' : ''})
                 </span>
               </div>
             )}
