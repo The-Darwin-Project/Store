@@ -21,7 +21,13 @@ const MOCK_CAMPAIGN = [
     discount_percent: null, start_date: null, end_date: null }
 ];
 
+const SKIP_LIVE = !!process.env.SKIP_LIVE || !!process.env.CI;
+
 test.describe('PR #64 Live Deployment Verification', () => {
+
+  test.beforeEach(async ({}, testInfo) => {
+    if (SKIP_LIVE) testInfo.skip(true, 'Skipping live tests in CI / SKIP_LIVE mode');
+  });
 
   // Navigate and intercept API calls to provide predictable data
   async function loadCatalog(page) {
