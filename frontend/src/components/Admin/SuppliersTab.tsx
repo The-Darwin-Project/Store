@@ -124,7 +124,7 @@ export function SuppliersTab({ log, searchQuery }: Props) {
                 ) : supplierProducts.map(p => (
                   <tr key={p.id}>
                     <td>{p.name}</td><td>{p.sku}</td>
-                    <td className="price">${p.price.toFixed(2)}</td><td>{p.stock}</td>
+                    <td className="price">${(Number(p.price) || 0).toFixed(2)}</td><td>{p.stock}</td>
                   </tr>
                 ))}
               </tbody>

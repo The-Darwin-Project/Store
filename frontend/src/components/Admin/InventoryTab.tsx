@@ -213,7 +213,7 @@ export function InventoryTab({ log, searchQuery }: Props) {
                       </td>
                       <td>{p.name}</td>
                       <td>{p.sku}</td>
-                      <td className="price">${p.price.toFixed(2)}</td>
+                      <td className="price">${(Number(p.price) || 0).toFixed(2)}</td>
                       <td className={`stock ${stockClass}`}>{p.stock}</td>
                       <td>{supplier ? supplier.name : '-'}</td>
                       <td className="ds-desc-cell" title={p.description || ''}>{p.description || ''}</td>

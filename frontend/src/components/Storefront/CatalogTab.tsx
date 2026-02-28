@@ -134,7 +134,7 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
                         </div>
                       )}
                       <div className="price card-price" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                        ${p.price.toFixed(2)}
+                        ${(Number(p.price) || 0).toFixed(2)}
                       </div>
                       {p.stock === 0 ? (
                         <div className="stock-badge out-of-stock" style={{ color: 'var(--pf-t--global--color--status--danger--default)' }}>Out of stock</div>

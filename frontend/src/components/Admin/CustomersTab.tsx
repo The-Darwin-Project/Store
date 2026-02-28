@@ -180,7 +180,7 @@ export function CustomersTab({ log, searchQuery }: Props) {
                     <tr key={o.id}>
                       <td>{new Date(o.created_at).toLocaleDateString()}</td>
                       <td>{o.id.substring(0, 8)}...</td>
-                      <td className="price">${o.total.toFixed(2)}</td>
+                      <td className="price">${(Number(o.total) || 0).toFixed(2)}</td>
                       <td><StatusBadge status={o.status} /></td>
                     </tr>
                   ))}

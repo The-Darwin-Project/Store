@@ -80,7 +80,7 @@ export function CartTab({ items, total, onUpdateQuantity, onRemoveItem, onClear,
         items: items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
         coupon_code: couponResult?.valid ? couponCode.toUpperCase() : null,
       });
-      log(`Order placed: ${order.id.substring(0, 8)}... Total: $${order.total.toFixed(2)}`, 'success');
+      log(`Order placed: ${order.id.substring(0, 8)}... Total: $${(Number(order.total) || 0).toFixed(2)}`, 'success');
       setOrderSuccess(order);
       onClear();
       setCouponCode('');
@@ -115,7 +115,7 @@ export function CartTab({ items, total, onUpdateQuantity, onRemoveItem, onClear,
                 items.map(item => (
                   <tr key={item.product_id}>
                     <td>{item.product_name}</td>
-                    <td className="price">${item.price.toFixed(2)}</td>
+                    <td className="price">${(Number(item.price) || 0).toFixed(2)}</td>
                     <td>
                       <input
                         type="number"
@@ -125,7 +125,7 @@ export function CartTab({ items, total, onUpdateQuantity, onRemoveItem, onClear,
                         style={{ width: '60px' }}
                       />
                     </td>
-                    <td className="price">${(item.price * item.quantity).toFixed(2)}</td>
+                    <td className="price">${((Number(item.price) || 0) * (item.quantity || 0)).toFixed(2)}</td>
                     <td>
                       <Button variant="danger" size="sm" onClick={() => onRemoveItem(item.product_id)}>Remove</Button>
                     </td>
@@ -231,7 +231,7 @@ export function CartTab({ items, total, onUpdateQuantity, onRemoveItem, onClear,
           {orderSuccess && (
             <div id="order-details" style={{ fontSize: '0.9rem' }}>
               <div>Order ID: {orderSuccess.id.substring(0, 8)}...</div>
-              <div>Total: ${orderSuccess.total.toFixed(2)}</div>
+              <div>Total: ${(Number(orderSuccess.total) || 0).toFixed(2)}</div>
               <div>Items: {orderSuccess.items.length}</div>
             </div>
           )}

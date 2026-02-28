@@ -50,21 +50,21 @@ export function InvoiceModal({ invoice, isOpen, onClose }: Props) {
                 <tr key={i}>
                   <td style={{ padding: '0.5rem' }}>{item.product_name}</td>
                   <td style={{ textAlign: 'right', padding: '0.5rem' }}>{item.quantity}</td>
-                  <td style={{ textAlign: 'right', padding: '0.5rem' }}>${item.unit_price.toFixed(2)}</td>
-                  <td style={{ textAlign: 'right', padding: '0.5rem' }}>${(item.unit_price * item.quantity).toFixed(2)}</td>
+                  <td style={{ textAlign: 'right', padding: '0.5rem' }}>${(Number(item.unit_price) || 0).toFixed(2)}</td>
+                  <td style={{ textAlign: 'right', padding: '0.5rem' }}>${((Number(item.unit_price) || 0) * (item.quantity || 0)).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div style={{ marginTop: '1rem', textAlign: 'right' }}>
-            <div>Subtotal: ${invoice.subtotal.toFixed(2)}</div>
+            <div>Subtotal: ${(Number(invoice.subtotal) || 0).toFixed(2)}</div>
             {invoice.discount_amount > 0 && (
               <div style={{ color: 'var(--pf-t--global--color--status--success--default)' }}>
-                Discount{invoice.coupon_code ? ` (${invoice.coupon_code})` : ''}: -${invoice.discount_amount.toFixed(2)}
+                Discount{invoice.coupon_code ? ` (${invoice.coupon_code})` : ''}: -${(Number(invoice.discount_amount) || 0).toFixed(2)}
               </div>
             )}
             <div style={{ fontWeight: 700, fontSize: '1.25rem', marginTop: '0.5rem' }}>
-              Total: ${invoice.total.toFixed(2)}
+              Total: ${(Number(invoice.total) || 0).toFixed(2)}
             </div>
           </div>
         </div>
