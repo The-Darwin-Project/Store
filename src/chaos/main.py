@@ -24,9 +24,10 @@ import logging
 import random
 import uuid
 from collections import deque
+from datetime import datetime, timezone
 from pathlib import Path
 from dataclasses import asdict
-from typing import Optional
+from typing import Optional, List
 
 import httpx
 from fastapi import FastAPI
@@ -328,6 +329,85 @@ async def update_settings(body: ChaosSettings = None):
 
     logger.info(f"Settings updated: {result}")
     return {"status": "updated", "applied": result, "settings": asdict(get_chaos())}
+
+
+# ---------------------------------------------------------------------------
+# Test Reports API — stores post-deploy Playwright test results
+# ---------------------------------------------------------------------------
+
+class TestCase(BaseModel):
+    """A single test case result."""
+    name: str
+    status: str  # "passed", "failed", "skipped"
+    duration_ms: float = 0
+    error: Optional[str] = None
+
+
+class TestReport(BaseModel):
+    """Payload from the post-deploy test runner job."""
+    suite: str = "post-deploy"
+    total: int = 0
+    passed: int = 0
+    failed: int = 0
+    skipped: int = 0
+    duration_ms: float = 0
+    tests: List[TestCase] = []
+    git_sha: Optional[str] = None
+    image_tag: Optional[str] = None
+
+
+class StoredReport(BaseModel):
+    """A test report with server-assigned metadata."""
+    id: str
+    received_at: str
+    suite: str
+    total: int
+    passed: int
+    failed: int
+    skipped: int
+    duration_ms: float
+    tests: List[TestCase]
+    git_sha: Optional[str] = None
+    image_tag: Optional[str] = None
+
+
+# In-memory ring buffer — max 50 reports
+_test_reports: deque = deque(maxlen=50)
+
+
+@app.post("/api/test-reports", status_code=201)
+async def post_test_report(body: TestReport):
+    """Receive a test report from the post-deploy job."""
+    report = StoredReport(
+        id=uuid.uuid4().hex[:12],
+        received_at=datetime.now(timezone.utc).isoformat(),
+        suite=body.suite,
+        total=body.total,
+        passed=body.passed,
+        failed=body.failed,
+        skipped=body.skipped,
+        duration_ms=body.duration_ms,
+        tests=body.tests,
+        git_sha=body.git_sha,
+        image_tag=body.image_tag,
+    )
+    _test_reports.appendleft(report)
+    logger.info(f"Test report received: {body.passed}/{body.total} passed (id={report.id})")
+    return {"status": "stored", "id": report.id}
+
+
+@app.get("/api/test-reports")
+async def list_test_reports():
+    """List all stored test reports (newest first)."""
+    return [r.model_dump() for r in _test_reports]
+
+
+@app.get("/api/test-reports/latest")
+async def get_latest_test_report():
+    """Get the most recent test report."""
+    if not _test_reports:
+        return {"status": "no_reports"}
+    return _test_reports[0].model_dump()
 
 
 # Mount static files (must be after routes)
