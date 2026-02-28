@@ -268,6 +268,63 @@ select:focus {
   color: var(--ds-text-primary);
 }
 
+/* PatternFly component dark theme overrides */
+.pf-v6-c-form-control {
+  --pf-v6-c-form-control--BackgroundColor: var(--ds-bg-card);
+  --pf-v6-c-form-control--Color: var(--ds-text-primary);
+  --pf-v6-c-form-control--BorderTopColor: rgba(255, 255, 255, 0.2);
+  --pf-v6-c-form-control--BorderRightColor: rgba(255, 255, 255, 0.2);
+  --pf-v6-c-form-control--BorderBottomColor: rgba(255, 255, 255, 0.2);
+  --pf-v6-c-form-control--BorderLeftColor: rgba(255, 255, 255, 0.2);
+}
+
+.pf-v6-c-form__label-text {
+  color: var(--ds-text-secondary);
+}
+
+.pf-v6-c-button.pf-m-primary {
+  --pf-v6-c-button--m-primary--BackgroundColor: var(--ds-accent);
+  --pf-v6-c-button--m-primary--hover--BackgroundColor: var(--ds-accent-hover);
+}
+
+.pf-v6-c-button.pf-m-secondary {
+  --pf-v6-c-button--m-secondary--Color: var(--ds-text-primary);
+  --pf-v6-c-button--m-secondary--BorderColor: rgba(255, 255, 255, 0.3);
+  --pf-v6-c-button--m-secondary--hover--BorderColor: var(--ds-accent);
+  --pf-v6-c-button--m-secondary--hover--Color: var(--ds-accent);
+}
+
+.pf-v6-c-badge.pf-m-unread {
+  --pf-v6-c-badge--m-unread--BackgroundColor: var(--ds-accent);
+  color: #fff;
+}
+
+.pf-v6-c-page__main-section {
+  --pf-v6-c-page__main-section--BackgroundColor: var(--ds-bg-primary);
+}
+
+.pf-v6-c-page__main-section.pf-m-secondary {
+  --pf-v6-c-page__main-section--BackgroundColor: var(--ds-bg-secondary);
+}
+
+.pf-v6-c-tabs {
+  --pf-v6-c-tabs--before--BorderColor: rgba(255, 255, 255, 0.1);
+  --pf-v6-c-tabs__item--m-current--after--BorderColor: var(--ds-accent);
+}
+
+.pf-v6-c-check__label {
+  color: var(--ds-text-primary);
+}
+
+.pf-v6-c-number-input .pf-v6-c-button {
+  color: var(--ds-text-primary);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.pf-v6-c-title {
+  color: var(--ds-text-primary);
+}
+
 /* Coupon tag */
 .ds-coupon-tag {
   background: rgba(233, 69, 96, 0.2);

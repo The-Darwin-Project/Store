@@ -77,12 +77,16 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
         <div className="campaign-banners-container" id="campaign-banners">
           {banners.map(b => (
             <div key={b.id} className="ds-campaign-banner" style={{
-              background: 'linear-gradient(135deg, var(--pf-t--global--color--brand--default), var(--pf-t--global--color--brand--hover))',
+              background: b.image_url ? `url(${b.image_url}) center/cover no-repeat` : 'linear-gradient(135deg, var(--pf-t--global--color--brand--default), var(--pf-t--global--color--brand--hover))',
               padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', color: '#fff',
+              position: 'relative', overflow: 'hidden', minHeight: '120px',
             }}>
-              <h3>{b.title}</h3>
-              {b.content && <p>{b.content}</p>}
-              {b.coupon_code && <span className="ds-coupon-tag">Use code: {b.coupon_code}</span>}
+              {b.image_url && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} />}
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <h3>{b.title}</h3>
+                {b.content && <p>{b.content}</p>}
+                {b.coupon_code && <span className="ds-coupon-tag">Use code: {b.coupon_code}</span>}
+              </div>
             </div>
           ))}
         </div>
