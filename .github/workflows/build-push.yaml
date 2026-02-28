@@ -35,8 +35,12 @@ on:
       - "Dockerfile.frontend"
       - "Dockerfile.backend"
       - "Dockerfile.chaos"
+      - "Dockerfile.playwright"
       - "nginx/**"
       - "requirements.txt"
+      - "package.json"
+      - "package-lock.json"
+      - "tests/post-deploy/**"
       - ".github/workflows/build-push.yaml"
   pull_request:
     types: [closed]
@@ -72,6 +76,9 @@ jobs:
           - name: chaos
             dockerfile: Dockerfile.chaos
             image_suffix: store-chaos
+          - name: playwright
+            dockerfile: Dockerfile.playwright
+            image_suffix: store-playwright
 
     steps:
       - name: Checkout repository
@@ -164,10 +171,12 @@ jobs:
           yq -i '.image.frontend.tag = "${{ steps.sha.outputs.short }}"' helm/values.yaml
           yq -i '.image.backend.tag = "${{ steps.sha.outputs.short }}"' helm/values.yaml
           yq -i '.image.chaos.tag = "${{ steps.sha.outputs.short }}"' helm/values.yaml
+          yq -i '.postDeployTests.image.tag = "${{ steps.sha.outputs.short }}"' helm/values.yaml
 
           # Verify the change
           echo "Updated helm/values.yaml:"
           yq '.image' helm/values.yaml
+          yq '.postDeployTests.image' helm/values.yaml
 
       - name: Commit and push Helm values update
         run: |
@@ -203,3 +212,4 @@ jobs:
           echo "- \`image.frontend.tag\` set to \`${{ steps.sha.outputs.short }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`image.backend.tag\` set to \`${{ steps.sha.outputs.short }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`image.chaos.tag\` set to \`${{ steps.sha.outputs.short }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`postDeployTests.image.tag\` set to \`${{ steps.sha.outputs.short }}\`" >> $GITHUB_STEP_SUMMARY
