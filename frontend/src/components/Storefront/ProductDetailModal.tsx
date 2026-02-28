@@ -66,7 +66,8 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
       stars.push(
         <StarIcon
           key={i}
-          style={{ color: i <= rating ? '#fbbf24' : '#555', cursor: 'default' }}
+          className={i <= rating ? 'ds-star-filled' : 'ds-star-empty'}
+          style={{ cursor: 'default' }}
         />
       );
     }
@@ -91,7 +92,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
               style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
           )}
           <div>
-            <div className="price" style={{ fontSize: '1.5rem', fontWeight: 700 }}>${(Number(product.price) || 0).toFixed(2)}</div>
+            <div className="price card-price" style={{ fontSize: '1.5rem' }}>${(Number(product.price) || 0).toFixed(2)}</div>
             <div style={{ margin: '0.5rem 0' }}>SKU: {product.sku}</div>
             <div>Stock: {product.stock}</div>
             {product.description && <p style={{ marginTop: '0.5rem' }}>{product.description}</p>}
@@ -132,7 +133,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <strong>{r.reviewer_name}</strong>
-                  <span style={{ color: '#fbbf24' }}>{renderStars(r.rating)}</span>
+                  <span className="ds-star-filled">{renderStars(r.rating)}</span>
                 </div>
                 {r.comment && <p style={{ marginTop: '0.25rem' }}>{r.comment}</p>}
                 <div style={{ fontSize: '0.8rem', color: 'var(--pf-t--global--text--color--subtle)' }}>
@@ -153,7 +154,8 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
             <div id="star-picker">
               {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon key={i}
-                  style={{ cursor: 'pointer', color: i <= reviewRating ? '#fbbf24' : '#555', fontSize: '1.5rem' }}
+                  className={i <= reviewRating ? 'ds-star-filled' : 'ds-star-empty'}
+                  style={{ cursor: 'pointer', fontSize: '1.5rem' }}
                   onClick={() => setReviewRating(i)} />
               ))}
             </div>
