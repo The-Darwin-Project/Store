@@ -80,6 +80,11 @@ tr:hover {
   font-weight: 600;
 }
 
+/* Hidden utility */
+.hidden {
+  display: none !important;
+}
+
 /* Empty state */
 .ds-empty-state {
   text-align: center;

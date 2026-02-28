@@ -48,7 +48,7 @@ export function CustomersTab({ log, searchQuery }: Props) {
         company: company.trim() || null, phone: phone.trim() || null,
         address: (street || city || state || zip || country) ? { street, city, state, zip, country } : null,
       });
-      log(`Customer created: ${cust.name}`, 'success');
+      log(`Created customer: ${cust.name}`, 'success');
       setName(''); setEmail(''); setCompany(''); setPhone('');
       setStreet(''); setCity(''); setState(''); setZip(''); setCountry('');
       loadCustomers();
@@ -131,7 +131,7 @@ export function CustomersTab({ log, searchQuery }: Props) {
             <div className="ds-empty-state">No customers yet.</div>
           ) : (
             filtered.map(c => (
-              <div key={c.id} className="ds-customer-card" style={{
+              <div key={c.id} className="ds-customer-card customer-list-item" style={{
                 padding: '0.75rem', marginBottom: '0.5rem',
                 background: selectedCustomer?.id === c.id ? 'var(--pf-t--global--background--color--secondary--default)' : 'transparent',
                 borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center',

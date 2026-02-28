@@ -113,7 +113,7 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
               const qty = addQty[p.id] || 1;
               return (
                 <GalleryItem key={p.id}>
-                  <Card isCompact className="ds-product-card" id={`product-card-${p.id}`}>
+                  <Card isCompact className="ds-product-card catalog-card" id={`product-card-${p.id}`}>
                     <CardTitle>
                       <span
                         className="ds-product-name"
@@ -133,18 +133,18 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
                           />
                         </div>
                       )}
-                      <div className="price" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+                      <div className="price card-price" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
                         ${p.price.toFixed(2)}
                       </div>
                       {p.stock === 0 ? (
-                        <div style={{ color: 'var(--pf-t--global--color--status--danger--default)' }}>Out of stock</div>
+                        <div className="stock-badge out-of-stock" style={{ color: 'var(--pf-t--global--color--status--danger--default)' }}>Out of stock</div>
                       ) : p.stock < 10 ? (
-                        <div style={{ color: 'var(--pf-t--global--color--status--warning--default)' }}>Low stock ({p.stock})</div>
+                        <div className="stock-badge low-stock" style={{ color: 'var(--pf-t--global--color--status--warning--default)' }}>Low stock ({p.stock})</div>
                       ) : (
-                        <div style={{ color: 'var(--pf-t--global--color--status--success--default)' }}>In stock</div>
+                        <div className="stock-badge in-stock" style={{ color: 'var(--pf-t--global--color--status--success--default)' }}>In stock</div>
                       )}
                       {r && r.review_count > 0 && (
-                        <div className="ds-rating" style={{ color: '#fbbf24' }}>
+                        <div className="ds-rating card-rating" style={{ color: '#fbbf24' }}>
                           {renderStars(r.average_rating)} ({r.review_count})
                         </div>
                       )}
