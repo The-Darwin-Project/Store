@@ -449,6 +449,7 @@ h3 {
 /* Page alignment -- suppress phantom sidebar column and center content */
 .pf-v6-c-page {
   grid-template-columns: 1fr !important;
+  grid-template-areas: "header" "main" !important;
   max-width: 960px;
   margin: 0 auto;
 }
