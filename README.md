@@ -240,3 +240,5 @@ See `helm/values.yaml` for all configurable options:
 The Store and Chaos Controller run as separate uvicorn processes in the same container. They share state via a file-backed JSON store at `/tmp/chaos_state.json` using atomic `tempfile` + `os.replace` writes (POSIX rename atomicity). Reads use retry with exponential backoff for concurrent access safety.
 
 This is a PoC pattern. For production, use Redis or shared memory.
+
+
