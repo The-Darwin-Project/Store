@@ -8,17 +8,28 @@ import { ShoppingCartIcon } from '@patternfly/react-icons';
 import { CatalogTab } from '../components/Storefront/CatalogTab';
 import { CartTab } from '../components/Storefront/CartTab';
 import { OrdersTab } from '../components/Storefront/OrdersTab';
+import { ProductDetailModal } from '../components/Storefront/ProductDetailModal';
 import { ActivityLog } from '../components/shared/ActivityLog';
 import { useCart } from '../hooks/useCart';
 import { useActivityLog } from '../hooks/useActivityLog';
 import { LoginModal } from '../components/shared/LoginModal';
+import { products as productsApi } from '../api/client';
+import type { Product } from '../types';
 
 export function StorefrontPage() {
   const [activeTab, setActiveTab] = useState<string>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
   const [loginOpen, setLoginOpen] = useState(false);
+  const [reviewProduct, setReviewProduct] = useState<Product | null>(null);
   const cart = useCart();
   const { entries, log } = useActivityLog();
+
+  const handleReviewProduct = async (productId: string) => {
+    try {
+      const p = await productsApi.get(productId);
+      setReviewProduct(p);
+    } catch { /* ignore */ }
+  };
 
   const placeholders: Record<string, string> = {
     catalog: 'Search products...',
@@ -43,9 +54,7 @@ export function StorefrontPage() {
                 <Button variant="plain" onClick={() => setActiveTab('cart')}
                   className="cart-icon-wrapper" aria-label="View Cart">
                   <ShoppingCartIcon />
-                  {cart.count > 0 && (
-                    <span className="cart-badge" id="cart-badge">{cart.count}</span>
-                  )}
+                  <span className={`cart-badge${cart.count === 0 ? ' hidden' : ''}`} id="cart-badge">{cart.count}</span>
                 </Button>
               </FlexItem>
             </Flex>
@@ -88,7 +97,7 @@ export function StorefrontPage() {
           </Tab>
           <Tab eventKey="orders" title={<TabTitleText>My Orders</TabTitleText>} id="orders-tab">
             <PageSection>
-              <OrdersTab log={log} searchQuery={searchQuery} />
+              <OrdersTab log={log} searchQuery={searchQuery} onReviewProduct={handleReviewProduct} />
             </PageSection>
           </Tab>
         </Tabs>
@@ -99,6 +108,13 @@ export function StorefrontPage() {
       </PageSection>
 
       <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} log={log} />
+      <ProductDetailModal
+        product={reviewProduct}
+        isOpen={!!reviewProduct}
+        onClose={() => setReviewProduct(null)}
+        onAddToCart={cart.addItem}
+        log={log}
+      />
     </Page>
   );
 }

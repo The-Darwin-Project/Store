@@ -81,6 +81,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
       isOpen={isOpen}
       onClose={onClose}
       aria-label="Product detail"
+      id="product-detail-modal"
     >
       <ModalHeader title={product.name} />
       <ModalBody id="product-detail-content">
@@ -144,12 +145,12 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
 
         <h4 style={{ marginBottom: '0.5rem' }}>Write a Review</h4>
         <Form onSubmit={e => { e.preventDefault(); submitReview(); }}>
-          <FormGroup label="Your Name" fieldId="reviewer-name" isRequired>
-            <TextInput id="reviewer-name" value={reviewerName}
+          <FormGroup label="Your Name" fieldId="review-customer" isRequired>
+            <TextInput id="review-customer" value={reviewerName}
               onChange={(_e, val) => setReviewerName(val)} isRequired />
           </FormGroup>
           <FormGroup label="Rating" fieldId="review-rating">
-            <div>
+            <div id="star-picker">
               {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon key={i}
                   style={{ cursor: 'pointer', color: i <= reviewRating ? '#fbbf24' : '#555', fontSize: '1.5rem' }}

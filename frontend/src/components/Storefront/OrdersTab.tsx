@@ -9,9 +9,10 @@ import { usePolling } from '../../hooks/usePolling';
 interface Props {
   log: (msg: string, type?: 'info' | 'success' | 'error') => void;
   searchQuery: string;
+  onReviewProduct?: (productId: string) => void;
 }
 
-export function OrdersTab({ log, searchQuery }: Props) {
+export function OrdersTab({ log, searchQuery, onReviewProduct }: Props) {
   const [orderList, setOrderList] = useState<Order[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [invoiceModal, setInvoiceModal] = useState<Invoice | null>(null);
@@ -68,7 +69,7 @@ export function OrdersTab({ log, searchQuery }: Props) {
               ) : (
                 filtered.map(order => (
                   <>
-                    <tr key={order.id} style={{ cursor: 'pointer' }}
+                    <tr key={order.id} className="order-row" style={{ cursor: 'pointer' }}
                         onClick={() => setExpandedId(expandedId === order.id ? null : order.id)}>
                       <td>{expandedId === order.id ? '\u25BC' : '\u25B6'}</td>
                       <td>{new Date(order.created_at).toLocaleDateString()}</td>
@@ -94,10 +95,18 @@ export function OrdersTab({ log, searchQuery }: Props) {
                               </div>
                             )}
                             {order.status === 'delivered' && (
-                              <Button variant="secondary" size="sm" style={{ marginTop: '0.5rem' }}
-                                onClick={(e) => { e.stopPropagation(); viewInvoice(order.id); }}>
-                                View Invoice
-                              </Button>
+                              <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+                                <Button variant="secondary" size="sm"
+                                  onClick={(e) => { e.stopPropagation(); viewInvoice(order.id); }}>
+                                  View Invoice
+                                </Button>
+                                {onReviewProduct && (
+                                  <Button variant="secondary" size="sm" className="review-products-btn"
+                                    onClick={(e) => { e.stopPropagation(); onReviewProduct(order.items[0]?.product_id); }}>
+                                    Review Products
+                                  </Button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </td>

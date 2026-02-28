@@ -221,6 +221,7 @@ export function CartTab({ items, total, onUpdateQuantity, onRemoveItem, onClear,
         isOpen={!!orderSuccess}
         onClose={() => setOrderSuccess(null)}
         aria-label="Order success"
+        id="order-success-modal"
       >
         <ModalHeader title="Order Confirmed" />
         <ModalBody>
