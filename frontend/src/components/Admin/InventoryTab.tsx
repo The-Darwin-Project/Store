@@ -209,7 +209,7 @@ export function InventoryTab({ log, searchQuery }: Props) {
                       <td>
                         {p.image_data
                           ? <img src={p.image_data} alt={p.name} width="50" height="50" style={{ objectFit: 'cover' }} />
-                          : <div style={{ width: 50, height: 50, background: '#ccc', display: 'inline-block' }} />}
+                          : <div style={{ width: 50, height: 50, background: 'var(--ds-bg-card)', display: 'inline-block' }} />}
                       </td>
                       <td>{p.name}</td>
                       <td>{p.sku}</td>
