@@ -76,13 +76,14 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
       {banners.length > 0 && (
         <div className="campaign-banners-container" id="campaign-banners">
           {banners.map(b => (
-            <div key={b.id} className="ds-campaign-banner" style={{
-              background: b.image_url ? `url(${b.image_url}) center/cover no-repeat` : 'linear-gradient(135deg, var(--pf-t--global--color--brand--default), var(--pf-t--global--color--brand--hover))',
-              padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', color: '#fff',
-              position: 'relative', overflow: 'hidden', minHeight: '120px',
-            }}>
-              {b.image_url && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} />}
-              <div style={{ position: 'relative', zIndex: 1 }}>
+            <div key={b.id} className="ds-campaign-banner"
+              style={b.link_url ? { cursor: 'pointer' } : undefined}
+              onClick={b.link_url ? () => window.open(b.link_url!, '_blank') : undefined}
+            >
+              {b.image_url && (
+                <div className="ds-campaign-banner-bg" style={{ backgroundImage: `url(${b.image_url})` }} />
+              )}
+              <div className="ds-campaign-banner-content">
                 <h3>{b.title}</h3>
                 {b.content && <p>{b.content}</p>}
                 {b.coupon_code && <span className="ds-coupon-tag">Use code: {b.coupon_code}</span>}
@@ -95,12 +96,8 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
       {promos.length > 0 && (
         <div className="campaign-promos-container" id="campaign-promos">
           {promos.map(p => (
-            <div key={p.id} className="ds-promo-card" style={{
-              background: 'var(--pf-t--global--background--color--secondary--default)',
-              padding: '1rem', borderRadius: '8px', marginBottom: '0.5rem',
-            }}>
-              <strong>{p.title}</strong>
-              {p.content && <span> &mdash; {p.content}</span>}
+            <div key={p.id} className="ds-promo-card">
+              <span className="promo-text"><strong>{p.title}</strong>{p.content && <span> &mdash; {p.content}</span>}</span>
               {p.coupon_code && <span className="ds-coupon-tag" style={{ marginLeft: '0.5rem' }}>Code: {p.coupon_code}</span>}
             </div>
           ))}
@@ -140,11 +137,11 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
                         ${(Number(p.price) || 0).toFixed(2)}
                       </div>
                       {p.stock === 0 ? (
-                        <div className="stock-badge out-of-stock" style={{ color: 'var(--pf-t--global--color--status--danger--default)' }}>Out of stock</div>
+                        <div className="stock-badge out-of-stock">Out of stock</div>
                       ) : p.stock < 10 ? (
-                        <div className="stock-badge low-stock" style={{ color: 'var(--pf-t--global--color--status--warning--default)' }}>Low stock ({p.stock})</div>
+                        <div className="stock-badge low-stock">Low stock ({p.stock})</div>
                       ) : (
-                        <div className="stock-badge in-stock" style={{ color: 'var(--pf-t--global--color--status--success--default)' }}>In stock</div>
+                        <div className="stock-badge in-stock">In stock</div>
                       )}
                       {r && (Number(r.review_count) || 0) > 0 && (
                         <div className="ds-rating card-rating" style={{ color: '#fbbf24' }}>
