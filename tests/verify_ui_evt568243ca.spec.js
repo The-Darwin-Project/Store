@@ -8,7 +8,8 @@
 
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = 'https://darwin-store-darwin.apps.cnv2.engineering.redhat.com';
+// Use local build when available (for branch testing), fall back to live
+const BASE_URL = process.env.STORE_URL || 'http://localhost:3456';
 
 const NOW = new Date();
 const PAST = new Date(NOW.getTime() - 86400000).toISOString();
@@ -250,14 +251,18 @@ test.describe('2. Campaign Ad Bar Design and Image', () => {
     }
   });
 
-  test('banner with image_url renders background-image CSS', async ({ page }) => {
+  test('banner with image_url renders background-image on .ds-campaign-banner-bg', async ({ page }) => {
     await mockAPIs(page);
     await gotoStore(page);
 
     const banner = page.locator('.ds-campaign-banner').first();
     await expect(banner).toBeVisible({ timeout: 8000 });
 
-    const bgImage = await banner.evaluate(el => {
+    // The background image is set on the .ds-campaign-banner-bg child div
+    const bgDiv = banner.locator('.ds-campaign-banner-bg').first();
+    await expect(bgDiv).toBeAttached();
+
+    const bgImage = await bgDiv.evaluate(el => {
       return window.getComputedStyle(el).backgroundImage;
     });
     // Should have a url(...) background image
@@ -265,21 +270,21 @@ test.describe('2. Campaign Ad Bar Design and Image', () => {
     expect(bgImage).not.toBe('none');
   });
 
-  test('banner with image_url has dark overlay for text readability', async ({ page }) => {
+  test('banner background image div is absolutely positioned (inset)', async ({ page }) => {
     await mockAPIs(page);
     await gotoStore(page);
 
-    const banner = page.locator('.ds-campaign-banner').first();
-    await expect(banner).toBeVisible({ timeout: 8000 });
+    const bgDiv = page.locator('.ds-campaign-banner-bg').first();
+    await expect(bgDiv).toBeAttached({ timeout: 8000 });
 
-    // The overlay div should exist inside the banner
-    const overlay = banner.locator('div').first();
-    const overlayBg = await overlay.evaluate(el => {
-      return window.getComputedStyle(el).backgroundColor;
+    const pos = await bgDiv.evaluate(el => {
+      const cs = window.getComputedStyle(el);
+      return { position: cs.position, opacity: parseFloat(cs.opacity) };
     });
-    // The overlay should have a dark semi-transparent background
-    // Expected: rgba(0, 0, 0, 0.4)
-    expect(overlayBg).toMatch(/rgba\(0,\s*0,\s*0/i);
+    // Should be absolutely positioned covering the banner
+    expect(pos.position).toBe('absolute');
+    // Image should be semi-transparent (opacity < 1) to let text show through
+    expect(pos.opacity).toBeLessThan(1);
   });
 
   test('banner shows title text', async ({ page }) => {
@@ -327,18 +332,20 @@ test.describe('2. Campaign Ad Bar Design and Image', () => {
     expect(borderRadius).not.toBe('');
   });
 
-  test('banner without image_url uses gradient fallback', async ({ page }) => {
+  test('banner without image_url shows no .ds-campaign-banner-bg div', async ({ page }) => {
     await mockAPIs(page, { campaigns: MOCK_ACTIVE_CAMPAIGNS_NO_IMAGE });
     await gotoStore(page);
 
     const banner = page.locator('.ds-campaign-banner').first();
     await expect(banner).toBeVisible({ timeout: 8000 });
 
-    const bgImage = await banner.evaluate(el => {
-      return window.getComputedStyle(el).backgroundImage;
-    });
-    // Should use a gradient as fallback
-    expect(bgImage).toMatch(/gradient/i);
+    // When no image_url, the background div should not be rendered
+    const bgDiv = banner.locator('.ds-campaign-banner-bg');
+    await expect(bgDiv).not.toBeAttached();
+
+    // Banner should still be visible with its card background color
+    const bg = await banner.evaluate(el => window.getComputedStyle(el).backgroundColor);
+    expect(bg).not.toBe('rgba(0, 0, 0, 0)'); // some background color set
   });
 
   test('promo campaign shows coupon code', async ({ page }) => {
@@ -389,23 +396,46 @@ test.describe('3. Page Alignment (Main Card With Root Viewport)', () => {
     }
   });
 
-  test('store main card is not right-aligned (x position near 0)', async ({ page }) => {
+  test('pf-v6-c-page grid has single column (phantom sidebar suppressed)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await gotoStore(page);
 
-    // The PatternFly Page component should start at x=0
+    const pageEl = page.locator('.pf-v6-c-page').first();
+    await expect(pageEl).toBeVisible({ timeout: 8000 });
+
+    const gtc = await pageEl.evaluate(el => {
+      return window.getComputedStyle(el).gridTemplateColumns;
+    });
+    // After fix: should be a single column, NOT the phantom "290px NNNpx" two-column layout.
+    // A single-column grid returns one token like "960px" or "1280px" with no space separating two values.
+    // We detect multiple columns by counting px-value tokens separated by spaces.
+    const pxTokens = gtc.trim().split(/\s+/).filter(t => /^[\d.]+px$/.test(t));
+    expect(pxTokens.length).toBe(1);
+  });
+
+  test('store main card is horizontally centered (not pushed right)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await gotoStore(page);
+
     const pageEl = page.locator('.pf-v6-c-page').first();
     await expect(pageEl).toBeVisible({ timeout: 8000 });
 
     const box = await pageEl.boundingBox();
     expect(box).not.toBeNull();
     if (box) {
-      // Page should start at or very near x=0 (not pushed to the right)
-      expect(box.x).toBeLessThan(50);
+      // With max-width:960px and margin:0 auto at 1280px viewport,
+      // left margin = (1280-960)/2 = 160px.
+      // Before fix, content started at 318px (phantom sidebar).
+      // The centered offset must be substantially less than 318.
+      expect(box.x).toBeLessThan(200);
+      // And the page should be symmetrically centered: left margin ≈ right margin
+      const leftMargin = box.x;
+      const rightMargin = 1280 - (box.x + box.width);
+      expect(Math.abs(leftMargin - rightMargin)).toBeLessThan(10);
     }
   });
 
-  test('page section is not right-aligned', async ({ page }) => {
+  test('page section content starts in the left half of the viewport', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await gotoStore(page);
 
@@ -415,12 +445,15 @@ test.describe('3. Page Alignment (Main Card With Root Viewport)', () => {
     const box = await pageSection.boundingBox();
     expect(box).not.toBeNull();
     if (box) {
-      // Section should not be pushed significantly to the right
-      expect(box.x).toBeLessThan(100);
+      // Section should start in the left half of the screen, not pushed past center
+      expect(box.x).toBeLessThan(640);
+      // And specifically must be much less than the old broken 318px phantom sidebar offset
+      // The centered design puts sections at ~160-200px, not 318px+
+      expect(box.x).toBeLessThan(250);
     }
   });
 
-  test('store main card occupies most of the viewport width', async ({ page }) => {
+  test('store main card is reasonably wide (≥70% of viewport)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await gotoStore(page);
 
@@ -430,8 +463,8 @@ test.describe('3. Page Alignment (Main Card With Root Viewport)', () => {
     const box = await pageEl.boundingBox();
     expect(box).not.toBeNull();
     if (box) {
-      // Should occupy at least 80% of viewport width
-      expect(box.width).toBeGreaterThan(1280 * 0.8);
+      // max-width:960px / 1280px viewport = 75%. Accept ≥70%.
+      expect(box.width).toBeGreaterThan(1280 * 0.7);
     }
   });
 
@@ -460,7 +493,7 @@ test.describe('3. Page Alignment (Main Card With Root Viewport)', () => {
     }
   });
 
-  test('catalog tab panel is not right-shifted', async ({ page }) => {
+  test('catalog tab panel is not right-shifted (less than old 318px offset)', async ({ page }) => {
     await mockAPIs(page);
     await page.setViewportSize({ width: 1280, height: 800 });
     await gotoStore(page);
@@ -470,8 +503,10 @@ test.describe('3. Page Alignment (Main Card With Root Viewport)', () => {
 
     const box = await catalogSection.boundingBox();
     if (box) {
-      // Catalog should not start significantly to the right
-      expect(box.x).toBeLessThan(200);
+      // Catalog should start well within first half of screen
+      // Old broken state: x=338px (318px phantom sidebar + 20px section padding)
+      // Fixed centered state: x ≈ 180-210px (160px center margin + padding)
+      expect(box.x).toBeLessThan(318);
     }
   });
 });
