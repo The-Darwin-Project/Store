@@ -154,7 +154,7 @@ export interface Invoice {
 export interface Campaign {
   id: string;
   title: string;
-  campaign_type: 'banner' | 'discount_promo' | 'product_spotlight';
+  type: 'banner' | 'discount_promo' | 'product_spotlight';
   content?: string | null;
   image_url?: string | null;
   link_url?: string | null;
@@ -170,7 +170,7 @@ export interface Campaign {
 
 export interface CampaignCreate {
   title: string;
-  campaign_type: 'banner' | 'discount_promo' | 'product_spotlight';
+  type: 'banner' | 'discount_promo' | 'product_spotlight';
   content?: string | null;
   image_url?: string | null;
   link_url?: string | null;

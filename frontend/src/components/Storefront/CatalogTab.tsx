@@ -68,8 +68,8 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
     return stars;
   };
 
-  const banners = activeCampaigns.filter(c => c.campaign_type === 'banner');
-  const promos = activeCampaigns.filter(c => c.campaign_type !== 'banner');
+  const banners = activeCampaigns.filter(c => c.type === 'banner');
+  const promos = activeCampaigns.filter(c => c.type !== 'banner');
 
   return (
     <div id="catalog">
