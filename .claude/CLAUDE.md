@@ -50,6 +50,17 @@ Full guide: `TESTING.md`
 - Playwright: self-contained tests mock routes inline, no server needed
 - `conftest.py` handles `sys.path` -- no manual path hacks in test files
 - New test files must be added to explicit list in `ci-branch.yaml`
+- Post-deploy: `tests/post-deploy/smoke.spec.js` runs in-cluster via ArgoCD PostSync Job (see skill: `check-post-deploy-tests`)
+
+## Post-Deploy Test Reports
+
+The chaos controller (:9000) stores post-deploy smoke test results:
+
+- `GET /api/test-reports/latest` -- most recent report
+- `GET /api/test-reports` -- all reports (max 50)
+- `POST /api/test-reports` -- used by the PostSync Job runner
+
+See `.claude/skills/check-post-deploy-tests.md` for full usage.
 
 ## CI/CD
 
