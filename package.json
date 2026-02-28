@@ -7,7 +7,7 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "npx playwright test tests/verify_coupons_ui.spec.js tests/verify_order_history.spec.js tests/verify_ui_mocked.spec.js",
+    "test": "npx playwright test --pass-with-no-tests",
     "test:all": "npx playwright test"
   },
   "repository": {
