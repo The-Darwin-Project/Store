@@ -7,10 +7,10 @@ const { defineConfig } = require('@playwright/test');
 module.exports = defineConfig({
   testDir: '.',
   testMatch: '*.spec.js',
+  globalTimeout: 240000,
   timeout: 30000,
-  retries: 1,
+  retries: 0,
   use: {
-    // No browser needed — smoke tests use request context only
     baseURL: process.env.STORE_URL || 'http://darwin-store-frontend:8080',
   },
   reporter: [['json', { outputFile: '/tmp/test-results.json' }]],
