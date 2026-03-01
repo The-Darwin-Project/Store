@@ -118,14 +118,14 @@ def reset_db_module_state():
     # Reset to clean state
     db.db_pool = None
     db._using_fallback = False
-    db._fallback_reports = deque(maxlen=db.MAX_REPORTS)
+    db._fallback_reports = []  # plain list; _trim_fallback() enforces the run limit
 
     yield
 
     # Restore (best-effort cleanup for test isolation)
     db.db_pool = orig_pool
     db._using_fallback = orig_fallback
-    db._fallback_reports = deque(maxlen=db.MAX_REPORTS)
+    db._fallback_reports = []
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -146,15 +146,17 @@ class TestDbModuleConstants:
             "The FIFO queue must cap at exactly 7 reports."
         )
 
-    def test_fallback_deque_maxlen_matches_max_reports(self):
+    def test_fallback_is_list_trimmed_by_run(self):
         """
-        The in-memory fallback deque must have maxlen=MAX_REPORTS (7).
-        This ensures the fallback also caps at 7 items without explicit FIFO logic.
+        The in-memory fallback must be a plain list. _trim_fallback() enforces
+        the MAX_REPORTS (7) *deployment run* cap rather than a deque maxlen.
+        This allows multiple suites per run to be stored while still limiting
+        the number of distinct deployment runs to MAX_REPORTS.
         """
         import chaos.db as db
-        assert db._fallback_reports.maxlen == db.MAX_REPORTS, (
-            f"Fallback deque maxlen={db._fallback_reports.maxlen}, expected {db.MAX_REPORTS}. "
-            "Both the DB and in-memory fallback must enforce the same limit."
+        assert isinstance(db._fallback_reports, list), (
+            "_fallback_reports must be a plain list. "
+            "FIFO by deployment run is enforced by _trim_fallback(), not maxlen."
         )
 
     def test_db_pool_starts_as_none(self):
@@ -587,22 +589,22 @@ class TestListReports:
         """
         import chaos.db as db
         report = _make_report("listfallback")
-        db._fallback_reports.appendleft(report)
+        db._fallback_reports.insert(0, report)
 
         result = db.list_reports()
 
         assert result == [report], (
-            "list_reports must return fallback deque contents when db_pool is None."
+            "list_reports must return fallback list contents when db_pool is None."
         )
 
-    def test_list_reports_fallback_returns_all_deque_items(self):
+    def test_list_reports_fallback_returns_all_list_items(self):
         """
-        Fallback list_reports must return all items in the deque (up to MAX_REPORTS).
+        Fallback list_reports must return all items in the list (up to MAX_REPORTS runs).
         """
         import chaos.db as db
         reports = [_make_report(f"r{i:02d}") for i in range(5)]
         for r in reports:
-            db._fallback_reports.appendleft(r)
+            db._fallback_reports.insert(0, r)
 
         result = db.list_reports()
 
@@ -709,13 +711,13 @@ class TestListReports:
         )
         db.db_pool = mock_pool
         fallback_report = _make_report("fallbackread")
-        db._fallback_reports.appendleft(fallback_report)
+        db._fallback_reports.insert(0, fallback_report)
 
         result = db.list_reports()
 
         assert db._using_fallback is True
         assert fallback_report in result, (
-            "list_reports must return fallback deque contents on DB error."
+            "list_reports must return fallback list contents on DB error."
         )
 
     def test_list_reports_returns_empty_list_when_no_reports(self):
@@ -751,18 +753,18 @@ class TestGetLatestReport:
     def test_get_latest_fallback_returns_first_item(self):
         """
         When using fallback (db_pool=None), get_latest_report must return
-        the first item in _fallback_reports (most recently appended via appendleft).
+        the first item in _fallback_reports (newest inserted at index 0).
         """
         import chaos.db as db
         newest = _make_report("newest")
         older = _make_report("older")
-        db._fallback_reports.appendleft(older)
-        db._fallback_reports.appendleft(newest)
+        db._fallback_reports.insert(0, older)
+        db._fallback_reports.insert(0, newest)
 
         result = db.get_latest_report()
 
         assert result == newest, (
-            "get_latest_report must return the most recent report (index 0 of deque)."
+            "get_latest_report must return the most recent report (index 0 of list)."
         )
 
     def test_get_latest_db_path_executes_select_limit_1(self):
@@ -841,13 +843,13 @@ class TestGetLatestReport:
         )
         db.db_pool = mock_pool
         fallback_report = _make_report("latestfallback")
-        db._fallback_reports.appendleft(fallback_report)
+        db._fallback_reports.insert(0, fallback_report)
 
         result = db.get_latest_report()
 
         assert db._using_fallback is True
         assert result == fallback_report, (
-            "get_latest_report must return the fallback deque's first item on DB error."
+            "get_latest_report must return the fallback list's first item on DB error."
         )
 
     def test_get_latest_db_error_empty_fallback_returns_none(self):
@@ -1011,19 +1013,22 @@ class TestFifoQueueEnforcement:
     oldest record purged when the 8th is inserted.
     """
 
-    def test_fallback_deque_caps_at_7(self):
+    def test_fallback_caps_at_7_deployment_runs(self):
         """
-        The in-memory fallback deque must enforce maxlen=7.
-        Inserting an 8th report via fallback must drop the oldest.
+        The in-memory fallback must enforce a cap of MAX_REPORTS (7) *deployment runs*.
+        Inserting an 8th distinct deployment run must drop the oldest run.
+        Multiple suites from the same git_sha count as one run.
         """
         import chaos.db as db
-        # Insert 8 reports when fallback is active (db_pool=None)
+        # Insert 8 reports each with a unique git_sha (= 8 distinct deployment runs)
         for i in range(8):
-            db.insert_report(_make_report(f"fifo{i:02d}"))
+            db.insert_report(_make_report(f"fifo{i:02d}", git_sha=f"sha{i:04d}"))
 
-        assert len(db._fallback_reports) == 7, (
-            f"Fallback deque has {len(db._fallback_reports)} items; expected 7. "
-            "The FIFO queue must cap at MAX_REPORTS."
+        # Count distinct runs by git_sha
+        shas = {r.get("git_sha") for r in db._fallback_reports}
+        assert len(shas) <= db.MAX_REPORTS, (
+            f"Fallback has {len(shas)} distinct deployment runs; expected <= {db.MAX_REPORTS}. "
+            "FIFO must cap at MAX_REPORTS deployment runs."
         )
 
     def test_fallback_deque_newest_first(self):
@@ -1220,14 +1225,20 @@ class TestChaosReportsUI:
             "UI must have a 'reports-container' element for dynamic report rendering."
         )
 
-    def test_ui_has_render_report_javascript_function(self):
+    def test_ui_has_render_deployment_run_javascript_function(self):
         """
-        The UI must define a renderReport() JavaScript function that converts
-        a report object to HTML markup for display.
+        The UI must define a renderDeploymentRun() JavaScript function that
+        converts a grouped deployment run (with nested suites) into HTML markup.
+        The old flat renderReport() was replaced with two-level rendering:
+        renderDeploymentRun() (outer card) and renderSuite() (inner suite card).
         """
         html = self._read_html()
-        assert "renderReport" in html, (
-            "UI must define a renderReport() JS function for report card rendering."
+        assert "renderDeploymentRun" in html, (
+            "UI must define renderDeploymentRun() JS function. "
+            "Deployment runs group all suites from the same git_sha."
+        )
+        assert "renderSuite" in html, (
+            "UI must define renderSuite() JS function for individual suite cards."
         )
 
     def test_ui_fetches_from_test_reports_api(self):
@@ -1308,11 +1319,14 @@ class TestChaosReportsUI:
             "renderReport() must display the failed test count."
         )
 
-    def test_ui_render_report_shows_suite_and_id(self):
-        """renderReport() must display the suite name and report ID."""
+    def test_ui_render_suite_shows_suite_name(self):
+        """
+        renderSuite() must display the suite name from the nested suite object.
+        The suite name distinguishes 'post-deploy' from 'post-deploy/smoke' etc.
+        """
         html = self._read_html()
-        assert "r.suite" in html and "r.id" in html, (
-            "renderReport() must include suite name and report ID in the card."
+        assert "s.suite" in html, (
+            "renderSuite() must reference s.suite to show the suite name in each sub-card."
         )
 
     def test_ui_render_report_shows_image_tag(self):
@@ -1569,3 +1583,428 @@ class TestChaosReportsAPI:
 
         assert captured.get("report", {}).get("git_sha") == "abc123def456"
         assert captured.get("report", {}).get("image_tag") == "v1.2.3"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Section 12: _group_by_deployment_run() helper
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestGroupByDeploymentRun:
+    """
+    Tests for chaos.main._group_by_deployment_run().
+
+    This helper was added in commit dc8cc67 to group flat report lists returned
+    by list_reports() into deployment runs keyed by git_sha.
+    Each run contains a 'suites' list and aggregated total/passed/failed/skipped.
+    """
+
+    def _group(self, reports):
+        from chaos.main import _group_by_deployment_run
+        return _group_by_deployment_run(reports)
+
+    def test_groups_reports_by_git_sha(self):
+        """
+        Reports with the same git_sha must be grouped into a single deployment run.
+        """
+        r1 = _make_report("s1", suite="post-deploy", git_sha="sha001",
+                          total=5, passed=5, failed=0, skipped=0)
+        r2 = _make_report("s2", suite="post-deploy/smoke", git_sha="sha001",
+                          total=3, passed=3, failed=0, skipped=0)
+
+        runs = self._group([r1, r2])
+
+        assert len(runs) == 1, (
+            f"Two reports from the same git_sha must be grouped into one run; "
+            f"got {len(runs)} runs."
+        )
+        assert len(runs[0]["suites"]) == 2, (
+            "The single run must contain both suite reports."
+        )
+
+    def test_aggregates_totals_across_suites(self):
+        """
+        Each deployment run must aggregate total/passed/failed/skipped across
+        all its nested suites.
+        """
+        r1 = _make_report("s1", suite="post-deploy", git_sha="sha001",
+                          total=5, passed=4, failed=1, skipped=0)
+        r2 = _make_report("s2", suite="post-deploy/smoke", git_sha="sha001",
+                          total=3, passed=3, failed=0, skipped=0)
+
+        runs = self._group([r1, r2])
+        run = runs[0]
+
+        assert run["total"] == 8, f"Expected total=8, got {run['total']}"
+        assert run["passed"] == 7, f"Expected passed=7, got {run['passed']}"
+        assert run["failed"] == 1, f"Expected failed=1, got {run['failed']}"
+        assert run["skipped"] == 0, f"Expected skipped=0, got {run['skipped']}"
+
+    def test_distinct_git_shas_create_separate_runs(self):
+        """
+        Reports with different git_shas must produce separate deployment runs.
+        """
+        r1 = _make_report("a1", git_sha="sha001")
+        r2 = _make_report("b1", git_sha="sha002")
+        r3 = _make_report("c1", git_sha="sha003")
+
+        runs = self._group([r1, r2, r3])
+
+        assert len(runs) == 3, (
+            f"Three distinct git_shas must produce 3 runs; got {len(runs)}."
+        )
+
+    def test_preserves_run_order(self):
+        """
+        Runs must appear in the order they are first seen in the input list
+        (newest first, since list_reports() returns newest first).
+        """
+        r_new = _make_report("new1", git_sha="sha002")
+        r_old = _make_report("old1", git_sha="sha001")
+
+        runs = self._group([r_new, r_old])
+
+        assert runs[0]["git_sha"] == "sha002", (
+            "First run must be the newest (first in input order)."
+        )
+        assert runs[1]["git_sha"] == "sha001"
+
+    def test_uses_id_as_key_when_no_git_sha(self):
+        """
+        Reports without a git_sha must use their own id as the run key,
+        making each such report a standalone deployment run.
+        """
+        r1 = _make_report("standalone1", git_sha=None)
+        r2 = _make_report("standalone2", git_sha=None)
+
+        runs = self._group([r1, r2])
+
+        assert len(runs) == 2, (
+            "Reports without git_sha must each be their own run (keyed by id)."
+        )
+
+    def test_run_includes_git_sha_and_image_tag(self):
+        """
+        Each deployment run dict must include git_sha and image_tag
+        from the constituent reports for display in the UI.
+        """
+        r = _make_report("meta1", git_sha="sha123", image_tag="v2.0")
+
+        runs = self._group([r])
+
+        assert runs[0]["git_sha"] == "sha123"
+        assert runs[0]["image_tag"] == "v2.0"
+
+    def test_run_includes_suites_array(self):
+        """
+        Each deployment run dict must include a 'suites' key containing the
+        list of individual suite report dicts.
+        """
+        r = _make_report("suite1", suite="post-deploy")
+
+        runs = self._group([r])
+
+        assert "suites" in runs[0], "Run dict must include 'suites' key."
+        assert runs[0]["suites"][0]["suite"] == "post-deploy"
+
+    def test_empty_input_returns_empty_list(self):
+        """_group_by_deployment_run([]) must return an empty list."""
+        runs = self._group([])
+        assert runs == [], f"Expected [], got {runs}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Section 13: Grouped API response format
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestGroupedApiResponse:
+    """
+    Tests for the grouped API response returned by GET /api/test-reports.
+
+    After commit dc8cc67, the endpoint calls _group_by_deployment_run() on
+    the flat list from list_reports(), so the response is an array of
+    deployment run objects, each with a 'suites' array.
+    """
+
+    @pytest.fixture(autouse=True)
+    def api_client(self):
+        from chaos.main import app
+        from fastapi.testclient import TestClient
+
+        with patch("chaos.main.list_reports") as mock_list, \
+             patch("chaos.main.insert_report"), \
+             patch("chaos.main.get_latest_report"):
+            self.mock_list = mock_list
+            self.client = TestClient(app, raise_server_exceptions=True)
+            yield
+
+    def test_response_items_have_suites_key(self):
+        """
+        Each item in GET /api/test-reports response must have a 'suites' key
+        containing the individual suite reports grouped into that deployment run.
+        """
+        self.mock_list.return_value = [
+            _make_report("s1", suite="post-deploy", git_sha="sha001"),
+            _make_report("s2", suite="post-deploy/smoke", git_sha="sha001"),
+        ]
+
+        resp = self.client.get("/api/test-reports")
+        data = resp.json()
+
+        assert isinstance(data, list)
+        assert len(data) == 1, (
+            f"Two reports with same git_sha must be grouped into 1 run; got {len(data)}."
+        )
+        assert "suites" in data[0], (
+            f"Deployment run must have 'suites' key. Got keys: {list(data[0].keys())}"
+        )
+        assert len(data[0]["suites"]) == 2
+
+    def test_response_items_have_aggregated_totals(self):
+        """
+        Each deployment run in the response must have aggregated total/passed/failed/skipped
+        counts summed across all its nested suites.
+        """
+        self.mock_list.return_value = [
+            _make_report("s1", git_sha="sha001", total=5, passed=5, failed=0, skipped=0),
+            _make_report("s2", git_sha="sha001", total=3, passed=2, failed=1, skipped=0),
+        ]
+
+        resp = self.client.get("/api/test-reports")
+        data = resp.json()
+        run = data[0]
+
+        assert run["total"] == 8
+        assert run["passed"] == 7
+        assert run["failed"] == 1
+
+    def test_distinct_runs_returned_as_separate_items(self):
+        """
+        Reports with different git_shas must appear as separate items in the response.
+        """
+        self.mock_list.return_value = [
+            _make_report("r1", git_sha="sha001"),
+            _make_report("r2", git_sha="sha002"),
+        ]
+
+        resp = self.client.get("/api/test-reports")
+        data = resp.json()
+
+        assert len(data) == 2, (
+            f"Two distinct git_shas must produce 2 deployment runs; got {len(data)}."
+        )
+
+    def test_returns_at_most_7_deployment_runs(self):
+        """
+        GET /api/test-reports must return at most 7 deployment runs.
+        The FIFO by-run limit is enforced in db.py; this verifies the API
+        passes through ≤ 7 grouped runs.
+        """
+        self.mock_list.return_value = [
+            _make_report(f"r{i}", git_sha=f"sha{i:03d}") for i in range(7)
+        ]
+
+        resp = self.client.get("/api/test-reports")
+        data = resp.json()
+
+        assert len(data) <= 7, (
+            f"GET /api/test-reports must return at most 7 deployment runs; got {len(data)}."
+        )
+
+    def test_run_git_sha_visible_in_response(self):
+        """
+        The git_sha of each deployment run must be included in the response
+        so the UI can display it (e.g., 'Deployment abc1234').
+        """
+        self.mock_list.return_value = [
+            _make_report("r1", git_sha="deadbeef12345")
+        ]
+
+        resp = self.client.get("/api/test-reports")
+        run = resp.json()[0]
+
+        assert run.get("git_sha") == "deadbeef12345", (
+            f"git_sha must be in deployment run response. Got: {run}"
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Section 14: FIFO by deployment run — fallback behavioral test
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestFifoByDeploymentRun:
+    """
+    Verify that FIFO semantics operate on deployment runs (groups of same git_sha),
+    not on individual suite reports. A single deployment with 3 suites counts as 1 run.
+    """
+
+    def test_multiple_suites_from_same_run_count_as_one_run(self):
+        """
+        Inserting 3 suites for the same git_sha should count as 1 deployment run,
+        not 3. All 3 must remain after trim (well within the 7-run limit).
+        """
+        import chaos.db as db
+        sha = "samesha"
+        for suite in ("post-deploy", "post-deploy/smoke", "pre-deploy"):
+            db.insert_report(_make_report(f"id-{suite}", suite=suite, git_sha=sha))
+
+        shas = {r.get("git_sha") for r in db._fallback_reports}
+        assert len(shas) == 1, (
+            "3 suites with same git_sha = 1 deployment run; fallback should have 1 distinct sha."
+        )
+        assert len(db._fallback_reports) == 3, (
+            "All 3 suite reports must be retained (they belong to 1 run, well within limit)."
+        )
+
+    def test_8_distinct_runs_caps_at_7(self):
+        """
+        8 distinct deployment runs (different git_shas) must be trimmed to 7.
+        The oldest run's reports must be dropped.
+        """
+        import chaos.db as db
+        for i in range(8):
+            db.insert_report(_make_report(f"r{i}", git_sha=f"sha{i:04d}"))
+
+        shas = [r.get("git_sha") for r in db._fallback_reports]
+        distinct_shas = list(dict.fromkeys(shas))  # preserve order, remove duplicates
+        assert len(distinct_shas) <= 7, (
+            f"Expected <= 7 distinct deployment runs, got {len(distinct_shas)}: {distinct_shas}"
+        )
+
+    def test_oldest_run_is_dropped(self):
+        """
+        When 8 deployment runs are inserted newest-first (insert at index 0),
+        the oldest run (last inserted) must be dropped by _trim_fallback.
+        """
+        import chaos.db as db
+        # Insert sha0000 first (oldest), then sha0001 ... sha0007 (newest)
+        for i in range(8):
+            db.insert_report(_make_report(f"r{i}", git_sha=f"sha{i:04d}"))
+
+        shas_in_fallback = {r.get("git_sha") for r in db._fallback_reports}
+        # sha0000 was the first inserted (oldest); with newest-first insertion it ends up last
+        # _trim_fallback keeps the first MAX_REPORTS keys (sha0007 down to sha0001)
+        assert "sha0000" not in shas_in_fallback, (
+            "The oldest deployment run (sha0000) must be dropped when 8 runs exceed the 7-run cap."
+        )
+
+    def test_trim_fallback_leaves_all_suites_of_kept_runs(self):
+        """
+        When trimming, all suites belonging to a kept deployment run must be retained.
+        _trim_fallback must not partially drop suites from a kept run.
+        """
+        import chaos.db as db
+        # Fill 6 runs to stay under the cap
+        for i in range(6):
+            db.insert_report(_make_report(f"r{i}", git_sha=f"sha{i:04d}"))
+        # Add 2 suites for a 7th run
+        db.insert_report(_make_report("final-a", suite="post-deploy", git_sha="sha0099"))
+        db.insert_report(_make_report("final-b", suite="post-deploy/smoke", git_sha="sha0099"))
+
+        kept = [r for r in db._fallback_reports if r.get("git_sha") == "sha0099"]
+        assert len(kept) == 2, (
+            f"Both suites of the 7th run must be retained; got {len(kept)}."
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Section 15: UI — new deployment run grouping elements
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestChaosReportsUIGrouped:
+    """
+    Verify the updated chaos controller UI correctly renders grouped deployment runs.
+    These tests target the new .deployment-run / .suite-card structure added in
+    commit dc8cc67.
+    """
+
+    def _read_html(self) -> str:
+        return CHAOS_HTML.read_text()
+
+    def test_ui_description_mentions_deployment_runs(self):
+        """
+        The Test Reports tab description must reference 'deployment runs' to
+        communicate the new grouping semantic to the user.
+        """
+        html = self._read_html()
+        assert "deployment run" in html.lower(), (
+            "UI description must mention 'deployment runs' to reflect the grouping change."
+        )
+
+    def test_ui_has_deployment_run_css_class(self):
+        """
+        The UI must define a .deployment-run CSS class for the outer deployment card.
+        """
+        html = self._read_html()
+        assert "deployment-run" in html, (
+            "UI must define .deployment-run CSS class for grouping suites per deployment."
+        )
+
+    def test_ui_has_suite_card_css_class(self):
+        """
+        The UI must define a .suite-card CSS class for individual suite sub-cards
+        nested inside the deployment run card.
+        """
+        html = self._read_html()
+        assert "suite-card" in html, (
+            "UI must define .suite-card CSS class for nested suite cards."
+        )
+
+    def test_ui_suite_card_has_color_coded_pass_class(self):
+        """
+        Suite cards must have a 'suite-pass' CSS class variant for all-passed suites,
+        providing visual color-coding (green left border) in the journal.
+        """
+        html = self._read_html()
+        assert "suite-pass" in html, (
+            "UI must define 'suite-pass' CSS class for green-bordered passing suite cards."
+        )
+
+    def test_ui_suite_card_has_color_coded_fail_class(self):
+        """
+        Suite cards must have a 'suite-fail' CSS class variant for failed suites,
+        providing visual color-coding (red left border) in the journal.
+        """
+        html = self._read_html()
+        assert "suite-fail" in html, (
+            "UI must define 'suite-fail' CSS class for red-bordered failing suite cards."
+        )
+
+    def test_ui_render_suite_references_suites_array(self):
+        """
+        The JS rendering must iterate over run.suites to render nested suite cards.
+        The grouped API response includes a 'suites' array in each deployment run object.
+        """
+        html = self._read_html()
+        assert "run.suites" in html or ".suites" in html, (
+            "UI JS must reference run.suites to iterate over suite cards."
+        )
+
+    def test_ui_render_deployment_run_shows_git_sha(self):
+        """
+        renderDeploymentRun() must display the git_sha (abbreviated) so users
+        can correlate a deployment run with a specific commit.
+        """
+        html = self._read_html()
+        assert "git_sha" in html, (
+            "renderDeploymentRun() must reference git_sha for display."
+        )
+
+    def test_ui_render_deployment_run_shows_suite_count(self):
+        """
+        renderDeploymentRun() must display the number of suites in the run,
+        helping users understand how many test suites ran in that deployment.
+        """
+        html = self._read_html()
+        assert "suite" in html and "length" in html, (
+            "renderDeploymentRun() must display suite count (e.g., run.suites.length)."
+        )
+
+    def test_ui_refresh_reports_renders_deployment_runs(self):
+        """
+        refreshReports() must call renderDeploymentRun() (not a flat renderReport())
+        to render the grouped API response correctly.
+        """
+        html = self._read_html()
+        assert "renderDeploymentRun" in html, (
+            "refreshReports() must call renderDeploymentRun() to handle grouped API response."
+        )
