@@ -33,31 +33,33 @@ def test_list_orders_uses_sql_cast_for_uuid_array(mock_pool_cls):
     oid2_str = "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
     
     # Mock return values
-    # First query: SELECT ... FROM orders (9 columns: id, created_at, total_amount, status, customer_id, coupon_code, discount_amount, customer_name, invoice_id)
+    # Pagination: fetchone for COUNT(*) first, then fetchall for orders and items
+    mock_cursor.fetchone.return_value = (2,)
+    # First fetchall: SELECT ... FROM orders (9 columns: id, created_at, total_amount, status, customer_id, coupon_code, discount_amount, customer_name, invoice_id)
     mock_cursor.fetchall.side_effect = [
         [
             (oid1_str, "2023-01-01", 100.0, "pending", None, None, 0.0, None, None),
             (oid2_str, "2023-01-02", 200.0, "pending", None, None, 0.0, None, None)
         ],
-        # Second query: SELECT ... FROM order_items
+        # Second fetchall: SELECT ... FROM order_items
         []
     ]
     # Inject mock pool
     app.state.db_pool = mock_pool
-    
+
     with TestClient(app) as client:
         # Reset mock to clear calls from startup
         mock_cursor.execute.reset_mock()
-        
+
         response = client.get("/orders")
-        
+
         assert response.status_code == 200
-        
-        # Verify the calls
-        assert mock_cursor.execute.call_count == 2
-        
-        # Check the second call arguments
-        second_call = mock_cursor.execute.call_args_list[1]
+
+        # Verify the calls: COUNT(*) + SELECT orders + SELECT order_items = 3
+        assert mock_cursor.execute.call_count == 3
+
+        # Check the third call (order_items query, index 2) -- pagination added COUNT(*) at [0]
+        second_call = mock_cursor.execute.call_args_list[2]
         sql_query = second_call[0][0]
         params = second_call[0][1]
         

@@ -44,6 +44,8 @@ def test_get_orders_with_uuid_objects(mock_pool_cls):
 
     now = datetime.datetime.now()
 
+    # Pagination requires fetchone for COUNT(*) first
+    mock_cursor.fetchone.return_value = (2,)
     mock_cursor.fetchall.side_effect = [
         # Query 1: orders table returns uuid.UUID objects (+ customer_name, invoice_id from LEFT JOINs)
         [
@@ -62,7 +64,8 @@ def test_get_orders_with_uuid_objects(mock_pool_cls):
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 2
+    # Response is now PaginatedResponse -- orders are in data["items"]
+    assert len(data["items"]) == 2
 
     # Verify the SQL used ::uuid[] cast
     sql_calls = mock_cursor.execute.call_args_list
@@ -72,13 +75,13 @@ def test_get_orders_with_uuid_objects(mock_pool_cls):
     )
 
     # Verify order IDs are returned as strings in the response
-    assert data[0]["id"] == str(order_id_1)
-    assert data[1]["id"] == str(order_id_2)
+    assert data["items"][0]["id"] == str(order_id_1)
+    assert data["items"][1]["id"] == str(order_id_2)
 
     # Verify items are correctly associated with orders
-    assert len(data[0]["items"]) == 1
-    assert data[0]["items"][0]["product_id"] == str(product_id)
-    assert len(data[1]["items"]) == 1
+    assert len(data["items"][0]["items"]) == 1
+    assert data["items"][0]["items"][0]["product_id"] == str(product_id)
+    assert len(data["items"][1]["items"]) == 1
 
 
 @patch("app.main.SimpleConnectionPool")
@@ -98,6 +101,8 @@ def test_get_orders_passes_string_ids_to_query(mock_pool_cls):
 
     order_id = uuid.UUID("33333333-3333-3333-3333-333333333333")
 
+    # Pagination requires fetchone for COUNT(*) first
+    mock_cursor.fetchone.return_value = (1,)
     mock_cursor.fetchall.side_effect = [
         [(order_id, datetime.datetime.now(), 10.0, "pending", None, None, 0.0, None, None)],
         [],  # no items

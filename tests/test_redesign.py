@@ -23,17 +23,27 @@ class TestStoreRedesign(unittest.TestCase):
         self.mock_request.app.state.db_pool = self.mock_pool
 
     def test_list_products_sql(self):
-        """Verify list_products selects description."""
-        # Mock fetchall return (9 columns including supplier_id and reorder_threshold)
+        """Verify list_products selects description and returns paginated envelope."""
+        # Pagination requires fetchone for COUNT(*) first
+        self.mock_cursor.fetchone.return_value = (1,)
+        # fetchall returns rows (9 columns: id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold)
         self.mock_cursor.fetchall.return_value = [
             ('id1', 'name1', 10.0, 5, 'sku1', 'img1', 'desc1', None, 10)
         ]
 
-        result = asyncio.run(products_routes.list_products(self.mock_request))
+        # Must pass explicit ints -- Query(...) objects are FastAPI DI and don't resolve in direct calls
+        result = asyncio.run(products_routes.list_products(self.mock_request, page=1, limit=20))
 
-        self.mock_cursor.execute.assert_called_with("SELECT id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold FROM products")
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0].description, 'desc1')
+        # Verify the SELECT call includes description (check second execute call)
+        select_calls = [
+            call for call in self.mock_cursor.execute.call_args_list
+            if "SELECT id" in call[0][0]
+        ]
+        self.assertEqual(len(select_calls), 1)
+        self.assertIn("description", select_calls[0][0][0])
+        # Result is now a PaginatedResponse -- check items
+        self.assertEqual(len(result.items), 1)
+        self.assertEqual(result.items[0].description, 'desc1')
 
     def test_create_product_sql(self):
         """Verify create_product inserts description."""
