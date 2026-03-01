@@ -141,7 +141,7 @@ config:
     enabled: false
 # -- Post-deploy smoke tests (ArgoCD PostSync hook)
 postDeployTests:
-  enabled: false
+  enabled: true
   image:
     repository: ghcr.io/the-darwin-project/store-playwright
     tag: "4da36ff"
