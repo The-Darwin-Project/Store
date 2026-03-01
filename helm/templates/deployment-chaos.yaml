@@ -27,6 +27,39 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: wait-for-postgres
+          image: "{{ .Values.image.chaos.repository }}:{{ .Values.image.chaos.tag }}"
+          command:
+            - python3
+            - -c
+            - |
+              import socket, time, sys
+              host = "{{ .Release.Name }}-postgres-svc"
+              port = 5432
+              max_wait = 120
+              elapsed = 0
+              print(f"Waiting for {host}:{port} to be ready...")
+              while elapsed < max_wait:
+                  try:
+                      socket.create_connection((host, port), timeout=2).close()
+                      print(f"Postgres is ready! ({host}:{port} accepting connections after {elapsed}s)")
+                      sys.exit(0)
+                  except OSError:
+                      print(f"Postgres not ready yet ({elapsed}s elapsed), retrying in 2s...")
+                      time.sleep(2)
+                      elapsed += 2
+              print(f"ERROR: Timed out after {max_wait}s waiting for {host}:{port}")
+              sys.exit(1)
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
       containers:
         - name: chaos
           image: "{{ .Values.image.chaos.repository }}:{{ .Values.image.chaos.tag }}"
@@ -36,6 +69,16 @@ spec:
           env:
             - name: BACKEND_URL
               value: "http://{{ .Release.Name }}-backend:{{ .Values.service.backend.port }}"
+            - name: DB_HOST
+              value: "{{ .Release.Name }}-postgres-svc"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: {{ .Values.postgres.auth.password | quote }}
+            - name: DB_NAME
+              value: "postgres"
           ports:
             - name: http
               containerPort: 9000
