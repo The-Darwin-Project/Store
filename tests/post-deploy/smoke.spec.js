@@ -15,9 +15,10 @@ const STORE_URL   = process.env.STORE_URL   || 'http://darwin-store-frontend:808
 const BACKEND_URL = process.env.BACKEND_URL || 'http://darwin-store-backend:8080';
 const CHAOS_URL   = process.env.CHAOS_URL   || 'http://darwin-store-chaos:9000';
 
-// Skip in GitHub Actions — cluster URLs are unreachable from GHA runners
+// Skip in GitHub Actions — cluster URLs are unreachable from GHA runners.
+// Use GITHUB_ACTIONS (not CI) because the Playwright Docker image may set CI=1.
 test.beforeEach(async ({}, testInfo) => {
-  if (process.env.CI) testInfo.skip(true, 'Post-deploy smoke tests skipped in CI');
+  if (process.env.GITHUB_ACTIONS) testInfo.skip(true, 'Post-deploy smoke tests skipped in GitHub Actions');
 });
 
 // ── Smoke 1: Storefront loads ──────────────────────────────────────────────────
