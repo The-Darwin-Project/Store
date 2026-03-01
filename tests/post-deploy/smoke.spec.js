@@ -6,13 +6,13 @@
 //
 // Environment variables:
 //   STORE_URL   — frontend URL  (default: http://darwin-store-frontend:8080)
-//   BACKEND_URL — backend API   (default: http://darwin-store-backend:8080/api)
+//   BACKEND_URL — backend API   (default: http://darwin-store-backend:8080)
 //   CHAOS_URL   — chaos ctrl    (default: http://darwin-store-chaos:9000)
 
 const { test, expect } = require('@playwright/test');
 
 const STORE_URL   = process.env.STORE_URL   || 'http://darwin-store-frontend:8080';
-const BACKEND_URL = process.env.BACKEND_URL || 'http://darwin-store-backend:8080/api';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://darwin-store-backend:8080';
 const CHAOS_URL   = process.env.CHAOS_URL   || 'http://darwin-store-chaos:9000';
 
 // Skip in GitHub Actions — cluster URLs are unreachable from GHA runners
@@ -215,10 +215,10 @@ test.describe('Smoke 5 — Chaos controller /api/test-reports', () => {
       details:     'All smoke tests passed against live deployment.',
     };
     const resp = await request.post(`${CHAOS_URL}/api/test-reports`, { data: payload });
-    expect(resp.status()).toBe(200);
+    expect(resp.status()).toBe(201);
     const body = await resp.json();
     expect(body).toHaveProperty('id');
-    expect(body.verdict).toBe('PASS');
+    expect(body.status).toBe('stored');
   });
 
   test('GET /api/test-reports returns list of stored reports', async ({ request }) => {
@@ -239,8 +239,8 @@ test.describe('Smoke 5 — Chaos controller /api/test-reports', () => {
     expect(resp.status()).toBe(200);
     const body = await resp.json();
     expect(body).toHaveProperty('suite');
-    expect(body).toHaveProperty('verdict');
-    expect(body).toHaveProperty('timestamp');
+    expect(body).toHaveProperty('passed');
+    expect(body).toHaveProperty('received_at');
   });
 
   test('chaos controller UI has a Test Reports section', async ({ page }) => {
