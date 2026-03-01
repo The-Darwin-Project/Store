@@ -24,8 +24,7 @@ echo ""
 RESULTS_FILE="/tmp/test-results.json"
 npx playwright test \
   --config="${TEST_DIR}/playwright.config.js" \
-  --reporter=json \
-  > "${RESULTS_FILE}" 2>&1 || true
+  2>/tmp/playwright-stderr.log || true
 
 # Parse results and build report payload
 if [ -f "${RESULTS_FILE}" ] && python3 -c "import json; json.load(open('${RESULTS_FILE}'))" 2>/dev/null; then
