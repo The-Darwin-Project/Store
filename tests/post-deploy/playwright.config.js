@@ -7,6 +7,7 @@ const { defineConfig } = require('@playwright/test');
 module.exports = defineConfig({
   testDir: '.',
   testMatch: '*.spec.js',
+  outputDir: '/tmp/test-results',
   globalTimeout: 240000,
   timeout: 30000,
   retries: 0,
