@@ -1,7 +1,9 @@
 # Store/src/chaos/db.py
 """PostgreSQL persistence for chaos controller test reports.
 
-Implements a strict FIFO journal: only the 7 most recent reports are kept.
+Implements a strict FIFO journal: only reports from the 7 most recent
+deployment runs are kept. A deployment run is identified by git_sha;
+reports without a git_sha are treated as standalone runs.
 Falls back to in-memory storage when the database is unavailable.
 """
 
@@ -32,7 +34,7 @@ DB_NAME = os.getenv("DB_NAME", "postgres")
 db_pool: Optional[SimpleConnectionPool] = None
 
 # In-memory fallback (used when DB is unavailable)
-_fallback_reports: deque = deque(maxlen=MAX_REPORTS)
+_fallback_reports: list = []
 _using_fallback = False
 
 
@@ -107,7 +109,8 @@ def insert_report(report_dict: dict) -> dict:
     global _using_fallback
 
     if _using_fallback or db_pool is None:
-        _fallback_reports.appendleft(report_dict)
+        _fallback_reports.insert(0, report_dict)
+        _trim_fallback()
         return report_dict
 
     conn = None
@@ -133,13 +136,18 @@ def insert_report(report_dict: dict) -> dict:
                     report_dict.get("image_tag"),
                 )
             )
-            # FIFO enforcement: delete all but the MAX_REPORTS most recent
+            # FIFO enforcement: keep only reports from the last MAX_REPORTS deployment runs
             cur.execute(
                 '''DELETE FROM test_reports
-                   WHERE id NOT IN (
-                       SELECT id FROM test_reports
-                       ORDER BY received_at DESC
-                       LIMIT %s
+                   WHERE COALESCE(git_sha, id) NOT IN (
+                       SELECT run_key FROM (
+                           SELECT COALESCE(git_sha, id) AS run_key,
+                                  MAX(received_at) AS latest_at
+                           FROM test_reports
+                           GROUP BY COALESCE(git_sha, id)
+                           ORDER BY latest_at DESC
+                           LIMIT %s
+                       ) latest_runs
                    )''',
                 (MAX_REPORTS,)
             )
@@ -150,7 +158,8 @@ def insert_report(report_dict: dict) -> dict:
         if conn:
             conn.rollback()
         _using_fallback = True
-        _fallback_reports.appendleft(report_dict)
+        _fallback_reports.insert(0, report_dict)
+        _trim_fallback()
         return report_dict
     finally:
         if conn and db_pool:
@@ -158,7 +167,7 @@ def insert_report(report_dict: dict) -> dict:
 
 
 def list_reports() -> list:
-    """Return the last MAX_REPORTS reports (newest first)."""
+    """Return all reports from the last MAX_REPORTS deployment runs (newest first)."""
     global _using_fallback
 
     if _using_fallback or db_pool is None:
@@ -172,8 +181,17 @@ def list_reports() -> list:
                 '''SELECT id, received_at, suite, total, passed, failed,
                           skipped, duration_ms, tests, git_sha, image_tag
                    FROM test_reports
-                   ORDER BY received_at DESC
-                   LIMIT %s''',
+                   WHERE COALESCE(git_sha, id) IN (
+                       SELECT run_key FROM (
+                           SELECT COALESCE(git_sha, id) AS run_key,
+                                  MAX(received_at) AS latest_at
+                           FROM test_reports
+                           GROUP BY COALESCE(git_sha, id)
+                           ORDER BY latest_at DESC
+                           LIMIT %s
+                       ) latest_runs
+                   )
+                   ORDER BY received_at DESC, suite''',
                 (MAX_REPORTS,)
             )
             rows = cur.fetchall()
@@ -231,3 +249,18 @@ def _row_to_dict(row: dict) -> dict:
         "git_sha": row.get("git_sha"),
         "image_tag": row.get("image_tag"),
     }
+
+
+def _trim_fallback():
+    """Trim fallback storage to keep only reports from the last MAX_REPORTS deployment runs."""
+    global _fallback_reports
+    if not _fallback_reports:
+        return
+    seen_keys: list = []
+    for r in _fallback_reports:
+        key = r.get("git_sha") or r.get("id")
+        if key not in seen_keys:
+            seen_keys.append(key)
+    if len(seen_keys) > MAX_REPORTS:
+        keep = set(seen_keys[:MAX_REPORTS])
+        _fallback_reports = [r for r in _fallback_reports if (r.get("git_sha") or r.get("id")) in keep]

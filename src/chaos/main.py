@@ -409,10 +409,38 @@ async def post_test_report(body: TestReport):
     return {"status": "stored", "id": report_dict["id"]}
 
 
+def _group_by_deployment_run(reports: list) -> list:
+    """Group flat report list into deployment runs keyed by git_sha."""
+    runs: dict = {}
+    run_order: list = []
+    for r in reports:
+        key = r.get("git_sha") or r.get("id")
+        if key not in runs:
+            runs[key] = {
+                "git_sha": r.get("git_sha"),
+                "image_tag": r.get("image_tag"),
+                "received_at": r["received_at"],
+                "suites": [],
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0,
+            }
+            run_order.append(key)
+        run = runs[key]
+        run["suites"].append(r)
+        run["total"] += r["total"]
+        run["passed"] += r["passed"]
+        run["failed"] += r["failed"]
+        run["skipped"] += r["skipped"]
+    return [runs[k] for k in run_order]
+
+
 @app.get("/api/test-reports")
 async def list_test_reports():
-    """Return the last 7 test reports (newest first)."""
-    return list_reports()
+    """Return the last 7 deployment runs with their suite reports grouped."""
+    reports = list_reports()
+    return _group_by_deployment_run(reports)
 
 
 @app.get("/api/test-reports/latest")

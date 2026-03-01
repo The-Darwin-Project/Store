@@ -383,6 +383,59 @@
             white-space: pre-wrap;
         }
 
+        .deployment-run {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .run-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .run-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .run-meta {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+            font-size: 0.85rem;
+        }
+
+        .suite-card {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 0.5rem;
+            border-left: 3px solid rgba(255,255,255,0.15);
+        }
+
+        .suite-card.suite-pass { border-left-color: var(--success); }
+        .suite-card.suite-fail { border-left-color: var(--danger); }
+
+        .suite-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .suite-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
         .no-reports {
             text-align: center;
             color: var(--text-secondary);
@@ -513,7 +566,7 @@
             <div class="status-panel">
                 <h2>Post-Deploy Test Reports</h2>
                 <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
-                    Showing the last 7 deployment reports. Playwright smoke tests run automatically after each ArgoCD deployment.
+                    Showing the last 7 deployment runs. Each run groups all test suites from that deployment together. Playwright smoke tests run automatically after each ArgoCD deployment.
                 </p>
                 <button onclick="refreshReports()" style="margin-bottom: 1rem;">Refresh</button>
                 <div id="reports-container">
@@ -662,42 +715,65 @@
             if (tab === 'reports') refreshReports();
         }
 
-        // Test Reports
-        function renderReport(r) {
-            const allPassed = r.failed === 0;
+        // Test Reports -- grouped by deployment run
+        function renderSuite(s) {
+            const allPassed = s.failed === 0;
             const badge = allPassed
                 ? '<span class="report-badge pass">PASSED</span>'
                 : '<span class="report-badge fail">FAILED</span>';
-            const date = new Date(r.received_at).toLocaleString();
-            const duration = (r.duration_ms / 1000).toFixed(1);
+            const duration = (s.duration_ms / 1000).toFixed(1);
 
             let testsHtml = '';
-            if (r.tests && r.tests.length > 0) {
-                const rows = r.tests.map(t => {
+            if (s.tests && s.tests.length > 0) {
+                const rows = s.tests.map(t => {
                     const cls = t.status === 'passed' ? 'pass' : t.status === 'failed' ? 'fail' : 'skip';
                     const dur = (t.duration_ms / 1000).toFixed(2);
                     let row = `<div class="test-row"><span>${t.name}</span><span class="${cls}">${t.status} (${dur}s)</span></div>`;
                     if (t.error) row += `<div class="test-error">${t.error}</div>`;
                     return row;
                 }).join('');
-                testsHtml = `<details class="report-tests"><summary>Show ${r.tests.length} test cases</summary>${rows}</details>`;
+                testsHtml = `<details class="report-tests"><summary>Show ${s.tests.length} test cases</summary>${rows}</details>`;
             }
 
-            return `<div class="report-card">
-                <div class="report-header">
-                    <span style="font-weight:600;">${r.suite} #${r.id}</span>
+            return `<div class="suite-card ${allPassed ? 'suite-pass' : 'suite-fail'}">
+                <div class="suite-header">
+                    <span class="suite-name">${s.suite}</span>
                     ${badge}
                 </div>
                 <div class="report-stats">
-                    <span class="report-stat"><strong>${r.passed}</strong> passed</span>
-                    <span class="report-stat"><strong>${r.failed}</strong> failed</span>
-                    <span class="report-stat"><strong>${r.skipped}</strong> skipped</span>
+                    <span class="report-stat"><strong>${s.passed}</strong> passed</span>
+                    <span class="report-stat"><strong>${s.failed}</strong> failed</span>
+                    <span class="report-stat"><strong>${s.skipped}</strong> skipped</span>
                     <span class="report-stat">${duration}s</span>
-                    ${r.image_tag ? `<span class="report-stat">tag: <strong>${r.image_tag}</strong></span>` : ''}
-                    ${r.git_sha ? `<span class="report-stat">sha: <strong>${r.git_sha.substring(0,7)}</strong></span>` : ''}
                 </div>
-                <div class="report-stat" style="font-size:0.8rem;">${date}</div>
                 ${testsHtml}
+            </div>`;
+        }
+
+        function renderDeploymentRun(run) {
+            const allPassed = run.failed === 0;
+            const badge = allPassed
+                ? '<span class="report-badge pass">ALL PASSED</span>'
+                : '<span class="report-badge fail">FAILURES</span>';
+            const date = new Date(run.received_at).toLocaleString();
+            const sha = run.git_sha ? run.git_sha.substring(0, 7) : 'unknown';
+            const suitesHtml = run.suites.map(renderSuite).join('');
+
+            return `<div class="deployment-run">
+                <div class="run-header">
+                    <span class="run-title">Deployment ${sha}</span>
+                    ${badge}
+                </div>
+                <div class="run-meta">
+                    <span class="report-stat"><strong>${run.total}</strong> total</span>
+                    <span class="report-stat"><strong>${run.passed}</strong> passed</span>
+                    <span class="report-stat"><strong>${run.failed}</strong> failed</span>
+                    <span class="report-stat"><strong>${run.skipped}</strong> skipped</span>
+                    <span class="report-stat">${date}</span>
+                    ${run.image_tag ? `<span class="report-stat">tag: <strong>${run.image_tag}</strong></span>` : ''}
+                    <span class="report-stat">${run.suites.length} suite${run.suites.length !== 1 ? 's' : ''}</span>
+                </div>
+                ${suitesHtml}
             </div>`;
         }
 
@@ -705,7 +781,7 @@
             const result = await apiCall('/api/test-reports', { method: 'GET' });
             const container = document.getElementById('reports-container');
             if (result.success && Array.isArray(result.data) && result.data.length > 0) {
-                container.innerHTML = result.data.map(renderReport).join('');
+                container.innerHTML = result.data.map(renderDeploymentRun).join('');
             } else {
                 container.innerHTML = '<div class="no-reports">No test reports yet. Reports appear after the first post-deploy job runs.</div>';
             }
