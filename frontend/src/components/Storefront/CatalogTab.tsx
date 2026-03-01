@@ -4,6 +4,7 @@ import {
   Button, Gallery, GalleryItem,
   TextInput,
   NumberInput,
+  Pagination,
 } from '@patternfly/react-core';
 import { ShoppingCartIcon } from '@patternfly/react-icons';
 import { products as productsApi, campaigns as campaignsApi, reviews as reviewsApi } from '../../api/client';
@@ -23,13 +24,17 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
   const [ratings, setRatings] = useState<Record<string, AverageRating>>({});
   const [addQty, setAddQty] = useState<Record<string, number>>({});
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const LIMIT = 20;
 
   const loadProducts = useCallback(async () => {
     try {
-      const data = await productsApi.list();
-      setProductList(data || []);
-      if (data && data.length > 0) {
-        const ids = data.map(p => p.id);
+      const data = await productsApi.list(page, LIMIT);
+      setProductList(data.items || []);
+      setTotal(data.total);
+      if (data.items && data.items.length > 0) {
+        const ids = data.items.map(p => p.id);
         // Fire ratings fetch without blocking render
         reviewsApi.getBatchAverages(ids).then(avgRatings => {
           const map: Record<string, AverageRating> = {};
@@ -40,7 +45,7 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
     } catch (error) {
       log(`Failed to load products: ${(error as Error).message}`, 'error');
     }
-  }, [log]);
+  }, [log, page]);
 
   const loadCampaigns = useCallback(async () => {
     try {
@@ -186,6 +191,16 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
           </Gallery>
         )}
       </div>
+
+      {total > 0 && (
+        <Pagination
+          itemCount={total}
+          perPage={LIMIT}
+          page={page}
+          onSetPage={(_e, p) => setPage(p)}
+          isCompact
+        />
+      )}
 
       <ProductDetailModal
         product={selectedProduct}

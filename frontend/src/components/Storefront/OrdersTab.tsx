@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Button } from '@patternfly/react-core';
+import { Button, Pagination } from '@patternfly/react-core';
 import { orders as ordersApi, invoices as invoicesApi } from '../../api/client';
 import type { Order, Invoice } from '../../types';
 import { StatusBadge } from '../shared/StatusBadge';
@@ -16,15 +16,19 @@ export function OrdersTab({ log, searchQuery, onReviewProduct }: Props) {
   const [orderList, setOrderList] = useState<Order[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [invoiceModal, setInvoiceModal] = useState<Invoice | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const LIMIT = 20;
 
   const loadOrders = useCallback(async () => {
     try {
-      const data = await ordersApi.list();
-      setOrderList(data || []);
+      const data = await ordersApi.list(page, LIMIT);
+      setOrderList(data.items || []);
+      setTotal(data.total);
     } catch (error) {
       log(`Failed to load orders: ${(error as Error).message}`, 'error');
     }
-  }, [log]);
+  }, [log, page]);
 
   usePolling(loadOrders, 30000);
 
@@ -118,6 +122,15 @@ export function OrdersTab({ log, searchQuery, onReviewProduct }: Props) {
             </tbody>
           </table>
         </div>
+        {total > 0 && (
+          <Pagination
+            itemCount={total}
+            perPage={LIMIT}
+            page={page}
+            onSetPage={(_e, p) => setPage(p)}
+            isCompact
+          />
+        )}
       </div>
 
       <InvoiceModal invoice={invoiceModal} isOpen={!!invoiceModal} onClose={() => setInvoiceModal(null)} />

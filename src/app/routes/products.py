@@ -5,25 +5,49 @@
 # 3. [Gotcha]: PUT intentionally overwrites image_data -- callers must send all fields. Frontend uses PATCH.
 """Product CRUD endpoints for Darwin Store."""
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from typing import Optional
 import uuid
 
-from ..models import Product, ProductCreate, ProductUpdate
+from ..models import PaginatedResponse, Product, ProductCreate, ProductUpdate
 from .alerts import check_and_create_alert
 
 router = APIRouter(prefix="/products", tags=["products"])
 
-@router.get("", response_model=list[Product])
-async def list_products(request: Request) -> list[Product]:
-    """List all products in the store."""
+@router.get("")
+async def list_products(
+    request: Request,
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
+) -> PaginatedResponse[Product]:
+    """List products with pagination."""
     pool = request.app.state.db_pool
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold FROM products")
-            products = [Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6], supplier_id=str(row[7]) if row[7] else None, reorder_threshold=row[8] if row[8] is not None else 10) for row in cur.fetchall()]
-            return products
+            cur.execute("SELECT COUNT(*) FROM products")
+            total = cur.fetchone()[0]
+            offset = (page - 1) * limit
+            pages = (total + limit - 1) // limit if total > 0 else 0
+
+            cur.execute(
+                "SELECT id, name, price, stock, sku, image_data, description, "
+                "supplier_id, reorder_threshold FROM products "
+                "ORDER BY name LIMIT %s OFFSET %s",
+                (limit, offset)
+            )
+            products = [
+                Product(
+                    id=str(row[0]), name=row[1], price=row[2], stock=row[3],
+                    sku=row[4], image_data=row[5], description=row[6],
+                    supplier_id=str(row[7]) if row[7] else None,
+                    reorder_threshold=row[8] if row[8] is not None else 10,
+                )
+                for row in cur.fetchall()
+            ]
+            return PaginatedResponse(
+                items=products, total=total, page=page, limit=limit, pages=pages
+            )
     finally:
         pool.putconn(conn)
 

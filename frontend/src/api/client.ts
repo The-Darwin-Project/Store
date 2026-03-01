@@ -3,7 +3,7 @@ import type {
   Customer, CustomerCreate, Supplier, SupplierCreate,
   Alert, Coupon, CouponCreate, CouponValidationResult,
   Invoice, Campaign, CampaignCreate, Review, ReviewCreate,
-  AverageRating, DashboardData,
+  AverageRating, DashboardData, PaginatedResponse,
 } from '../types';
 
 class ApiError extends Error {
@@ -35,7 +35,8 @@ async function request<T>(endpoint: string, method = 'GET', body?: unknown): Pro
 
 // Products
 export const products = {
-  list: () => request<Product[]>('/products'),
+  list: (page = 1, limit = 20) =>
+    request<PaginatedResponse<Product>>(`/products?page=${page}&limit=${limit}`),
   get: (id: string) => request<Product>(`/products/${id}`),
   create: (data: ProductCreate) => request<Product>('/products', 'POST', data),
   update: (id: string, data: ProductCreate) => request<Product>(`/products/${id}`, 'PUT', data),
@@ -45,7 +46,8 @@ export const products = {
 
 // Orders
 export const orders = {
-  list: () => request<Order[]>('/orders'),
+  list: (page = 1, limit = 20) =>
+    request<PaginatedResponse<Order>>(`/orders?page=${page}&limit=${limit}`),
   listUnassigned: () => request<Order[]>('/orders/unassigned'),
   create: (data: OrderCreate) => request<Order>('/orders', 'POST', data),
   delete: (id: string) => request<void>(`/orders/${id}`, 'DELETE'),
