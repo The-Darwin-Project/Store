@@ -35,12 +35,12 @@ import json, sys
 with open('${RESULTS_FILE}') as f:
     data = json.load(f)
 
-suites = data.get('suites', [])
 tests = []
 passed = failed = skipped = 0
 total_duration = 0
 
-for suite in suites:
+def process_suite(suite):
+    global passed, failed, skipped, total_duration
     for spec in suite.get('specs', []):
         for result in spec.get('tests', []):
             for r in result.get('results', []):
@@ -61,6 +61,11 @@ for suite in suites:
                 if status == 'passed': passed += 1
                 elif status == 'failed': failed += 1
                 elif status == 'skipped': skipped += 1
+    for child in suite.get('suites', []):
+        process_suite(child)
+
+for suite in data.get('suites', []):
+    process_suite(suite)
 
 report = {
     'suite': 'post-deploy',
