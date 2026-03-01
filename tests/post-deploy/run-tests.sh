@@ -24,7 +24,8 @@ echo ""
 RESULTS_FILE="/tmp/test-results.json"
 npx playwright test \
   --config="${TEST_DIR}/playwright.config.js" \
-  2>/tmp/playwright-stderr.log || true
+  --reporter=json \
+  > "${RESULTS_FILE}" 2>/tmp/playwright-stderr.log || true
 
 # Parse results and build report payload
 if [ -f "${RESULTS_FILE}" ] && python3 -c "import json; json.load(open('${RESULTS_FILE}'))" 2>/dev/null; then
@@ -77,6 +78,7 @@ print(json.dumps(report))
 else
   # Tests crashed or produced no JSON — build a minimal failure report
   echo "WARNING: Playwright did not produce valid JSON output"
+  [ -f /tmp/playwright-stderr.log ] && echo "--- stderr log ---" && tail -20 /tmp/playwright-stderr.log && echo "--- end stderr ---"
   REPORT=$(python3 -c "
 import json
 report = {
