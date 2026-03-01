@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import {
   Button, FormSelect, FormSelectOption,
   Modal, ModalVariant, ModalHeader, ModalBody, ModalFooter,
+  Pagination,
 } from '@patternfly/react-core';
 import { orders as ordersApi, invoices as invoicesApi, customers as customersApi } from '../../api/client';
 import type { Order, Invoice, Customer } from '../../types';
@@ -32,19 +33,23 @@ export function AdminOrdersTab({ log, searchQuery }: Props) {
   const [attachTarget, setAttachTarget] = useState<Order | null>(null);
   const [customersList, setCustomersList] = useState<Customer[]>([]);
   const [attachCustomerId, setAttachCustomerId] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const LIMIT = 20;
 
   const loadData = useCallback(async () => {
     try {
       const [ords, unassigned] = await Promise.all([
-        ordersApi.list(),
+        ordersApi.list(page, LIMIT),
         ordersApi.listUnassigned(),
       ]);
-      setOrderList(ords || []);
+      setOrderList(ords.items || []);
+      setTotal(ords.total);
       setUnassignedOrders(unassigned || []);
     } catch (error) {
       log(`Failed to load orders: ${(error as Error).message}`, 'error');
     }
-  }, [log]);
+  }, [log, page]);
 
   usePolling(loadData, 30000);
 
@@ -173,6 +178,15 @@ export function AdminOrdersTab({ log, searchQuery }: Props) {
             </tbody>
           </table>
         </div>
+        {total > 0 && (
+          <Pagination
+            itemCount={total}
+            perPage={LIMIT}
+            page={page}
+            onSetPage={(_e, p) => setPage(p)}
+            isCompact
+          />
+        )}
       </div>
 
       <div className="ds-panel" style={{ marginTop: '1.5rem' }}>

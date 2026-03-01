@@ -1,14 +1,15 @@
 # Store/src/app/routes/orders.py
 """Order endpoints for Darwin Store checkout."""
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 import uuid
 
 import json
 
 from ..models import (
     Order, OrderItem, OrderCreate, OrderStatusUpdate, OrderStatus,
-    ORDER_STATUS_TRANSITIONS, Invoice, InvoiceLineItem, CustomerSnapshot
+    ORDER_STATUS_TRANSITIONS, Invoice, InvoiceLineItem, CustomerSnapshot,
+    PaginatedResponse,
 )
 from .alerts import check_and_create_alert
 from .coupons import validate_coupon_for_cart
@@ -16,13 +17,22 @@ from .coupons import validate_coupon_for_cart
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 
-@router.get("", response_model=list[Order])
-async def list_orders(request: Request) -> list[Order]:
-    """Return all orders with their items, most recent first."""
+@router.get("")
+async def list_orders(
+    request: Request,
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
+) -> PaginatedResponse[Order]:
+    """Return orders with pagination, most recent first."""
     pool = request.app.state.db_pool
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM orders")
+            total = cur.fetchone()[0]
+            offset = (page - 1) * limit
+            pages = (total + limit - 1) // limit if total > 0 else 0
+
             cur.execute(
                 "SELECT o.id, o.created_at, o.total_amount, o.status, o.customer_id, "
                 "o.coupon_code, o.discount_amount, c.name AS customer_name, "
@@ -30,12 +40,16 @@ async def list_orders(request: Request) -> list[Order]:
                 "FROM orders o "
                 "LEFT JOIN customers c ON o.customer_id = c.id "
                 "LEFT JOIN invoices i ON i.order_id = o.id "
-                "ORDER BY o.created_at DESC"
+                "ORDER BY o.created_at DESC "
+                "LIMIT %s OFFSET %s",
+                (limit, offset)
             )
             order_rows = cur.fetchall()
 
             if not order_rows:
-                return []
+                return PaginatedResponse(
+                    items=[], total=total, page=page, limit=limit, pages=pages
+                )
 
             order_ids = [str(row[0]) for row in order_rows]
             cur.execute(
@@ -76,7 +90,9 @@ async def list_orders(request: Request) -> list[Order]:
                     items=items_by_order.get(str(row[0]), [])
                 ))
 
-            return orders
+            return PaginatedResponse(
+                items=orders, total=total, page=page, limit=limit, pages=pages
+            )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to load orders: {str(e)}")
     finally:

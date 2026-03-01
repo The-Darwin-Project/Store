@@ -6,10 +6,22 @@
 """Pydantic schemas for Darwin Store telemetry and product data."""
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Generic, Optional, TypeVar
 from uuid import uuid4
 from datetime import datetime
 from enum import Enum
+
+
+T = TypeVar("T")
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    """Standard paginated response envelope."""
+    items: list[T]
+    total: int
+    page: int
+    limit: int
+    pages: int
 
 
 class AlertStatus(str, Enum):

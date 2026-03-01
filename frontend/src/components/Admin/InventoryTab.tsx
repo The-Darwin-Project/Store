@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Button, Form, FormGroup, TextInput, TextArea, FormSelect, FormSelectOption,
   Modal, ModalVariant, ModalHeader, ModalBody, ModalFooter,
+  Pagination,
 } from '@patternfly/react-core';
 import { products as productsApi, suppliers as suppliersApi } from '../../api/client';
 import type { Product, Supplier, ProductCreate } from '../../types';
@@ -17,6 +18,9 @@ export function InventoryTab({ log, searchQuery }: Props) {
   const [supplierList, setSupplierList] = useState<Supplier[]>([]);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const LIMIT = 20;
 
   // Add form state
   const [addName, setAddName] = useState('');
@@ -40,12 +44,13 @@ export function InventoryTab({ log, searchQuery }: Props) {
 
   const loadProducts = useCallback(async () => {
     try {
-      const data = await productsApi.list();
-      setProductList(data || []);
+      const data = await productsApi.list(page, LIMIT);
+      setProductList(data.items || []);
+      setTotal(data.total);
     } catch (error) {
       log(`Failed to load products: ${(error as Error).message}`, 'error');
     }
-  }, [log]);
+  }, [log, page]);
 
   const loadSuppliers = useCallback(async () => {
     try {
@@ -228,6 +233,15 @@ export function InventoryTab({ log, searchQuery }: Props) {
             </tbody>
           </table>
         </div>
+        {total > 0 && (
+          <Pagination
+            itemCount={total}
+            perPage={LIMIT}
+            page={page}
+            onSetPage={(_e, p) => setPage(p)}
+            isCompact
+          />
+        )}
       </div>
 
       {/* Edit Modal */}
