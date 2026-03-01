@@ -38,6 +38,7 @@ from pydantic import BaseModel, Field
 # Use absolute import from src package
 # When running as `uvicorn src.chaos.main:app`, src is the root package
 from src.app.chaos_state import get_chaos, set_chaos, reset_chaos
+from src.chaos.db import init_db, close_db, insert_report, list_reports, get_latest_report
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -371,43 +372,56 @@ class StoredReport(BaseModel):
     image_tag: Optional[str] = None
 
 
-# In-memory ring buffer — max 50 reports
-_test_reports: deque = deque(maxlen=50)
+@app.on_event("startup")
+async def startup_db():
+    """Initialize DB for test report persistence."""
+    init_db()
+
+
+@app.on_event("shutdown")
+async def shutdown_db():
+    """Close DB pool on shutdown."""
+    close_db()
 
 
 @app.post("/api/test-reports", status_code=201)
 async def post_test_report(body: TestReport):
-    """Receive a test report from the post-deploy job."""
-    report = StoredReport(
-        id=uuid.uuid4().hex[:12],
-        received_at=datetime.now(timezone.utc).isoformat(),
-        suite=body.suite,
-        total=body.total,
-        passed=body.passed,
-        failed=body.failed,
-        skipped=body.skipped,
-        duration_ms=body.duration_ms,
-        tests=body.tests,
-        git_sha=body.git_sha,
-        image_tag=body.image_tag,
-    )
-    _test_reports.appendleft(report)
-    logger.info(f"Test report received: {body.passed}/{body.total} passed (id={report.id})")
-    return {"status": "stored", "id": report.id}
+    """Receive a test report from the post-deploy job.
+
+    Persists to PostgreSQL with strict FIFO: only the 7 most recent reports
+    are kept in the database. Falls back to in-memory if DB is unavailable.
+    """
+    report_dict = {
+        "id": uuid.uuid4().hex[:12],
+        "received_at": datetime.now(timezone.utc).isoformat(),
+        "suite": body.suite,
+        "total": body.total,
+        "passed": body.passed,
+        "failed": body.failed,
+        "skipped": body.skipped,
+        "duration_ms": body.duration_ms,
+        "tests": [t.model_dump() for t in body.tests],
+        "git_sha": body.git_sha,
+        "image_tag": body.image_tag,
+    }
+    insert_report(report_dict)
+    logger.info(f"Test report received: {body.passed}/{body.total} passed (id={report_dict['id']})")
+    return {"status": "stored", "id": report_dict["id"]}
 
 
 @app.get("/api/test-reports")
 async def list_test_reports():
-    """List all stored test reports (newest first)."""
-    return [r.model_dump() for r in _test_reports]
+    """Return the last 7 test reports (newest first)."""
+    return list_reports()
 
 
 @app.get("/api/test-reports/latest")
 async def get_latest_test_report():
     """Get the most recent test report."""
-    if not _test_reports:
+    report = get_latest_report()
+    if report is None:
         return {"status": "no_reports"}
-    return _test_reports[0].model_dump()
+    return report
 
 
 # Mount static files (must be after routes)
