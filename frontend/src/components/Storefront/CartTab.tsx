@@ -44,7 +44,7 @@ export function CartTab({ items, total, onUpdateQuantity, onRemoveItem, onClear,
       if (result.valid) {
         log(`Coupon applied: ${couponCode.toUpperCase()} (-$${result.discount_amount?.toFixed(2)})`, 'success');
       } else {
-        log(`Coupon invalid: ${result.message}`, 'error');
+        log(`Coupon invalid: ${result.error}`, 'error');
       }
     } catch (error) {
       log(`Failed to validate coupon: ${(error as Error).message}`, 'error');
@@ -80,7 +80,7 @@ export function CartTab({ items, total, onUpdateQuantity, onRemoveItem, onClear,
         items: items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
         coupon_code: couponResult?.valid ? couponCode.toUpperCase() : null,
       });
-      log(`Order placed: ${order.id.substring(0, 8)}... Total: $${(Number(order.total) || 0).toFixed(2)}`, 'success');
+      log(`Order placed: ${order.id.substring(0, 8)}... Total: $${(Number(order.total_amount) || 0).toFixed(2)}`, 'success');
       setOrderSuccess(order);
       onClear();
       setCouponCode('');
@@ -231,7 +231,7 @@ export function CartTab({ items, total, onUpdateQuantity, onRemoveItem, onClear,
           {orderSuccess && (
             <div id="order-details" style={{ fontSize: '0.9rem' }}>
               <div>Order ID: {orderSuccess.id.substring(0, 8)}...</div>
-              <div>Total: ${(Number(orderSuccess.total) || 0).toFixed(2)}</div>
+              <div>Total: ${(Number(orderSuccess.total_amount) || 0).toFixed(2)}</div>
               <div>Items: {orderSuccess.items.length}</div>
             </div>
           )}

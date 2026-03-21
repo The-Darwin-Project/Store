@@ -37,7 +37,7 @@ export function CampaignsTab({ log, searchQuery }: Props) {
   }, [log]);
 
   useEffect(() => {
-    productsApi.list().then(p => setProductList(p || [])).catch(() => {});
+    productsApi.list().then(p => setProductList(p?.items || [])).catch(() => {});
   }, []);
 
   usePolling(loadCampaigns, 30000);
