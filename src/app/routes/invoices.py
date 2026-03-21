@@ -37,22 +37,27 @@ INVOICE_SELECT = (
 async def list_invoices(
     request: Request,
     customer_id: Optional[str] = Query(None),
+    order_id: Optional[str] = Query(None),
 ) -> list[Invoice]:
-    """List all invoices, optionally filtered by customer_id."""
+    """List all invoices, optionally filtered by customer_id or order_id."""
     pool = request.app.state.db_pool
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
+            conditions = []
+            params: list[str] = []
             if customer_id:
-                cur.execute(
-                    f"SELECT {INVOICE_SELECT} FROM invoices WHERE customer_id = %s "
-                    "ORDER BY created_at DESC",
-                    (customer_id,)
-                )
-            else:
-                cur.execute(
-                    f"SELECT {INVOICE_SELECT} FROM invoices ORDER BY created_at DESC"
-                )
+                conditions.append("customer_id = %s")
+                params.append(customer_id)
+            if order_id:
+                conditions.append("order_id = %s")
+                params.append(order_id)
+            where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+            cur.execute(
+                f"SELECT {INVOICE_SELECT} FROM invoices{where} "
+                "ORDER BY created_at DESC",
+                tuple(params),
+            )
             rows = cur.fetchall()
             return [_row_to_invoice(row) for row in rows]
     except Exception as e:

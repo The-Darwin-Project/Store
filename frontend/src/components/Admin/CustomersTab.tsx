@@ -46,7 +46,9 @@ export function CustomersTab({ log, searchQuery }: Props) {
       const cust = await customersApi.create({
         name: name.trim(), email: email.trim(),
         company: company.trim() || null, phone: phone.trim() || null,
-        address: (street || city || state || zip || country) ? { street, city, state, zip, country } : null,
+        shipping_street: street.trim() || null, shipping_city: city.trim() || null,
+        shipping_state: state.trim() || null, shipping_zip: zip.trim() || null,
+        shipping_country: country.trim() || null,
       });
       log(`Created customer: ${cust.name}`, 'success');
       setName(''); setEmail(''); setCompany(''); setPhone('');
@@ -156,11 +158,11 @@ export function CustomersTab({ log, searchQuery }: Props) {
               <p><strong>Email:</strong> {selectedCustomer.email}</p>
               {selectedCustomer.company && <p><strong>Company:</strong> {selectedCustomer.company}</p>}
               {selectedCustomer.phone && <p><strong>Phone:</strong> {selectedCustomer.phone}</p>}
-              {selectedCustomer.address && (
+              {(selectedCustomer.shipping_street || selectedCustomer.shipping_city || selectedCustomer.shipping_state || selectedCustomer.shipping_zip || selectedCustomer.shipping_country) && (
                 <p><strong>Address:</strong> {[
-                  selectedCustomer.address.street, selectedCustomer.address.city,
-                  selectedCustomer.address.state, selectedCustomer.address.zip,
-                  selectedCustomer.address.country
+                  selectedCustomer.shipping_street, selectedCustomer.shipping_city,
+                  selectedCustomer.shipping_state, selectedCustomer.shipping_zip,
+                  selectedCustomer.shipping_country
                 ].filter(Boolean).join(', ')}</p>
               )}
             </div>
@@ -180,7 +182,7 @@ export function CustomersTab({ log, searchQuery }: Props) {
                     <tr key={o.id}>
                       <td>{new Date(o.created_at).toLocaleDateString()}</td>
                       <td>{o.id.substring(0, 8)}...</td>
-                      <td className="price">${(Number(o.total) || 0).toFixed(2)}</td>
+                      <td className="price">${(Number(o.total_amount) || 0).toFixed(2)}</td>
                       <td><StatusBadge status={o.status} /></td>
                     </tr>
                   ))}

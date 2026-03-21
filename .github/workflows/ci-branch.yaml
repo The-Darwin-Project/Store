@@ -111,6 +111,7 @@ jobs:
             tests/test_reviews.py \
             tests/test_campaigns.py \
             tests/test_pagination.py \
+            tests/test_field_alignment_evt04511f86.py \
             -v --tb=short
 
       - name: Test summary

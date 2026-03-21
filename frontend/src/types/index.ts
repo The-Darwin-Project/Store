@@ -34,7 +34,7 @@ export interface Order {
   id: string;
   customer_id?: string | null;
   items: OrderItem[];
-  total: number;
+  total_amount: number;
   status: OrderStatus;
   created_at: string;
   coupon_code?: string | null;
@@ -45,7 +45,7 @@ export interface OrderItem {
   product_id: string;
   product_name: string;
   quantity: number;
-  unit_price: number;
+  price_at_purchase: number;
 }
 
 export type OrderStatus =
@@ -68,16 +68,12 @@ export interface Customer {
   email: string;
   company?: string | null;
   phone?: string | null;
-  address?: Address | null;
+  shipping_street?: string | null;
+  shipping_city?: string | null;
+  shipping_state?: string | null;
+  shipping_zip?: string | null;
+  shipping_country?: string | null;
   created_at?: string;
-}
-
-export interface Address {
-  street?: string;
-  city?: string;
-  state?: string;
-  zip?: string;
-  country?: string;
 }
 
 export interface CustomerCreate {
@@ -85,7 +81,11 @@ export interface CustomerCreate {
   email: string;
   company?: string | null;
   phone?: string | null;
-  address?: Address | null;
+  shipping_street?: string | null;
+  shipping_city?: string | null;
+  shipping_state?: string | null;
+  shipping_zip?: string | null;
+  shipping_country?: string | null;
 }
 
 export interface Supplier {
@@ -141,7 +141,8 @@ export interface CouponValidationResult {
   valid: boolean;
   coupon?: Coupon;
   discount_amount?: number;
-  message?: string;
+  final_total?: number;
+  error?: string;
 }
 
 export interface InvoiceLineItem {
@@ -206,14 +207,15 @@ export interface CampaignCreate {
 export interface Review {
   id: string;
   product_id: string;
-  reviewer_name: string;
+  customer_id: string;
+  customer_name?: string | null;
   rating: number;
   comment?: string | null;
   created_at: string;
 }
 
 export interface ReviewCreate {
-  reviewer_name: string;
+  customer_id: string;
   rating: number;
   comment?: string | null;
 }
@@ -227,13 +229,15 @@ export interface AverageRating {
 export interface DashboardData {
   total_revenue: number;
   orders_by_status: Record<string, number>;
-  top_products: { name: string; units_sold: number }[];
-  low_stock: {
-    product_name: string;
+  top_products: { name: string; total_sold: number }[];
+  low_stock_alerts: {
+    name: string;
     stock: number;
     reorder_threshold: number;
-    supplier_name?: string;
-    supplier_email?: string;
+    supplier?: {
+      name: string;
+      contact_email?: string;
+    } | null;
   }[];
 }
 
