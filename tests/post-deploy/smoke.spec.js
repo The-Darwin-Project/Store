@@ -154,10 +154,14 @@ test.describe('Smoke 3 — Admin panel: Alerts product name + Invoices view fix'
 
 test.describe('Smoke 4 — Backend API field-name correctness', () => {
 
-  test('GET /api/products returns 200 with an array', async ({ request }) => {
+  test('GET /api/products returns 200 with a paginated response', async ({ request }) => {
     const resp = await request.get(`${BACKEND_URL}/products`);
     expect(resp.status()).toBe(200);
-    expect(Array.isArray(await resp.json())).toBe(true);
+    const data = await resp.json();
+    expect(Array.isArray(data.items)).toBe(true);
+    expect(data).toHaveProperty('total');
+    expect(data).toHaveProperty('page');
+    expect(data).toHaveProperty('pages');
   });
 
   test('GET /api/alerts includes product_name field (Bug 1 backend fix)', async ({ request }) => {
