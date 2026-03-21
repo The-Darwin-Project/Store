@@ -160,7 +160,7 @@ export function CartTab({ items, total, onUpdateQuantity, onRemoveItem, onClear,
                   : 'var(--pf-t--global--color--status--danger--default)' }}>
                   {couponResult.valid
                     ? `Discount: -$${couponResult.discount_amount?.toFixed(2)}`
-                    : couponResult.message}
+                    : couponResult.error}
                 </div>
               )}
             </div>

@@ -19,7 +19,7 @@ interface Props {
 export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log }: Props) {
   const [reviewsList, setReviewsList] = useState<Review[]>([]);
   const [avgRating, setAvgRating] = useState<AverageRating | null>(null);
-  const [reviewerName, setReviewerName] = useState('');
+  const [reviewCustomerId, setReviewCustomerId] = useState('');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [qty, setQty] = useState(1);
@@ -43,15 +43,15 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
   };
 
   const submitReview = async () => {
-    if (!product || !reviewerName.trim()) return;
+    if (!product || !reviewCustomerId.trim()) return;
     try {
       await reviewsApi.create(product.id, {
-        reviewer_name: reviewerName.trim(),
+        customer_id: reviewCustomerId.trim(),
         rating: reviewRating,
         comment: reviewComment.trim() || null,
       });
       log(`Review submitted for ${product.name}`, 'success');
-      setReviewerName('');
+      setReviewCustomerId('');
       setReviewRating(5);
       setReviewComment('');
       loadReviews(product.id);
@@ -132,7 +132,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
                 borderRadius: '8px',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <strong>{r.reviewer_name}</strong>
+                  <strong>{r.customer_name || r.customer_id}</strong>
                   <span className="ds-star-filled">{renderStars(r.rating)}</span>
                 </div>
                 {r.comment && <p style={{ marginTop: '0.25rem' }}>{r.comment}</p>}
@@ -146,9 +146,9 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
 
         <h4 style={{ marginBottom: '0.5rem' }}>Write a Review</h4>
         <Form onSubmit={e => { e.preventDefault(); submitReview(); }}>
-          <FormGroup label="Your Name" fieldId="review-customer" isRequired>
-            <TextInput id="review-customer" value={reviewerName}
-              onChange={(_e, val) => setReviewerName(val)} isRequired />
+          <FormGroup label="Customer ID" fieldId="review-customer" isRequired>
+            <TextInput id="review-customer" value={reviewCustomerId}
+              onChange={(_e, val) => setReviewCustomerId(val)} isRequired />
           </FormGroup>
           <FormGroup label="Rating" fieldId="review-rating">
             <div id="star-picker">
@@ -164,7 +164,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
             <TextArea id="review-comment" value={reviewComment}
               onChange={(_e, val) => setReviewComment(val)} rows={2} />
           </FormGroup>
-          <Button type="submit" variant="primary" isDisabled={!reviewerName.trim()}>Submit Review</Button>
+          <Button type="submit" variant="primary" isDisabled={!reviewCustomerId.trim()}>Submit Review</Button>
         </Form>
       </ModalBody>
       <ModalFooter>

@@ -67,7 +67,7 @@ export function DashboardTab({ log }: Props) {
             <tbody id="dashboard-top-products">
               {data && data.top_products && data.top_products.length > 0 ? (
                 data.top_products.map((p, i) => (
-                  <tr key={i}><td>{i + 1}</td><td>{p.name}</td><td>{p.units_sold}</td></tr>
+                  <tr key={i}><td>{i + 1}</td><td>{p.name}</td><td>{p.total_sold}</td></tr>
                 ))
               ) : (
                 <tr><td colSpan={3} className="ds-empty-state">No sales data yet.</td></tr>
@@ -85,14 +85,14 @@ export function DashboardTab({ log }: Props) {
               <tr><th>Product</th><th>Stock</th><th>Reorder At</th><th>Supplier</th><th>Contact</th></tr>
             </thead>
             <tbody id="dashboard-low-stock">
-              {data && data.low_stock && data.low_stock.length > 0 ? (
-                data.low_stock.map((item, i) => (
+              {data && data.low_stock_alerts && data.low_stock_alerts.length > 0 ? (
+                data.low_stock_alerts.map((item, i) => (
                   <tr key={i}>
-                    <td>{item.product_name}</td>
+                    <td>{item.name}</td>
                     <td>{item.stock}</td>
                     <td>{item.reorder_threshold}</td>
-                    <td>{item.supplier_name || '-'}</td>
-                    <td>{item.supplier_email || '-'}</td>
+                    <td>{item.supplier?.name || '-'}</td>
+                    <td>{item.supplier?.contact_email || '-'}</td>
                   </tr>
                 ))
               ) : (

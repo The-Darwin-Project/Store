@@ -124,7 +124,7 @@ export function AdminOrdersTab({ log, searchQuery }: Props) {
           <td>{expandedId === order.id ? '\u25BC' : '\u25B6'}</td>
           <td>{new Date(order.created_at).toLocaleDateString()}</td>
           <td>{order.id.substring(0, 8)}...</td>
-          <td className="price">${(Number(order.total) || 0).toFixed(2)}</td>
+          <td className="price">${(Number(order.total_amount) || 0).toFixed(2)}</td>
           <td><StatusBadge status={order.status} /></td>
           {showActions && (
             <td className="actions" onClick={e => e.stopPropagation()}>
@@ -146,7 +146,7 @@ export function AdminOrdersTab({ log, searchQuery }: Props) {
                 <h4>Items:</h4>
                 <ul>
                   {order.items.map((item, i) => (
-                    <li key={i}>{item.product_name} x{item.quantity} @ ${(Number(item.unit_price) || 0).toFixed(2)}</li>
+                    <li key={i}>{item.product_name} x{item.quantity} @ ${(Number(item.price_at_purchase) || 0).toFixed(2)}</li>
                   ))}
                 </ul>
                 {order.coupon_code && <div>Coupon: {order.coupon_code} (-${(order.discount_amount || 0).toFixed(2)})</div>}
