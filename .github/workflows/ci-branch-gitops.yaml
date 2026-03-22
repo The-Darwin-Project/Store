@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       gitops-only: ${{ steps.check.outputs.gitops_only }}
+      has_workflow_changes: ${{ steps.check.outputs.has_workflow_changes }}
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
@@ -47,9 +48,20 @@ jobs:
             echo "Source files detected ($SOURCE_CHANGES files) -- deferring merge to ci-branch.yaml"
           fi
 
+          WORKFLOW_CHANGES=$(git diff --name-only origin/main...HEAD -- .github/ | wc -l)
+          if [ "$WORKFLOW_CHANGES" -gt 0 ]; then
+            echo "has_workflow_changes=true" >> $GITHUB_OUTPUT
+            echo ".github/ changes detected ($WORKFLOW_CHANGES files) -- QE gate required"
+          else
+            echo "has_workflow_changes=false" >> $GITHUB_OUTPUT
+            echo "No .github/ changes -- standard auto-merge"
+          fi
+
   auto-merge:
     needs: check-scope
-    if: needs.check-scope.outputs.gitops-only == 'true'
+    if: >-
+      needs.check-scope.outputs.gitops-only == 'true'
+      && needs.check-scope.outputs.has_workflow_changes == 'false'
     runs-on: ubuntu-latest
 
     permissions:
@@ -103,3 +115,78 @@ jobs:
 
           echo "## GitOps Auto-Merged" >> $GITHUB_STEP_SUMMARY
           echo "Branch **${BRANCH}** merged to main (GitOps-only)" >> $GITHUB_STEP_SUMMARY
+
+  auto-merge-with-qe-gate:
+    needs: check-scope
+    if: >-
+      needs.check-scope.outputs.gitops-only == 'true'
+      && needs.check-scope.outputs.has_workflow_changes == 'true'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        if: vars.USE_GITHUB_APP == 'true'
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.DARWIN_APP_ID }}
+          private-key: ${{ secrets.DARWIN_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ vars.USE_GITHUB_APP == 'true' && steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+
+      - name: Create PR and add ci-passed label
+        id: create-pr
+        env:
+          GH_TOKEN: ${{ vars.USE_GITHUB_APP == 'true' && steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          REPO="${{ github.repository }}"
+
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --repo "$REPO" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -z "$EXISTING_PR" ]; then
+            gh pr create \
+              --title "Auto: ${BRANCH}" \
+              --body "Automated PR from Darwin agent branch. GitOps-only change with .github/ modifications -- requires QE verification." \
+              --head "$BRANCH" \
+              --base main \
+              --repo "$REPO"
+            EXISTING_PR=$(gh pr list --head "$BRANCH" --repo "$REPO" --json number --jq '.[0].number')
+          fi
+
+          gh pr edit "$EXISTING_PR" --add-label "ci-passed" --repo "$REPO"
+          echo "pr_number=$EXISTING_PR" >> $GITHUB_OUTPUT
+
+          echo "## GitOps PR Created" >> $GITHUB_STEP_SUMMARY
+          echo "PR #${EXISTING_PR} created with \`ci-passed\` label. Awaiting \`qe-verified\` label." >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for qe-verified label and merge
+        env:
+          GH_TOKEN: ${{ vars.USE_GITHUB_APP == 'true' && steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          REPO="${{ github.repository }}"
+          PR_NUMBER="${{ steps.create-pr.outputs.pr_number }}"
+
+          HAS_QE_LABEL=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json labels --jq '.labels[].name' | grep -c '^qe-verified$' || true)
+
+          if [ "$HAS_QE_LABEL" -gt 0 ]; then
+            echo "qe-verified label found -- merging"
+            gh pr merge "$PR_NUMBER" --admin --merge --delete-branch --repo "$REPO"
+            echo "## GitOps Auto-Merged (QE Verified)" >> $GITHUB_STEP_SUMMARY
+            echo "PR #${PR_NUMBER} merged to main (QE verified)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "qe-verified label not found -- posting comment and waiting"
+            gh pr comment "$PR_NUMBER" --repo "$REPO" \
+              --body "CI passed. This PR contains \`.github/\` workflow changes and requires QE verification. Please add the \`qe-verified\` label after review to trigger auto-merge."
+            echo "## Awaiting QE Verification" >> $GITHUB_STEP_SUMMARY
+            echo "PR #${PR_NUMBER} has \`ci-passed\` label. Waiting for \`qe-verified\` label to merge." >> $GITHUB_STEP_SUMMARY
+          fi
