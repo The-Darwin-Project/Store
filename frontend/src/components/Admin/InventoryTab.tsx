@@ -31,6 +31,8 @@ export function InventoryTab({ log, searchQuery }: Props) {
   const [addSupplier, setAddSupplier] = useState('');
   const [addDescription, setAddDescription] = useState('');
   const [addImage, setAddImage] = useState<string | null>(null);
+  const [addSalePrice, setAddSalePrice] = useState('');
+  const [addDiscountPercent, setAddDiscountPercent] = useState('');
 
   // Edit form state
   const [editName, setEditName] = useState('');
@@ -41,6 +43,8 @@ export function InventoryTab({ log, searchQuery }: Props) {
   const [editSupplier, setEditSupplier] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editImage, setEditImage] = useState<string | null>(null);
+  const [editSalePrice, setEditSalePrice] = useState('');
+  const [editDiscountPercent, setEditDiscountPercent] = useState('');
 
   const loadProducts = useCallback(async () => {
     try {
@@ -86,11 +90,14 @@ export function InventoryTab({ log, searchQuery }: Props) {
         supplier_id: addSupplier || null,
         description: addDescription.trim() || null,
         image_data: addImage,
+        sale_price: addSalePrice ? parseFloat(addSalePrice) : null,
+        discount_percent: addDiscountPercent ? parseFloat(addDiscountPercent) : null,
       };
       const product = await productsApi.create(data);
       log(`Created product: ${product.name}`, 'success');
       setAddName(''); setAddSku(''); setAddPrice('0'); setAddStock('0');
       setAddReorder('10'); setAddSupplier(''); setAddDescription(''); setAddImage(null);
+      setAddSalePrice(''); setAddDiscountPercent('');
       loadProducts();
     } catch (error) {
       log(`Failed to create product: ${(error as Error).message}`, 'error');
@@ -107,6 +114,8 @@ export function InventoryTab({ log, searchQuery }: Props) {
     setEditSupplier(p.supplier_id || '');
     setEditDescription(p.description || '');
     setEditImage(null);
+    setEditSalePrice(p.sale_price != null ? String(p.sale_price) : '');
+    setEditDiscountPercent(p.discount_percent != null ? String(p.discount_percent) : '');
   };
 
   const handleEdit = async (e: React.FormEvent) => {
@@ -122,6 +131,8 @@ export function InventoryTab({ log, searchQuery }: Props) {
         supplier_id: editSupplier || null,
         description: editDescription.trim() || null,
         image_data: editImage,
+        sale_price: editSalePrice ? parseFloat(editSalePrice) : null,
+        discount_percent: editDiscountPercent ? parseFloat(editDiscountPercent) : null,
       };
       const product = await productsApi.update(editProduct.id, data);
       log(`Updated product: ${product.name}`, 'success');
@@ -188,6 +199,14 @@ export function InventoryTab({ log, searchQuery }: Props) {
               }} />
             </FormGroup>
           </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+            <FormGroup label="Sale Price ($)" fieldId="add-sale-price" style={{ flex: '0 1 120px' }}>
+              <TextInput id="add-sale-price" type="number" value={addSalePrice} onChange={(_e, v) => setAddSalePrice(v)} placeholder="Optional" />
+            </FormGroup>
+            <FormGroup label="Discount %" fieldId="add-discount-percent" style={{ flex: '0 1 120px' }}>
+              <TextInput id="add-discount-percent" type="number" value={addDiscountPercent} onChange={(_e, v) => setAddDiscountPercent(v)} placeholder="Optional" />
+            </FormGroup>
+          </div>
           <FormGroup label="Description" fieldId="add-description" style={{ marginTop: '0.5rem' }}>
             <TextArea id="add-description" value={addDescription} onChange={(_e, v) => setAddDescription(v)} rows={2} placeholder="Product description (optional)" />
           </FormGroup>
@@ -200,11 +219,11 @@ export function InventoryTab({ log, searchQuery }: Props) {
         <div className="ds-table-container">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr><th>Image</th><th>Name</th><th>SKU</th><th>Price</th><th>Stock</th><th>Supplier</th><th>Description</th><th>Actions</th></tr>
+              <tr><th>Image</th><th>Name</th><th>SKU</th><th>Price</th><th>Sale/Discount</th><th>Stock</th><th>Supplier</th><th>Description</th><th>Actions</th></tr>
             </thead>
             <tbody id="product-table">
               {filtered.length === 0 ? (
-                <tr><td colSpan={8} className="ds-empty-state">No products yet. Add one above!</td></tr>
+                <tr><td colSpan={9} className="ds-empty-state">No products yet. Add one above!</td></tr>
               ) : (
                 filtered.map(p => {
                   const supplier = supplierList.find(s => s.id === p.supplier_id);
@@ -219,6 +238,11 @@ export function InventoryTab({ log, searchQuery }: Props) {
                       <td>{p.name}</td>
                       <td>{p.sku}</td>
                       <td className="price">${(Number(p.price) || 0).toFixed(2)}</td>
+                      <td>
+                        {p.sale_price != null && <span className="ds-sale-price">${p.sale_price.toFixed(2)}</span>}
+                        {p.discount_percent != null && <span className="ds-discount-badge">-{p.discount_percent}%</span>}
+                        {p.sale_price == null && p.discount_percent == null && '-'}
+                      </td>
                       <td className={`stock ${stockClass}`}>{p.stock}</td>
                       <td>{supplier ? supplier.name : '-'}</td>
                       <td className="ds-desc-cell" title={p.description || ''}>{p.description || ''}</td>
@@ -278,6 +302,12 @@ export function InventoryTab({ log, searchQuery }: Props) {
                   setEditImage(await readFileAsDataUrl(file));
                 }
               }} />
+            </FormGroup>
+            <FormGroup label="Sale Price ($)" fieldId="edit-sale-price">
+              <TextInput id="edit-sale-price" type="number" value={editSalePrice} onChange={(_e, v) => setEditSalePrice(v)} placeholder="Leave empty to clear" />
+            </FormGroup>
+            <FormGroup label="Discount %" fieldId="edit-discount-percent">
+              <TextInput id="edit-discount-percent" type="number" value={editDiscountPercent} onChange={(_e, v) => setEditDiscountPercent(v)} placeholder="Leave empty to clear" />
             </FormGroup>
             <FormGroup label="Description" fieldId="edit-description">
               <TextArea id="edit-description" value={editDescription} onChange={(_e, v) => setEditDescription(v)} rows={3} />

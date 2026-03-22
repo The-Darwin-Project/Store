@@ -7,6 +7,7 @@ import {
 import { StarIcon } from '@patternfly/react-icons';
 import { reviews as reviewsApi } from '../../api/client';
 import type { Product, Review, AverageRating } from '../../types';
+import { getEffectivePrice, hasDiscount } from '../../types';
 
 interface Props {
   product: Product | null;
@@ -92,7 +93,19 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
               style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
           )}
           <div>
-            <div className="price card-price" style={{ fontSize: '1.5rem' }}>${(Number(product.price) || 0).toFixed(2)}</div>
+            <div className="price card-price" style={{ fontSize: '1.5rem' }}>
+              {hasDiscount(product) ? (
+                <>
+                  <span className="ds-original-price">${(Number(product.price) || 0).toFixed(2)}</span>{' '}
+                  <span className="ds-sale-price">${getEffectivePrice(product).toFixed(2)}</span>
+                  {product.discount_percent != null && !product.sale_price && (
+                    <span className="ds-discount-badge">-{product.discount_percent}%</span>
+                  )}
+                </>
+              ) : (
+                <>${(Number(product.price) || 0).toFixed(2)}</>
+              )}
+            </div>
             <div style={{ margin: '0.5rem 0' }}>SKU: {product.sku}</div>
             <div>Stock: {product.stock}</div>
             {product.description && <p style={{ marginTop: '0.5rem' }}>{product.description}</p>}
@@ -112,7 +125,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, log 
                   onPlus={() => setQty(q => Math.min(product.stock, q + 1))}
                   widthChars={3} />
                 <Button variant="primary" onClick={() => {
-                  onAddToCart({ id: product.id, name: product.name, price: product.price }, qty);
+                  onAddToCart({ id: product.id, name: product.name, price: getEffectivePrice(product) }, qty);
                   log(`Added ${qty}x ${product.name} to cart`, 'success');
                 }}>Add to Cart</Button>
               </div>

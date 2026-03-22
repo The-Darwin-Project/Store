@@ -466,6 +466,30 @@ h3 {
   margin-bottom: 0.75rem;
 }
 
+/* Product discount pricing */
+.ds-original-price {
+  text-decoration: line-through;
+  color: var(--ds-text-secondary);
+  font-weight: 400;
+  font-size: 0.9em;
+}
+
+.ds-sale-price {
+  color: var(--ds-danger);
+  font-weight: 700;
+}
+
+.ds-discount-badge {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--ds-danger);
+  padding: 0.15rem 0.5rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
 /* Page layout -- suppress phantom sidebar column, stretch full viewport */
 .pf-v6-c-page {
   grid-template-columns: 1fr !important;
