@@ -191,12 +191,12 @@ jobs:
             git push
           fi
 
-      - name: Create PR and auto-merge
+      - name: Create PR and add ci-passed label
         env:
           GH_TOKEN: ${{ vars.USE_GITHUB_APP == 'true' && steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="${{ github.ref_name }}"
-          
+
           EXISTING_PR=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' 2>/dev/null || echo "")
           if [ -z "$EXISTING_PR" ]; then
             gh pr create \
@@ -205,20 +205,29 @@ jobs:
               --head "$BRANCH" \
               --base main
           fi
-          
-          MERGED=false
-          for i in 1 2 3; do
-            if gh pr merge "$BRANCH" --merge --delete-branch --admin 2>/dev/null; then
-              MERGED=true
-              break
-            fi
-            echo "Merge attempt $i failed, retrying in 10s..."
-            sleep 10
-          done
-          
-          if [ "$MERGED" = "false" ]; then
-            gh pr merge "$BRANCH" --merge --delete-branch || echo "WARNING: Auto-merge failed"
+
+          PR_NUMBER=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
+          gh pr edit "$PR_NUMBER" --add-label "ci-passed"
+
+          echo "## CI Passed" >> $GITHUB_STEP_SUMMARY
+          echo "Branch **${BRANCH}** — PR #${PR_NUMBER} created with \`ci-passed\` label" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for qe-verified label and merge
+        env:
+          GH_TOKEN: ${{ vars.USE_GITHUB_APP == 'true' && steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          PR_NUMBER=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
+
+          HAS_QE_LABEL=$(gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name' | grep -c '^qe-verified$' || true)
+
+          if [ "$HAS_QE_LABEL" -gt 0 ]; then
+            echo "qe-verified label found — merging PR"
+            gh pr merge "$PR_NUMBER" --merge --delete-branch --admin
+            echo "## Auto-Merged" >> $GITHUB_STEP_SUMMARY
+            echo "Branch **${BRANCH}** merged to main (QE verified)" >> $GITHUB_STEP_SUMMARY
+          else
+            gh pr comment "$PR_NUMBER" --body "CI passed (validate + pytest + Playwright). Awaiting \`qe-verified\` label before merge."
+            echo "## Awaiting QE Verification" >> $GITHUB_STEP_SUMMARY
+            echo "Branch **${BRANCH}** — CI passed, waiting for \`qe-verified\` label" >> $GITHUB_STEP_SUMMARY
           fi
-          
-          echo "## Auto-Merged" >> $GITHUB_STEP_SUMMARY
-          echo "Branch **${BRANCH}** merged to main" >> $GITHUB_STEP_SUMMARY
