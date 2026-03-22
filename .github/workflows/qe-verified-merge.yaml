@@ -1,0 +1,45 @@
+# Merge PR when qe-verified label is added (after CI has passed)
+# Companion to ci-branch.yaml — handles the case where QE adds the label after CI completed
+#
+# Flow: QE adds "qe-verified" label → this workflow checks for "ci-passed" label → merges if present
+
+name: QE Verified Merge
+
+on:
+  pull_request:
+    types: [labeled]
+    branches: [main]
+
+jobs:
+  merge-on-qe-verified:
+    if: github.event.label.name == 'qe-verified'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        if: vars.USE_GITHUB_APP == 'true'
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.DARWIN_APP_ID }}
+          private-key: ${{ secrets.DARWIN_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Check ci-passed label and merge
+        env:
+          GH_TOKEN: ${{ vars.USE_GITHUB_APP == 'true' && steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+
+          HAS_CI_LABEL=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json labels --jq '.labels[].name' | grep -c '^ci-passed$' || true)
+
+          if [ "$HAS_CI_LABEL" -gt 0 ]; then
+            echo "ci-passed label found — merging PR #${PR_NUMBER}"
+            gh pr merge "$PR_NUMBER" --repo "${{ github.repository }}" --merge --delete-branch --admin
+          else
+            gh pr comment "$PR_NUMBER" --repo "${{ github.repository }}" --body "QE verified, but CI has not passed yet. The PR will be merged once CI completes and adds the \`ci-passed\` label."
+          fi
