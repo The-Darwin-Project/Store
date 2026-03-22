@@ -400,6 +400,14 @@ async def startup_event():
                 conn.commit()
             except Exception as e:
                 logger.warning(f"Migration warning (customer address fields): {e}")
+
+            # Migration: Add product-level discount columns
+            try:
+                cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS sale_price REAL")
+                cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percent REAL")
+                conn.commit()
+            except Exception as e:
+                logger.warning(f"Migration warning (product discounts): {e}")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
     finally:

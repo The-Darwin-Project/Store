@@ -9,7 +9,7 @@ import json
 from ..models import (
     Order, OrderItem, OrderCreate, OrderStatusUpdate, OrderStatus,
     ORDER_STATUS_TRANSITIONS, Invoice, InvoiceLineItem, CustomerSnapshot,
-    PaginatedResponse,
+    PaginatedResponse, effective_price,
 )
 from .alerts import check_and_create_alert
 from .coupons import validate_coupon_for_cart
@@ -251,7 +251,7 @@ async def create_order(order_data: OrderCreate, request: Request) -> Order:
                     UPDATE products
                     SET stock = stock - %s
                     WHERE id = %s AND stock >= %s
-                    RETURNING id, name, price, stock
+                    RETURNING id, name, price, stock, sale_price, discount_percent
                     """,
                     (item.quantity, item.product_id, item.quantity)
                 )
@@ -271,7 +271,7 @@ async def create_order(order_data: OrderCreate, request: Request) -> Order:
                         detail=f"Insufficient stock for '{product[0]}' (available: {product[1]}, requested: {item.quantity})"
                     )
 
-                price_at_purchase = row[2]
+                price_at_purchase = effective_price(row[2], row[4], row[5])
                 item_total = price_at_purchase * item.quantity
                 total_amount += item_total
 

@@ -9,6 +9,7 @@ import {
 import { ShoppingCartIcon } from '@patternfly/react-icons';
 import { products as productsApi, campaigns as campaignsApi, reviews as reviewsApi } from '../../api/client';
 import type { Product, Campaign, AverageRating } from '../../types';
+import { getEffectivePrice, hasDiscount } from '../../types';
 import { usePolling } from '../../hooks/usePolling';
 import { ProductDetailModal } from './ProductDetailModal';
 
@@ -139,7 +140,17 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
                         </div>
                       )}
                       <div className="price card-price">
-                        ${(Number(p.price) || 0).toFixed(2)}
+                        {hasDiscount(p) ? (
+                          <>
+                            <span className="ds-original-price">${(Number(p.price) || 0).toFixed(2)}</span>{' '}
+                            <span className="ds-sale-price">${getEffectivePrice(p).toFixed(2)}</span>
+                            {p.discount_percent != null && !p.sale_price && (
+                              <span className="ds-discount-badge">-{p.discount_percent}%</span>
+                            )}
+                          </>
+                        ) : (
+                          <>${(Number(p.price) || 0).toFixed(2)}</>
+                        )}
                       </div>
                       {p.stock === 0 ? (
                         <div className="stock-badge out-of-stock">Out of stock</div>
@@ -173,7 +184,7 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
                             variant="primary"
                             icon={<ShoppingCartIcon />}
                             onClick={() => {
-                              onAddToCart({ id: p.id, name: p.name, price: p.price }, qty);
+                              onAddToCart({ id: p.id, name: p.name, price: getEffectivePrice(p) }, qty);
                               log(`Added ${qty}x ${p.name} to cart`, 'success');
                               setAddQty(prev => ({ ...prev, [p.id]: 1 }));
                             }}

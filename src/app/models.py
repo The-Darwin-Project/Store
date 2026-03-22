@@ -70,6 +70,8 @@ class Product(BaseModel):
     description: Optional[str] = Field(default="")
     supplier_id: Optional[str] = None
     reorder_threshold: int = Field(default=10, ge=0)
+    sale_price: Optional[float] = Field(default=None, ge=0)
+    discount_percent: Optional[float] = Field(default=None, ge=0, le=100)
 
 
 class ProductCreate(BaseModel):
@@ -82,6 +84,8 @@ class ProductCreate(BaseModel):
     description: Optional[str] = Field(default="")
     supplier_id: Optional[str] = None
     reorder_threshold: int = Field(default=10, ge=0)
+    sale_price: Optional[float] = Field(default=None, ge=0)
+    discount_percent: Optional[float] = Field(default=None, ge=0, le=100)
 
 
 class ProductUpdate(BaseModel):
@@ -94,6 +98,20 @@ class ProductUpdate(BaseModel):
     description: Optional[str] = None
     supplier_id: Optional[str] = None
     reorder_threshold: Optional[int] = Field(default=None, ge=0)
+    sale_price: Optional[float] = Field(default=None, ge=0)
+    discount_percent: Optional[float] = Field(default=None, ge=0, le=100)
+
+
+def effective_price(price: float, sale_price: Optional[float], discount_percent: Optional[float]) -> float:
+    """Calculate the effective price after product-level discounts.
+
+    Priority: sale_price > discount_percent > original price.
+    """
+    if sale_price is not None:
+        return sale_price
+    if discount_percent is not None:
+        return round(price * (1 - discount_percent / 100), 2)
+    return price
 
 
 class SupplierCreate(BaseModel):

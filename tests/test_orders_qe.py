@@ -36,7 +36,7 @@ def test_create_order_atomic_update_sql(mock_pool_cls):
     # Setup successful execution
     mock_cursor.fetchone.side_effect = [
         (MOCK_ORDER_PAYLOAD["customer_id"],),  # SELECT id FROM customers
-        (MOCK_PRODUCT_ID, "Test Product", 10.0, 98),  # UPDATE RETURNING
+        (MOCK_PRODUCT_ID, "Test Product", 10.0, 98, None, None),  # UPDATE RETURNING (id, name, price, stock, sale_price, discount_percent)
         (None,)  # SELECT created_at
     ]
     

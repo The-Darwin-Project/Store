@@ -17,6 +17,8 @@ export interface Product {
   reorder_threshold?: number;
   supplier_id?: string | null;
   created_at?: string;
+  sale_price?: number | null;
+  discount_percent?: number | null;
 }
 
 export interface ProductCreate {
@@ -28,6 +30,20 @@ export interface ProductCreate {
   description?: string | null;
   reorder_threshold?: number;
   supplier_id?: string | null;
+  sale_price?: number | null;
+  discount_percent?: number | null;
+}
+
+export function getEffectivePrice(product: Product): number {
+  if (product.sale_price != null) return product.sale_price;
+  if (product.discount_percent != null) {
+    return Math.round(product.price * (1 - product.discount_percent / 100) * 100) / 100;
+  }
+  return product.price;
+}
+
+export function hasDiscount(product: Product): boolean {
+  return product.sale_price != null || (product.discount_percent != null && product.discount_percent > 0);
 }
 
 export interface Order {
