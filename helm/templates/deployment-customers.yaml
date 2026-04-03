@@ -1,25 +1,24 @@
-# Store/helm/templates/deployment-backend.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-backend
+  name: {{ .Release.Name }}-customers
   labels:
-    app: darwin-store-backend
-    app.kubernetes.io/name: darwin-store-backend
+    app: darwin-store-customers
+    app.kubernetes.io/name: darwin-store-customers
     app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/component: backend
+    app.kubernetes.io/component: customers
 spec:
-  replicas: {{ .Values.replicaCount.backend }}
+  replicas: {{ .Values.replicaCount.customers }}
   selector:
     matchLabels:
-      app: darwin-store-backend
+      app: darwin-store-customers
       app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: darwin-store-backend
+        app: darwin-store-customers
         app.kubernetes.io/instance: {{ .Release.Name }}
-        app.kubernetes.io/component: backend
+        app.kubernetes.io/component: customers
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- if .Values.restartedAt }}
@@ -40,7 +39,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       initContainers:
         - name: wait-for-postgres
-          image: "{{ .Values.image.backend.repository }}:{{ .Values.image.backend.tag }}"
+          image: "{{ .Values.image.customers.repository }}:{{ .Values.image.customers.tag }}"
           command:
             - python3
             - -c
@@ -72,14 +71,14 @@ spec:
               cpu: 100m
               memory: 64Mi
       containers:
-        - name: backend
-          image: "{{ .Values.image.backend.repository }}:{{ .Values.image.backend.tag }}"
-          imagePullPolicy: {{ .Values.image.backend.pullPolicy }}
+        - name: customers
+          image: "{{ .Values.image.customers.repository }}:{{ .Values.image.customers.tag }}"
+          imagePullPolicy: {{ .Values.image.customers.pullPolicy }}
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 8082
               protocol: TCP
           envFrom:
             - configMapRef:
@@ -99,6 +98,8 @@ spec:
               value: "postgres"
             - name: CHAOS_CONTROLLER_URL
               value: "http://{{ .Release.Name }}-chaos:{{ .Values.service.chaos.port }}"
+            - name: INVENTORY_SERVICE_URL
+              value: "http://{{ .Release.Name }}-inventory:{{ .Values.service.inventory.port }}"
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
             httpGet:
@@ -110,7 +111,7 @@ spec:
               path: /health
               port: http
           resources:
-            {{- toYaml .Values.resources.backend | nindent 12 }}
+            {{- toYaml .Values.resources.customers | nindent 12 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

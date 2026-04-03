@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-inventory
+  labels:
+    app: darwin-store-inventory
+    app.kubernetes.io/name: darwin-store-inventory
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: inventory
+spec:
+  replicas: {{ .Values.replicaCount.inventory }}
+  selector:
+    matchLabels:
+      app: darwin-store-inventory
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: darwin-store-inventory
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: inventory
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.restartedAt }}
+        kubectl.kubernetes.io/restartedAt: {{ .Values.restartedAt | quote }}
+        {{- end }}
+        # Darwin service discovery -- Observer reads these from pods
+        darwin.io/monitored: "true"
+        darwin.io/service-name: "darwin-store"
+        darwin.io/source-repo: "https://github.com/The-Darwin-Project/Store.git"
+        darwin.io/gitops-repo: "https://github.com/The-Darwin-Project/Store.git"
+        darwin.io/config-path: "helm/values.yaml"
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: wait-for-postgres
+          image: "{{ .Values.image.inventory.repository }}:{{ .Values.image.inventory.tag }}"
+          command:
+            - python3
+            - -c
+            - |
+              import socket, time, sys
+              host = "{{ .Release.Name }}-postgres-svc"
+              port = 5432
+              max_wait = 120
+              elapsed = 0
+              print(f"Waiting for {host}:{port} to be ready...")
+              while elapsed < max_wait:
+                  try:
+                      socket.create_connection((host, port), timeout=2).close()
+                      print(f"Postgres is ready! ({host}:{port} accepting connections after {elapsed}s)")
+                      sys.exit(0)
+                  except OSError:
+                      print(f"Postgres not ready yet ({elapsed}s elapsed), retrying in 2s...")
+                      time.sleep(2)
+                      elapsed += 2
+              print(f"ERROR: Timed out after {max_wait}s waiting for {host}:{port}")
+              sys.exit(1)
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+      containers:
+        - name: inventory
+          image: "{{ .Values.image.inventory.repository }}:{{ .Values.image.inventory.tag }}"
+          imagePullPolicy: {{ .Values.image.inventory.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-config
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://postgres:{{ .Values.postgres.auth.password }}@{{ .Release.Name }}-postgres-svc:5432/postgres"
+            - name: DB_HOST
+              value: "{{ .Release.Name }}-postgres-svc"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: {{ .Values.postgres.auth.password | quote }}
+            - name: DB_NAME
+              value: "postgres"
+            - name: CHAOS_CONTROLLER_URL
+              value: "http://{{ .Release.Name }}-chaos:{{ .Values.service.chaos.port }}"
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+            httpGet:
+              path: /health
+              port: http
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            {{- toYaml .Values.resources.inventory | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

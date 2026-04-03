@@ -1,0 +1,266 @@
+# @ai-rules:
+# 1. [Pattern]: Product schemas follow Create/Update/Read split -- ProductCreate for POST, ProductUpdate for PATCH, Product for responses.
+# 2. [Constraint]: ProductUpdate fields must ALL be Optional to support partial updates via model_dump(exclude_unset=True).
+# 3. [Gotcha]: Do not confuse Optional default=None with "field not sent". Use exclude_unset=True at call site.
+"""Pydantic schemas for Inventory Service domain models."""
+
+from pydantic import BaseModel, Field
+from typing import Generic, Optional, TypeVar
+from uuid import uuid4
+from datetime import datetime
+from enum import Enum
+
+
+T = TypeVar("T")
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    """Standard paginated response envelope."""
+    items: list[T]
+    total: int
+    page: int
+    limit: int
+    pages: int
+
+
+class AlertStatus(str, Enum):
+    ACTIVE = "active"
+    ORDERED = "ordered"
+    DISMISSED = "dismissed"
+
+
+class AlertType(str, Enum):
+    RESTOCK = "restock"
+
+
+class Product(BaseModel):
+    """Product schema for store inventory."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    name: str
+    price: float = Field(ge=0)
+    stock: int = Field(ge=0, default=0)
+    sku: str
+    image_data: Optional[str] = None
+    description: Optional[str] = Field(default="")
+    supplier_id: Optional[str] = None
+    reorder_threshold: int = Field(default=10, ge=0)
+    sale_price: Optional[float] = Field(default=None, ge=0)
+    discount_percent: Optional[float] = Field(default=None, ge=0, le=100)
+
+
+class ProductCreate(BaseModel):
+    """Schema for creating a new product."""
+    name: str
+    price: float = Field(ge=0)
+    stock: int = Field(ge=0, default=0)
+    sku: str
+    image_data: Optional[str] = None
+    description: Optional[str] = Field(default="")
+    supplier_id: Optional[str] = None
+    reorder_threshold: int = Field(default=10, ge=0)
+    sale_price: Optional[float] = Field(default=None, ge=0)
+    discount_percent: Optional[float] = Field(default=None, ge=0, le=100)
+
+
+class ProductUpdate(BaseModel):
+    """Schema for partial product updates (PATCH). Only provided fields are applied."""
+    name: Optional[str] = None
+    price: Optional[float] = Field(default=None, ge=0)
+    stock: Optional[int] = Field(default=None, ge=0)
+    sku: Optional[str] = None
+    image_data: Optional[str] = None
+    description: Optional[str] = None
+    supplier_id: Optional[str] = None
+    reorder_threshold: Optional[int] = Field(default=None, ge=0)
+    sale_price: Optional[float] = Field(default=None, ge=0)
+    discount_percent: Optional[float] = Field(default=None, ge=0, le=100)
+
+
+def effective_price(price: float, sale_price: Optional[float], discount_percent: Optional[float]) -> float:
+    """Calculate the effective price after product-level discounts.
+
+    Priority: sale_price > discount_percent > original price.
+    """
+    if sale_price is not None:
+        return sale_price
+    if discount_percent is not None:
+        return round(price * (1 - discount_percent / 100), 2)
+    return price
+
+
+class SupplierCreate(BaseModel):
+    """Schema for creating a new supplier."""
+    name: str
+    contact_email: Optional[str] = None
+    phone: Optional[str] = None
+
+
+class Supplier(BaseModel):
+    """Supplier schema for responses."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    name: str
+    contact_email: Optional[str] = None
+    phone: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+class Alert(BaseModel):
+    """Alert schema for responses."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    type: AlertType = AlertType.RESTOCK
+    message: str
+    status: AlertStatus = AlertStatus.ACTIVE
+    product_id: Optional[str] = None
+    product_name: Optional[str] = None
+    supplier_id: Optional[str] = None
+    supplier_name: Optional[str] = None
+    current_stock: Optional[int] = None
+    reorder_threshold: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+
+class AlertCreate(BaseModel):
+    """Schema for creating a new alert."""
+    type: AlertType = AlertType.RESTOCK
+    message: str
+    product_id: Optional[str] = None
+    supplier_id: Optional[str] = None
+    current_stock: Optional[int] = None
+    reorder_threshold: Optional[int] = None
+
+
+class AlertStatusUpdate(BaseModel):
+    """Schema for updating alert status."""
+    status: AlertStatus
+
+
+class DiscountType(str, Enum):
+    PERCENTAGE = "percentage"
+    FIXED = "fixed"
+
+
+class CouponCreate(BaseModel):
+    """Schema for creating a new coupon."""
+    code: str = Field(min_length=1, max_length=50)
+    discount_type: DiscountType
+    discount_value: float = Field(gt=0)
+    min_order_amount: float = Field(default=0.0, ge=0)
+    max_uses: int = Field(default=0, ge=0)  # 0 = unlimited
+    expires_at: Optional[datetime] = None
+
+
+class CouponUpdate(BaseModel):
+    """Schema for partial coupon updates."""
+    discount_type: Optional[DiscountType] = None
+    discount_value: Optional[float] = Field(default=None, gt=0)
+    min_order_amount: Optional[float] = Field(default=None, ge=0)
+    max_uses: Optional[int] = Field(default=None, ge=0)
+    expires_at: Optional[datetime] = None
+    is_active: Optional[bool] = None
+
+
+class Coupon(BaseModel):
+    """Coupon schema for responses."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    code: str
+    discount_type: DiscountType
+    discount_value: float
+    min_order_amount: float = 0.0
+    max_uses: int = 0
+    current_uses: int = 0
+    is_active: bool = True
+    expires_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+
+
+class CouponValidateRequest(BaseModel):
+    """Schema for validating a coupon against a cart total."""
+    code: str
+    cart_total: float = Field(gt=0)
+
+
+class CouponValidationResult(BaseModel):
+    """Result of coupon validation against a cart total."""
+    valid: bool
+    coupon: Optional[Coupon] = None
+    discount_amount: float = 0.0
+    final_total: float = 0.0
+    error: Optional[str] = None
+
+
+class ReviewCreate(BaseModel):
+    """Schema for creating a product review."""
+    customer_id: str
+    rating: int = Field(ge=1, le=5)
+    comment: Optional[str] = Field(default="", max_length=1000)
+
+
+class Review(BaseModel):
+    """Review schema for responses."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    product_id: str
+    customer_id: str
+    customer_name: Optional[str] = None
+    rating: int = Field(ge=1, le=5)
+    comment: Optional[str] = ""
+    created_at: Optional[datetime] = None
+
+
+class AverageRating(BaseModel):
+    """Average rating response for a product."""
+    product_id: str
+    average_rating: float
+    review_count: int
+
+
+class CampaignType(str, Enum):
+    BANNER = "banner"
+    DISCOUNT_PROMO = "discount_promo"
+    PRODUCT_SPOTLIGHT = "product_spotlight"
+
+
+class CampaignCreate(BaseModel):
+    """Schema for creating a new campaign."""
+    title: str = Field(min_length=1, max_length=255)
+    type: CampaignType
+    content: Optional[str] = Field(default="")
+    image_url: Optional[str] = None
+    link_url: Optional[str] = None
+    coupon_code: Optional[str] = None
+    product_id: Optional[str] = None
+    start_date: datetime
+    end_date: datetime
+    is_active: bool = True
+    priority: int = Field(default=0, ge=0)
+
+
+class CampaignUpdate(BaseModel):
+    """Schema for partial campaign updates."""
+    title: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    type: Optional[CampaignType] = None
+    content: Optional[str] = None
+    image_url: Optional[str] = None
+    link_url: Optional[str] = None
+    coupon_code: Optional[str] = None
+    product_id: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    is_active: Optional[bool] = None
+    priority: Optional[int] = Field(default=None, ge=0)
+
+
+class Campaign(BaseModel):
+    """Campaign schema for responses."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    title: str
+    type: CampaignType
+    content: Optional[str] = ""
+    image_url: Optional[str] = None
+    link_url: Optional[str] = None
+    coupon_code: Optional[str] = None
+    product_id: Optional[str] = None
+    start_date: datetime
+    end_date: datetime
+    is_active: bool = True
+    priority: int = 0
+    created_at: Optional[datetime] = None
