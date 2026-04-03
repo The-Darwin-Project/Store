@@ -5,15 +5,17 @@
 // Also runnable locally with: STORE_URL=https://... npx playwright test tests/post-deploy/smoke.spec.js
 //
 // Environment variables:
-//   STORE_URL   — frontend URL  (default: http://darwin-store-frontend:8080)
-//   BACKEND_URL — backend API   (default: http://darwin-store-backend:8080)
-//   CHAOS_URL   — chaos ctrl    (default: http://darwin-store-chaos:9000)
+//   STORE_URL     — frontend URL       (default: http://darwin-store-frontend:8080)
+//   INVENTORY_URL — inventory backend  (default: http://darwin-store-inventory:8081)
+//   CUSTOMERS_URL — customers backend  (default: http://darwin-store-customers:8082)
+//   CHAOS_URL     — chaos ctrl         (default: http://darwin-store-chaos:9000)
 
 const { test, expect } = require('@playwright/test');
 
-const STORE_URL   = process.env.STORE_URL   || 'http://darwin-store-frontend:8080';
-const BACKEND_URL = process.env.BACKEND_URL || 'http://darwin-store-backend:8080';
-const CHAOS_URL   = process.env.CHAOS_URL   || 'http://darwin-store-chaos:9000';
+const STORE_URL     = process.env.STORE_URL     || 'http://darwin-store-frontend:8080';
+const INVENTORY_URL = process.env.INVENTORY_URL || 'http://darwin-store-inventory:8081';
+const CUSTOMERS_URL = process.env.CUSTOMERS_URL || 'http://darwin-store-customers:8082';
+const CHAOS_URL     = process.env.CHAOS_URL     || 'http://darwin-store-chaos:9000';
 
 // Skip in GitHub Actions — cluster URLs are unreachable from GHA runners.
 // Use GITHUB_ACTIONS (not CI) because the Playwright Docker image may set CI=1.
@@ -155,7 +157,8 @@ test.describe('Smoke 3 — Admin panel: Alerts product name + Invoices view fix'
 test.describe('Smoke 4 — Backend API field-name correctness', () => {
 
   test('GET /api/products returns 200 with a paginated response', async ({ request }) => {
-    const resp = await request.get(`${BACKEND_URL}/products`);
+    // products are owned by the inventory service
+    const resp = await request.get(`${INVENTORY_URL}/products`);
     expect(resp.status()).toBe(200);
     const data = await resp.json();
     expect(Array.isArray(data.items)).toBe(true);
@@ -165,7 +168,8 @@ test.describe('Smoke 4 — Backend API field-name correctness', () => {
   });
 
   test('GET /api/alerts includes product_name field (Bug 1 backend fix)', async ({ request }) => {
-    const resp = await request.get(`${BACKEND_URL}/alerts?status=active`);
+    // alerts are owned by the inventory service
+    const resp = await request.get(`${INVENTORY_URL}/alerts?status=active`);
     expect(resp.status()).toBe(200);
     const body = await resp.json();
     expect(Array.isArray(body)).toBe(true);
@@ -177,7 +181,8 @@ test.describe('Smoke 4 — Backend API field-name correctness', () => {
   });
 
   test('GET /api/invoices uses line_items and grand_total field names (Bug 2 backend fix)', async ({ request }) => {
-    const resp = await request.get(`${BACKEND_URL}/invoices`);
+    // invoices are owned by the customers service
+    const resp = await request.get(`${CUSTOMERS_URL}/invoices`);
     expect(resp.status()).toBe(200);
     const body = await resp.json();
     expect(Array.isArray(body)).toBe(true);
@@ -193,7 +198,8 @@ test.describe('Smoke 4 — Backend API field-name correctness', () => {
   });
 
   test('GET /api/campaigns/active uses type not campaign_type', async ({ request }) => {
-    const resp = await request.get(`${BACKEND_URL}/campaigns/active`);
+    // campaigns are owned by the inventory service
+    const resp = await request.get(`${INVENTORY_URL}/campaigns/active`);
     expect(resp.status()).toBe(200);
     const body = await resp.json();
     expect(Array.isArray(body)).toBe(true);
