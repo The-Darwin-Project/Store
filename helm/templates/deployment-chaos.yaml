@@ -67,8 +67,10 @@ spec:
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           env:
-            - name: BACKEND_URL
-              value: "http://{{ .Release.Name }}-backend:{{ .Values.service.backend.port }}"
+            - name: INVENTORY_URL
+              value: "http://{{ .Release.Name }}-inventory:{{ .Values.service.inventory.port }}"
+            - name: CUSTOMERS_URL
+              value: "http://{{ .Release.Name }}-customers:{{ .Values.service.customers.port }}"
             - name: DB_HOST
               value: "{{ .Release.Name }}-postgres-svc"
             - name: DB_PORT
