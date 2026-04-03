@@ -33,7 +33,8 @@ on:
       - "src/**"
       - "frontend/**"
       - "Dockerfile.frontend"
-      - "Dockerfile.backend"
+      - "Dockerfile.backend-inventory"
+      - "Dockerfile.backend-customers"
       - "Dockerfile.chaos"
       - "Dockerfile.playwright"
       - "nginx/**"
@@ -70,9 +71,12 @@ jobs:
           - name: frontend
             dockerfile: Dockerfile.frontend
             image_suffix: store-frontend
-          - name: backend
-            dockerfile: Dockerfile.backend
-            image_suffix: store-backend
+          - name: inventory
+            dockerfile: Dockerfile.backend-inventory
+            image_suffix: store-inventory
+          - name: customers
+            dockerfile: Dockerfile.backend-customers
+            image_suffix: store-customers
           - name: chaos
             dockerfile: Dockerfile.chaos
             image_suffix: store-chaos
@@ -165,11 +169,12 @@ jobs:
       - name: Install yq
         uses: mikefarah/yq@master
 
-      # Update helm/values.yaml with the new image tags for all 3 components
+      # Update helm/values.yaml with the new image tags for all components
       - name: Update Helm values with new image tags
         run: |
           yq -i '.image.frontend.tag = "${{ steps.sha.outputs.short }}"' helm/values.yaml
-          yq -i '.image.backend.tag = "${{ steps.sha.outputs.short }}"' helm/values.yaml
+          yq -i '.image.inventory.tag = "${{ steps.sha.outputs.short }}"' helm/values.yaml
+          yq -i '.image.customers.tag = "${{ steps.sha.outputs.short }}"' helm/values.yaml
           yq -i '.image.chaos.tag = "${{ steps.sha.outputs.short }}"' helm/values.yaml
           yq -i '.postDeployTests.image.tag = "${{ steps.sha.outputs.short }}"' helm/values.yaml
 
@@ -210,6 +215,7 @@ jobs:
         run: |
           echo "### Helm Values Updated" >> $GITHUB_STEP_SUMMARY
           echo "- \`image.frontend.tag\` set to \`${{ steps.sha.outputs.short }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`image.backend.tag\` set to \`${{ steps.sha.outputs.short }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`image.inventory.tag\` set to \`${{ steps.sha.outputs.short }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`image.customers.tag\` set to \`${{ steps.sha.outputs.short }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`image.chaos.tag\` set to \`${{ steps.sha.outputs.short }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`postDeployTests.image.tag\` set to \`${{ steps.sha.outputs.short }}\`" >> $GITHUB_STEP_SUMMARY
