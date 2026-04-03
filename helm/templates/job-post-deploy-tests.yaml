@@ -38,8 +38,10 @@ spec:
           env:
             - name: STORE_URL
               value: "http://{{ .Release.Name }}-frontend:{{ .Values.service.frontend.port }}"
-            - name: BACKEND_URL
-              value: "http://{{ .Release.Name }}-backend:{{ .Values.service.backend.port }}"
+            - name: INVENTORY_URL
+              value: "http://{{ .Release.Name }}-inventory:{{ .Values.service.inventory.port }}"
+            - name: CUSTOMERS_URL
+              value: "http://{{ .Release.Name }}-customers:{{ .Values.service.customers.port }}"
             - name: CHAOS_URL
               value: "http://{{ .Release.Name }}-chaos:{{ .Values.service.chaos.port }}"
             - name: IMAGE_TAG
