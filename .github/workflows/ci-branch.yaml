@@ -46,9 +46,10 @@ jobs:
         run: |
           echo "Building Docker images to validate branch changes..."
           docker build -f Dockerfile.frontend -t ci-frontend:${{ github.sha }} .
-          docker build -f Dockerfile.backend -t ci-backend:${{ github.sha }} .
+          docker build -f Dockerfile.backend-inventory -t ci-inventory:${{ github.sha }} .
+          docker build -f Dockerfile.backend-customers -t ci-customers:${{ github.sha }} .
           docker build -f Dockerfile.chaos -t ci-chaos:${{ github.sha }} .
-          echo "Docker build validation passed (all 3 images)"
+          echo "Docker build validation passed (all 4 images)"
 
       - name: Install yq
         uses: mikefarah/yq@master
@@ -57,18 +58,14 @@ jobs:
         run: |
           git fetch origin main
           MAIN_FRONTEND_TAG=$(git show origin/main:helm/values.yaml | yq '.image.frontend.tag')
-          MAIN_BACKEND_TAG=$(git show origin/main:helm/values.yaml | yq '.image.backend.tag')
           MAIN_CHAOS_TAG=$(git show origin/main:helm/values.yaml | yq '.image.chaos.tag')
           BRANCH_FRONTEND_TAG=$(yq '.image.frontend.tag' helm/values.yaml)
-          BRANCH_BACKEND_TAG=$(yq '.image.backend.tag' helm/values.yaml)
           BRANCH_CHAOS_TAG=$(yq '.image.chaos.tag' helm/values.yaml)
           TAGS_CHANGED=false
           if [ "$MAIN_FRONTEND_TAG" != "$BRANCH_FRONTEND_TAG" ] || \
-             [ "$MAIN_BACKEND_TAG" != "$BRANCH_BACKEND_TAG" ] || \
              [ "$MAIN_CHAOS_TAG" != "$BRANCH_CHAOS_TAG" ]; then
             echo "WARNING: Branch modified image tags — resetting to main's values"
             yq -i ".image.frontend.tag = \"$MAIN_FRONTEND_TAG\"" helm/values.yaml
-            yq -i ".image.backend.tag = \"$MAIN_BACKEND_TAG\"" helm/values.yaml
             yq -i ".image.chaos.tag = \"$MAIN_CHAOS_TAG\"" helm/values.yaml
             TAGS_CHANGED=true
           fi
@@ -112,6 +109,7 @@ jobs:
             tests/test_campaigns.py \
             tests/test_pagination.py \
             tests/test_field_alignment_evt04511f86.py \
+            tests/test_split_services_evt_fb71d51d.py \
             -v --tb=short
 
       - name: Test summary
@@ -178,10 +176,8 @@ jobs:
         run: |
           git fetch origin main
           MAIN_FRONTEND_TAG=$(git show origin/main:helm/values.yaml | yq '.image.frontend.tag')
-          MAIN_BACKEND_TAG=$(git show origin/main:helm/values.yaml | yq '.image.backend.tag')
           MAIN_CHAOS_TAG=$(git show origin/main:helm/values.yaml | yq '.image.chaos.tag')
           yq -i ".image.frontend.tag = \"$MAIN_FRONTEND_TAG\"" helm/values.yaml
-          yq -i ".image.backend.tag = \"$MAIN_BACKEND_TAG\"" helm/values.yaml
           yq -i ".image.chaos.tag = \"$MAIN_CHAOS_TAG\"" helm/values.yaml
           if ! git diff --quiet helm/values.yaml; then
             git add helm/values.yaml

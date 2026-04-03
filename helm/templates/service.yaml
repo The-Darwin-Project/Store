@@ -19,24 +19,44 @@ spec:
     app: darwin-store-frontend
     app.kubernetes.io/instance: {{ .Release.Name }}
 ---
-# Backend API Service (FastAPI, port 8080)
+# Inventory API Service (FastAPI, port 8081)
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-backend
+  name: {{ .Release.Name }}-inventory
   labels:
-    app: darwin-store-backend
-    app.kubernetes.io/name: darwin-store-backend
+    app: darwin-store-inventory
+    app.kubernetes.io/name: darwin-store-inventory
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  type: {{ .Values.service.backend.type }}
+  type: {{ .Values.service.inventory.type }}
   ports:
-    - port: {{ .Values.service.backend.port }}
+    - port: {{ .Values.service.inventory.port }}
       targetPort: http
       protocol: TCP
       name: http
   selector:
-    app: darwin-store-backend
+    app: darwin-store-inventory
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+# Customer Management API Service (FastAPI, port 8082)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-customers
+  labels:
+    app: darwin-store-customers
+    app.kubernetes.io/name: darwin-store-customers
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.customers.type }}
+  ports:
+    - port: {{ .Values.service.customers.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: darwin-store-customers
     app.kubernetes.io/instance: {{ .Release.Name }}
 ---
 # Chaos Controller Service (FastAPI, port 9000)
