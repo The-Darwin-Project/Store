@@ -24,6 +24,24 @@ class PaginatedResponse(BaseModel, Generic[T]):
     pages: int
 
 
+class Category(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    name: str
+    description: Optional[str] = Field(default="")
+    product_count: int = Field(default=0)
+    created_at: Optional[datetime] = None
+
+
+class CategoryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    description: Optional[str] = Field(default="")
+
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    description: Optional[str] = None
+
+
 class AlertStatus(str, Enum):
     ACTIVE = "active"
     ORDERED = "ordered"
@@ -69,6 +87,7 @@ class Product(BaseModel):
     image_data: Optional[str] = None
     description: Optional[str] = Field(default="")
     supplier_id: Optional[str] = None
+    category_id: Optional[str] = None
     reorder_threshold: int = Field(default=10, ge=0)
     sale_price: Optional[float] = Field(default=None, ge=0)
     discount_percent: Optional[float] = Field(default=None, ge=0, le=100)
@@ -83,6 +102,7 @@ class ProductCreate(BaseModel):
     image_data: Optional[str] = None
     description: Optional[str] = Field(default="")
     supplier_id: Optional[str] = None
+    category_id: Optional[str] = None
     reorder_threshold: int = Field(default=10, ge=0)
     sale_price: Optional[float] = Field(default=None, ge=0)
     discount_percent: Optional[float] = Field(default=None, ge=0, le=100)
@@ -97,6 +117,7 @@ class ProductUpdate(BaseModel):
     image_data: Optional[str] = None
     description: Optional[str] = None
     supplier_id: Optional[str] = None
+    category_id: Optional[str] = None
     reorder_threshold: Optional[int] = Field(default=None, ge=0)
     sale_price: Optional[float] = Field(default=None, ge=0)
     discount_percent: Optional[float] = Field(default=None, ge=0, le=100)

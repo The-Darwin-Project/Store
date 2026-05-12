@@ -4,6 +4,7 @@ import type {
   Alert, Coupon, CouponCreate, CouponValidationResult,
   Invoice, Campaign, CampaignCreate, Review, ReviewCreate,
   AverageRating, DashboardData, PaginatedResponse,
+  Category, CategoryCreate,
 } from '../types';
 
 class ApiError extends Error {
@@ -35,8 +36,11 @@ async function request<T>(endpoint: string, method = 'GET', body?: unknown): Pro
 
 // Products
 export const products = {
-  list: (page = 1, limit = 20) =>
-    request<PaginatedResponse<Product>>(`/products?page=${page}&limit=${limit}`),
+  list: (page = 1, limit = 20, categoryId?: string) => {
+    let url = `/products?page=${page}&limit=${limit}`;
+    if (categoryId) url += `&category_id=${categoryId}`;
+    return request<PaginatedResponse<Product>>(url);
+  },
   get: (id: string) => request<Product>(`/products/${id}`),
   create: (data: ProductCreate) => request<Product>('/products', 'POST', data),
   update: (id: string, data: ProductCreate) => request<Product>(`/products/${id}`, 'PUT', data),
@@ -148,6 +152,15 @@ export const campaigns = {
   update: (id: string, data: Partial<CampaignCreate>) =>
     request<Campaign>(`/campaigns/${id}`, 'PATCH', data),
   delete: (id: string) => request<void>(`/campaigns/${id}`, 'DELETE'),
+};
+
+// Categories
+export const categories = {
+  list: () => request<Category[]>('/categories'),
+  create: (data: CategoryCreate) => request<Category>('/categories', 'POST', data),
+  update: (id: string, data: Partial<CategoryCreate>) =>
+    request<Category>(`/categories/${id}`, 'PATCH', data),
+  delete: (id: string) => request<void>(`/categories/${id}`, 'DELETE'),
 };
 
 // Auth

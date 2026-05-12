@@ -37,6 +37,7 @@ from .routes.coupons import router as coupons_router
 from .routes.invoices import router as invoices_router
 from .routes.reviews import router as reviews_router
 from .routes.campaigns import router as campaigns_router
+from .routes.categories import router as categories_router
 from .routes.auth import router as auth_router, validate_session
 from .chaos_state import ChaosState, record_request
 
@@ -156,6 +157,7 @@ app.include_router(coupons_router)
 app.include_router(invoices_router)
 app.include_router(reviews_router)
 app.include_router(campaigns_router)
+app.include_router(categories_router)
 app.include_router(auth_router)
 
 
@@ -318,6 +320,14 @@ async def startup_event():
                     CONSTRAINT valid_date_range CHECK (end_date > start_date)
                 )
             ''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS categories (
+                    id UUID PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL UNIQUE,
+                    description TEXT DEFAULT '',
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            ''')
             conn.commit()
             logger.info("Database initialized and 'products', 'orders', 'order_items', 'coupons', 'invoices' tables created or verified.")
 
@@ -408,6 +418,13 @@ async def startup_event():
                 conn.commit()
             except Exception as e:
                 logger.warning(f"Migration warning (product discounts): {e}")
+
+            # Migration: Add category_id to products
+            try:
+                cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS category_id UUID REFERENCES categories(id) ON DELETE SET NULL")
+                conn.commit()
+            except Exception as e:
+                logger.warning(f"Migration warning (category_id): {e}")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
     finally:

@@ -19,23 +19,35 @@ async def list_products(
     request: Request,
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    category_id: Optional[str] = Query(None, description="Filter by category"),
 ) -> PaginatedResponse[Product]:
     """List products with pagination."""
     pool = request.app.state.db_pool
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM products")
+            if category_id:
+                cur.execute("SELECT COUNT(*) FROM products WHERE category_id = %s", (category_id,))
+            else:
+                cur.execute("SELECT COUNT(*) FROM products")
             total = cur.fetchone()[0]
             offset = (page - 1) * limit
             pages = (total + limit - 1) // limit if total > 0 else 0
 
-            cur.execute(
-                "SELECT id, name, price, stock, sku, image_data, description, "
-                "supplier_id, reorder_threshold, sale_price, discount_percent FROM products "
-                "ORDER BY name LIMIT %s OFFSET %s",
-                (limit, offset)
-            )
+            if category_id:
+                cur.execute(
+                    "SELECT id, name, price, stock, sku, image_data, description, "
+                    "supplier_id, reorder_threshold, sale_price, discount_percent, category_id FROM products "
+                    "WHERE category_id = %s ORDER BY name LIMIT %s OFFSET %s",
+                    (category_id, limit, offset)
+                )
+            else:
+                cur.execute(
+                    "SELECT id, name, price, stock, sku, image_data, description, "
+                    "supplier_id, reorder_threshold, sale_price, discount_percent, category_id FROM products "
+                    "ORDER BY name LIMIT %s OFFSET %s",
+                    (limit, offset)
+                )
             products = [
                 Product(
                     id=str(row[0]), name=row[1], price=row[2], stock=row[3],
@@ -43,6 +55,7 @@ async def list_products(
                     supplier_id=str(row[7]) if row[7] else None,
                     reorder_threshold=row[8] if row[8] is not None else 10,
                     sale_price=row[9], discount_percent=row[10],
+                    category_id=str(row[11]) if row[11] else None,
                 )
                 for row in cur.fetchall()
             ]
@@ -60,11 +73,11 @@ async def get_product(product_id: str, request: Request) -> Product:
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold, sale_price, discount_percent FROM products WHERE id = %s", (product_id,))
+            cur.execute("SELECT id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold, sale_price, discount_percent, category_id FROM products WHERE id = %s", (product_id,))
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Product not found")
-            return Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6], supplier_id=str(row[7]) if row[7] else None, reorder_threshold=row[8] if row[8] is not None else 10, sale_price=row[9], discount_percent=row[10])
+            return Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6], supplier_id=str(row[7]) if row[7] else None, reorder_threshold=row[8] if row[8] is not None else 10, sale_price=row[9], discount_percent=row[10], category_id=str(row[11]) if row[11] else None)
     finally:
         pool.putconn(conn)
 
@@ -82,6 +95,7 @@ async def create_product(product: ProductCreate, request: Request) -> Product:
         image_data=product.image_data,
         description=product.description,
         supplier_id=product.supplier_id,
+        category_id=product.category_id,
         reorder_threshold=product.reorder_threshold,
         sale_price=product.sale_price,
         discount_percent=product.discount_percent,
@@ -91,8 +105,8 @@ async def create_product(product: ProductCreate, request: Request) -> Product:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO products (id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold, sale_price, discount_percent) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                (new_product.id, new_product.name, new_product.price, new_product.stock, new_product.sku, new_product.image_data, new_product.description, new_product.supplier_id, new_product.reorder_threshold, new_product.sale_price, new_product.discount_percent)
+                "INSERT INTO products (id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold, sale_price, discount_percent, category_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (new_product.id, new_product.name, new_product.price, new_product.stock, new_product.sku, new_product.image_data, new_product.description, new_product.supplier_id, new_product.reorder_threshold, new_product.sale_price, new_product.discount_percent, new_product.category_id)
             )
             conn.commit()
             return new_product
@@ -110,17 +124,17 @@ async def update_product(product_id: str, product: ProductCreate, request: Reque
             cur.execute(
                 """
                 UPDATE products
-                SET name = %s, price = %s, stock = %s, sku = %s, image_data = COALESCE(%s, image_data), description = %s, supplier_id = %s, reorder_threshold = %s, sale_price = %s, discount_percent = %s
+                SET name = %s, price = %s, stock = %s, sku = %s, image_data = COALESCE(%s, image_data), description = %s, supplier_id = %s, reorder_threshold = %s, sale_price = %s, discount_percent = %s, category_id = %s
                 WHERE id = %s
-                RETURNING id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold, sale_price, discount_percent
+                RETURNING id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold, sale_price, discount_percent, category_id
                 """,
-                (product.name, product.price, product.stock, product.sku, product.image_data, product.description, product.supplier_id, product.reorder_threshold, product.sale_price, product.discount_percent, product_id)
+                (product.name, product.price, product.stock, product.sku, product.image_data, product.description, product.supplier_id, product.reorder_threshold, product.sale_price, product.discount_percent, product.category_id, product_id)
             )
             row = cur.fetchone()
             conn.commit()
             if not row:
                 raise HTTPException(status_code=404, detail="Product not found")
-            return Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6], supplier_id=str(row[7]) if row[7] else None, reorder_threshold=row[8] if row[8] is not None else 10, sale_price=row[9], discount_percent=row[10])
+            return Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6], supplier_id=str(row[7]) if row[7] else None, reorder_threshold=row[8] if row[8] is not None else 10, sale_price=row[9], discount_percent=row[10], category_id=str(row[11]) if row[11] else None)
     finally:
         pool.putconn(conn)
 
@@ -134,11 +148,11 @@ async def patch_product(product_id: str, updates: ProductUpdate, request: Reques
     try:
         with conn.cursor() as cur:
             # Fetch existing product
-            cur.execute("SELECT id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold, sale_price, discount_percent FROM products WHERE id = %s", (product_id,))
+            cur.execute("SELECT id, name, price, stock, sku, image_data, description, supplier_id, reorder_threshold, sale_price, discount_percent, category_id FROM products WHERE id = %s", (product_id,))
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Product not found")
-            existing = Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6], supplier_id=str(row[7]) if row[7] else None, reorder_threshold=row[8] if row[8] is not None else 10, sale_price=row[9], discount_percent=row[10])
+            existing = Product(id=str(row[0]), name=row[1], price=row[2], stock=row[3], sku=row[4], image_data=row[5], description=row[6], supplier_id=str(row[7]) if row[7] else None, reorder_threshold=row[8] if row[8] is not None else 10, sale_price=row[9], discount_percent=row[10], category_id=str(row[11]) if row[11] else None)
 
             # No-op: empty body returns existing product unchanged
             if not provided:
@@ -147,8 +161,8 @@ async def patch_product(product_id: str, updates: ProductUpdate, request: Reques
             # Merge provided fields over existing
             merged = existing.model_copy(update=provided)
             cur.execute(
-                "UPDATE products SET name = %s, price = %s, stock = %s, sku = %s, image_data = %s, description = %s, supplier_id = %s, reorder_threshold = %s, sale_price = %s, discount_percent = %s WHERE id = %s",
-                (merged.name, merged.price, merged.stock, merged.sku, merged.image_data, merged.description, merged.supplier_id, merged.reorder_threshold, merged.sale_price, merged.discount_percent, product_id)
+                "UPDATE products SET name = %s, price = %s, stock = %s, sku = %s, image_data = %s, description = %s, supplier_id = %s, reorder_threshold = %s, sale_price = %s, discount_percent = %s, category_id = %s WHERE id = %s",
+                (merged.name, merged.price, merged.stock, merged.sku, merged.image_data, merged.description, merged.supplier_id, merged.reorder_threshold, merged.sale_price, merged.discount_percent, merged.category_id, product_id)
             )
             conn.commit()
 

@@ -19,6 +19,7 @@ export interface Product {
   created_at?: string;
   sale_price?: number | null;
   discount_percent?: number | null;
+  category_id?: string | null;
 }
 
 export interface ProductCreate {
@@ -32,6 +33,7 @@ export interface ProductCreate {
   supplier_id?: string | null;
   sale_price?: number | null;
   discount_percent?: number | null;
+  category_id?: string | null;
 }
 
 export function getEffectivePrice(product: Product): number {
@@ -234,6 +236,19 @@ export interface ReviewCreate {
   customer_id: string;
   rating: number;
   comment?: string | null;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  description?: string | null;
+  product_count: number;
+  created_at?: string;
+}
+
+export interface CategoryCreate {
+  name: string;
+  description?: string | null;
 }
 
 export interface AverageRating {
