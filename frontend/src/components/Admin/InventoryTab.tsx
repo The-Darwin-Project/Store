@@ -4,8 +4,8 @@ import {
   Modal, ModalVariant, ModalHeader, ModalBody, ModalFooter,
   Pagination,
 } from '@patternfly/react-core';
-import { products as productsApi, suppliers as suppliersApi } from '../../api/client';
-import type { Product, Supplier, ProductCreate } from '../../types';
+import { products as productsApi, suppliers as suppliersApi, categories as categoriesApi } from '../../api/client';
+import type { Product, Supplier, ProductCreate, Category } from '../../types';
 import { usePolling } from '../../hooks/usePolling';
 
 interface Props {
@@ -16,6 +16,7 @@ interface Props {
 export function InventoryTab({ log, searchQuery }: Props) {
   const [productList, setProductList] = useState<Product[]>([]);
   const [supplierList, setSupplierList] = useState<Supplier[]>([]);
+  const [categoryList, setCategoryList] = useState<Category[]>([]);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [page, setPage] = useState(1);
@@ -33,6 +34,7 @@ export function InventoryTab({ log, searchQuery }: Props) {
   const [addImage, setAddImage] = useState<string | null>(null);
   const [addSalePrice, setAddSalePrice] = useState('');
   const [addDiscountPercent, setAddDiscountPercent] = useState('');
+  const [addCategory, setAddCategory] = useState('');
 
   // Edit form state
   const [editName, setEditName] = useState('');
@@ -45,6 +47,7 @@ export function InventoryTab({ log, searchQuery }: Props) {
   const [editImage, setEditImage] = useState<string | null>(null);
   const [editSalePrice, setEditSalePrice] = useState('');
   const [editDiscountPercent, setEditDiscountPercent] = useState('');
+  const [editCategory, setEditCategory] = useState('');
 
   const loadProducts = useCallback(async () => {
     try {
@@ -63,7 +66,14 @@ export function InventoryTab({ log, searchQuery }: Props) {
     } catch { /* ignore */ }
   }, []);
 
-  usePolling(() => { loadProducts(); loadSuppliers(); }, 30000);
+  const loadCategories = useCallback(async () => {
+    try {
+      const data = await categoriesApi.list();
+      setCategoryList(data || []);
+    } catch { /* ignore */ }
+  }, []);
+
+  usePolling(() => { loadProducts(); loadSuppliers(); loadCategories(); }, 30000);
 
   const readFileAsDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -92,12 +102,13 @@ export function InventoryTab({ log, searchQuery }: Props) {
         image_data: addImage,
         sale_price: addSalePrice ? parseFloat(addSalePrice) : null,
         discount_percent: addDiscountPercent ? parseFloat(addDiscountPercent) : null,
+        category_id: addCategory || null,
       };
       const product = await productsApi.create(data);
       log(`Created product: ${product.name}`, 'success');
       setAddName(''); setAddSku(''); setAddPrice('0'); setAddStock('0');
       setAddReorder('10'); setAddSupplier(''); setAddDescription(''); setAddImage(null);
-      setAddSalePrice(''); setAddDiscountPercent('');
+      setAddSalePrice(''); setAddDiscountPercent(''); setAddCategory('');
       loadProducts();
     } catch (error) {
       log(`Failed to create product: ${(error as Error).message}`, 'error');
@@ -116,6 +127,7 @@ export function InventoryTab({ log, searchQuery }: Props) {
     setEditImage(null);
     setEditSalePrice(p.sale_price != null ? String(p.sale_price) : '');
     setEditDiscountPercent(p.discount_percent != null ? String(p.discount_percent) : '');
+    setEditCategory(p.category_id || '');
   };
 
   const handleEdit = async (e: React.FormEvent) => {
@@ -133,6 +145,7 @@ export function InventoryTab({ log, searchQuery }: Props) {
         image_data: editImage,
         sale_price: editSalePrice ? parseFloat(editSalePrice) : null,
         discount_percent: editDiscountPercent ? parseFloat(editDiscountPercent) : null,
+        category_id: editCategory || null,
       };
       const product = await productsApi.update(editProduct.id, data);
       log(`Updated product: ${product.name}`, 'success');
@@ -189,6 +202,12 @@ export function InventoryTab({ log, searchQuery }: Props) {
                 {supplierList.map(s => <FormSelectOption key={s.id} value={s.id} label={s.name} />)}
               </FormSelect>
             </FormGroup>
+            <FormGroup label="Category" fieldId="add-category" style={{ flex: '1 1 150px' }}>
+              <FormSelect id="add-category" value={addCategory} onChange={(_e, v) => setAddCategory(v)}>
+                <FormSelectOption value="" label="-- No category --" />
+                {categoryList.map(c => <FormSelectOption key={c.id} value={c.id} label={c.name} />)}
+              </FormSelect>
+            </FormGroup>
             <FormGroup label="Image" fieldId="add-image" style={{ flex: '0 1 150px' }}>
               <input type="file" id="add-image" accept="image/*" onChange={async (e) => {
                 const file = e.target.files?.[0];
@@ -219,11 +238,11 @@ export function InventoryTab({ log, searchQuery }: Props) {
         <div className="ds-table-container">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr><th>Image</th><th>Name</th><th>SKU</th><th>Price</th><th>Sale/Discount</th><th>Stock</th><th>Supplier</th><th>Description</th><th>Actions</th></tr>
+              <tr><th>Image</th><th>Name</th><th>SKU</th><th>Price</th><th>Sale/Discount</th><th>Stock</th><th>Category</th><th>Supplier</th><th>Description</th><th>Actions</th></tr>
             </thead>
             <tbody id="product-table">
               {filtered.length === 0 ? (
-                <tr><td colSpan={9} className="ds-empty-state">No products yet. Add one above!</td></tr>
+                <tr><td colSpan={10} className="ds-empty-state">No products yet. Add one above!</td></tr>
               ) : (
                 filtered.map(p => {
                   const supplier = supplierList.find(s => s.id === p.supplier_id);
@@ -244,6 +263,7 @@ export function InventoryTab({ log, searchQuery }: Props) {
                         {p.sale_price == null && p.discount_percent == null && '-'}
                       </td>
                       <td className={`stock ${stockClass}`}>{p.stock}</td>
+                      <td>{categoryList.find(c => c.id === p.category_id)?.name || '-'}</td>
                       <td>{supplier ? supplier.name : '-'}</td>
                       <td className="ds-desc-cell" title={p.description || ''}>{p.description || ''}</td>
                       <td className="actions">
@@ -292,6 +312,12 @@ export function InventoryTab({ log, searchQuery }: Props) {
               <FormSelect id="edit-supplier" value={editSupplier} onChange={(_e, v) => setEditSupplier(v)}>
                 <FormSelectOption value="" label="-- No supplier --" />
                 {supplierList.map(s => <FormSelectOption key={s.id} value={s.id} label={s.name} />)}
+              </FormSelect>
+            </FormGroup>
+            <FormGroup label="Category" fieldId="edit-category">
+              <FormSelect id="edit-category" value={editCategory} onChange={(_e, v) => setEditCategory(v)}>
+                <FormSelectOption value="" label="-- No category --" />
+                {categoryList.map(c => <FormSelectOption key={c.id} value={c.id} label={c.name} />)}
               </FormSelect>
             </FormGroup>
             <FormGroup label="Replace Image" fieldId="edit-image">

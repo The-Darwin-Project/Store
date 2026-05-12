@@ -10,6 +10,7 @@ import { InventoryTab } from '../components/Admin/InventoryTab';
 import { AdminOrdersTab } from '../components/Admin/AdminOrdersTab';
 import { CustomersTab } from '../components/Admin/CustomersTab';
 import { SuppliersTab } from '../components/Admin/SuppliersTab';
+import { CategoriesTab } from '../components/Admin/CategoriesTab';
 import { AlertsTab } from '../components/Admin/AlertsTab';
 import { CouponsTab } from '../components/Admin/CouponsTab';
 import { CampaignsTab } from '../components/Admin/CampaignsTab';
@@ -50,6 +51,7 @@ export function AdminPage() {
   const placeholders: Record<string, string> = {
     dashboard: 'Search...',
     inventory: 'Search products...',
+    categories: 'Search categories...',
     orders: 'Search orders...',
     customers: 'Search customers...',
     suppliers: 'Search suppliers...',
@@ -95,6 +97,9 @@ export function AdminPage() {
           </Tab>
           <Tab eventKey="inventory" title={<TabTitleText>Inventory</TabTitleText>} id="inventory-tab">
             <PageSection><InventoryTab log={log} searchQuery={searchQuery} /></PageSection>
+          </Tab>
+          <Tab eventKey="categories" title={<TabTitleText>Categories</TabTitleText>} id="categories-tab">
+            <PageSection><CategoriesTab log={log} searchQuery={searchQuery} /></PageSection>
           </Tab>
           <Tab eventKey="orders" title={<TabTitleText>Orders</TabTitleText>} id="orders-tab">
             <PageSection><AdminOrdersTab log={log} searchQuery={searchQuery} /></PageSection>

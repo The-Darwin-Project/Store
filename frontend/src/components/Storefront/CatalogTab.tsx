@@ -7,8 +7,8 @@ import {
   Pagination,
 } from '@patternfly/react-core';
 import { ShoppingCartIcon } from '@patternfly/react-icons';
-import { products as productsApi, campaigns as campaignsApi, reviews as reviewsApi } from '../../api/client';
-import type { Product, Campaign, AverageRating } from '../../types';
+import { products as productsApi, campaigns as campaignsApi, reviews as reviewsApi, categories as categoriesApi } from '../../api/client';
+import type { Product, Campaign, AverageRating, Category } from '../../types';
 import { getEffectivePrice, hasDiscount } from '../../types';
 import { usePolling } from '../../hooks/usePolling';
 import { ProductDetailModal } from './ProductDetailModal';
@@ -25,13 +25,22 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
   const [ratings, setRatings] = useState<Record<string, AverageRating>>({});
   const [addQty, setAddQty] = useState<Record<string, number>>({});
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [categoryList, setCategoryList] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const LIMIT = 20;
 
+  const loadCategories = useCallback(async () => {
+    try {
+      const data = await categoriesApi.list();
+      setCategoryList(data || []);
+    } catch { /* ignore */ }
+  }, []);
+
   const loadProducts = useCallback(async () => {
     try {
-      const data = await productsApi.list(page, LIMIT);
+      const data = await productsApi.list(page, LIMIT, selectedCategory);
       setProductList(data.items || []);
       setTotal(data.total);
       if (data.items && data.items.length > 0) {
@@ -46,7 +55,7 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
     } catch (error) {
       log(`Failed to load products: ${(error as Error).message}`, 'error');
     }
-  }, [log, page]);
+  }, [log, page, selectedCategory]);
 
   const loadCampaigns = useCallback(async () => {
     try {
@@ -55,7 +64,7 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
     } catch { /* ignore campaign load errors */ }
   }, []);
 
-  usePolling(() => { Promise.all([loadProducts(), loadCampaigns()]); }, 30000);
+  usePolling(() => { Promise.all([loadProducts(), loadCampaigns(), loadCategories()]); }, 30000);
 
   const filtered = searchQuery
     ? productList.filter(p =>
@@ -106,6 +115,24 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
               <span className="promo-text"><strong>{p.title}</strong>{p.content && <span> &mdash; {p.content}</span>}</span>
               {p.coupon_code && <span className="ds-coupon-tag" style={{ marginLeft: '0.5rem' }}>Code: {p.coupon_code}</span>}
             </div>
+          ))}
+        </div>
+      )}
+
+      {categoryList.length > 0 && (
+        <div className="ds-category-chips" id="category-filter" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+          <Button
+            variant={selectedCategory === undefined ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => { setSelectedCategory(undefined); setPage(1); }}
+          >All</Button>
+          {categoryList.map(c => (
+            <Button
+              key={c.id}
+              variant={selectedCategory === c.id ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => { setSelectedCategory(c.id); setPage(1); }}
+            >{c.name}</Button>
           ))}
         </div>
       )}
