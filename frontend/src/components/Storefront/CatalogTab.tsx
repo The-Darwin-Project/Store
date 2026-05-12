@@ -66,6 +66,10 @@ export function CatalogTab({ onAddToCart, log, searchQuery }: Props) {
 
   usePolling(() => { Promise.all([loadProducts(), loadCampaigns(), loadCategories()]); }, 30000);
 
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
+
   const filtered = searchQuery
     ? productList.filter(p =>
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
