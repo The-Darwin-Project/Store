@@ -51,7 +51,7 @@ route:
     # host: darwin-store.apps.example.com  # Leave empty for auto-generated
     annotations: {}
   chaos:
-    enabled: true
+    enabled: false
     # host: darwin-chaos.apps.example.com  # Leave empty for auto-generated
     annotations: {}
   tls:
@@ -79,7 +79,8 @@ postgres:
     size: 1Gi
     accessMode: ReadWriteMany
   # Authentication
-  # Use existingSecret for production, password fallback for dev
+  # Use existingSecret for production. password is only used as fallback
+  # when existingSecret is empty (dev mode) -- a Secret is auto-created from it.
   auth:
     existingSecret: ""
     password: "darwin"

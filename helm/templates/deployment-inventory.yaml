@@ -93,7 +93,10 @@ spec:
             - name: DB_USER
               value: "postgres"
             - name: DB_PASSWORD
-              value: {{ .Values.postgres.auth.password | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.auth.existingSecret | default (printf "%s-postgres-secret" .Release.Name) }}
+                  key: postgres-password
             - name: DB_NAME
               value: "postgres"
             - name: CHAOS_CONTROLLER_URL
