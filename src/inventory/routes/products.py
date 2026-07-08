@@ -192,8 +192,8 @@ async def delete_product(product_id: str, request: Request) -> None:
 catalog_router = APIRouter(prefix="/catalog", tags=["catalog"])
 
 catalog_router.add_api_route("", list_products, methods=["GET"])
-catalog_router.add_api_route("", create_product, methods=["POST"])
+catalog_router.add_api_route("", create_product, methods=["POST"], status_code=201, response_model=Product)
 catalog_router.add_api_route("/{product_id}", get_product, methods=["GET"])
 catalog_router.add_api_route("/{product_id}", update_product, methods=["PUT"])
 catalog_router.add_api_route("/{product_id}", patch_product, methods=["PATCH"])
-catalog_router.add_api_route("/{product_id}", delete_product, methods=["DELETE"])
+catalog_router.add_api_route("/{product_id}", delete_product, methods=["DELETE"], status_code=204)
