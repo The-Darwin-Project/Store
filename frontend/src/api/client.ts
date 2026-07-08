@@ -34,18 +34,18 @@ async function request<T>(endpoint: string, method = 'GET', body?: unknown): Pro
   return response.json();
 }
 
-// Products
+// Products (migrated to /catalog endpoint per API v2 spec)
 export const products = {
   list: (page = 1, limit = 20, categoryId?: string) => {
-    let url = `/products?page=${page}&limit=${limit}`;
+    let url = `/catalog?page=${page}&limit=${limit}`;
     if (categoryId) url += `&category_id=${categoryId}`;
     return request<PaginatedResponse<Product>>(url);
   },
-  get: (id: string) => request<Product>(`/products/${id}`),
-  create: (data: ProductCreate) => request<Product>('/products', 'POST', data),
-  update: (id: string, data: ProductCreate) => request<Product>(`/products/${id}`, 'PUT', data),
-  patch: (id: string, data: Partial<ProductCreate>) => request<Product>(`/products/${id}`, 'PATCH', data),
-  delete: (id: string) => request<void>(`/products/${id}`, 'DELETE'),
+  get: (id: string) => request<Product>(`/catalog/${id}`),
+  create: (data: ProductCreate) => request<Product>('/catalog', 'POST', data),
+  update: (id: string, data: ProductCreate) => request<Product>(`/catalog/${id}`, 'PUT', data),
+  patch: (id: string, data: Partial<ProductCreate>) => request<Product>(`/catalog/${id}`, 'PATCH', data),
+  delete: (id: string) => request<void>(`/catalog/${id}`, 'DELETE'),
 };
 
 // Orders
