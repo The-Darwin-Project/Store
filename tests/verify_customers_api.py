@@ -92,7 +92,7 @@ def test_create_order_success_with_customer(mock_db_and_client):
     # 3. Get created_at (returns timestamp)
     mock_db.fetchone.side_effect = [
         (MOCK_CUSTOMER_ID,), # Customer exists
-        (MOCK_PRODUCT_ID, "Test Product", 10.0, 99), # Stock update
+        (MOCK_PRODUCT_ID, "Test Product", 10.0, 99, None, None), # Stock update
         ("2023-01-01T00:00:00",) # Created at
     ]
     
