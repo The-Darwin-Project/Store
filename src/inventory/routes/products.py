@@ -186,3 +186,14 @@ async def delete_product(product_id: str, request: Request) -> None:
                 raise HTTPException(status_code=404, detail="Product not found")
     finally:
         pool.putconn(conn)
+
+
+# Alias router: serves identical product CRUD under /catalog (API v2 migration)
+catalog_router = APIRouter(prefix="/catalog", tags=["catalog"])
+
+catalog_router.add_api_route("", list_products, methods=["GET"])
+catalog_router.add_api_route("", create_product, methods=["POST"])
+catalog_router.add_api_route("/{product_id}", get_product, methods=["GET"])
+catalog_router.add_api_route("/{product_id}", update_product, methods=["PUT"])
+catalog_router.add_api_route("/{product_id}", patch_product, methods=["PATCH"])
+catalog_router.add_api_route("/{product_id}", delete_product, methods=["DELETE"])
