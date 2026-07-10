@@ -23,7 +23,7 @@ import httpx
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from .routes.products import router as products_router
+from .routes.products import router as products_router, catalog_router
 from .routes.suppliers import router as suppliers_router
 from .routes.alerts import router as alerts_router
 from .routes.coupons import router as coupons_router
@@ -107,6 +107,7 @@ app = FastAPI(
 app.add_middleware(ChaosMiddleware)
 
 app.include_router(products_router)
+app.include_router(catalog_router)
 app.include_router(suppliers_router)
 app.include_router(alerts_router)
 app.include_router(coupons_router)

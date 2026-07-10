@@ -77,7 +77,7 @@ def test_create_order_with_customer(client_with_db):
     # Mock customer check (exists)
     mock_db.fetchone.side_effect = [
         (MOCK_CUSTOMER_ID,), # Customer exists check
-        ("some-id", "Test Product", 10.0, 98), # Update stock returning
+        ("some-id", "Test Product", 10.0, 98, None, None), # Update stock returning
         ("2023-01-01T00:00:00",) # Select created_at
     ]
     

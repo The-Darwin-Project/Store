@@ -110,6 +110,8 @@ jobs:
             tests/test_pagination.py \
             tests/test_field_alignment_evt04511f86.py \
             tests/test_split_services_evt_fb71d51d.py \
+            tests/test_catalog_alias_evt0d837f63.py \
+            tests/test_catalog_alias_qe_evt3bbde129.py \
             -v --tb=short
 
       - name: Test summary
