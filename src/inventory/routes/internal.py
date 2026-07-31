@@ -100,22 +100,37 @@ async def restore_stock(body: StockRestoreRequest, request: Request):
         pool.putconn(conn)
 
 
+def increment_coupon_usage_atomic(conn, coupon_id: str) -> int:
+    """Atomically increment a coupon's usage count, guarding against exceeding max_uses.
+
+    Uses a single guarded UPDATE (no separate read-then-write) so concurrent
+    callers can't both pass a usage check before either commits. Returns the
+    new current_uses. Raises HTTPException(400) if the coupon doesn't exist
+    or its usage limit has already been reached. Caller owns the transaction
+    (commit/rollback).
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE coupons SET current_uses = current_uses + 1 "
+            "WHERE id = %s AND (max_uses = 0 OR current_uses < max_uses) "
+            "RETURNING current_uses",
+            (coupon_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=400, detail="Coupon usage limit reached")
+        return row[0]
+
+
 @router.post("/coupon-use", status_code=200)
 async def increment_coupon_usage(body: CouponUseRequest, request: Request):
     """Atomic coupon usage increment."""
     pool = request.app.state.db_pool
     conn = pool.getconn()
     try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE coupons SET current_uses = current_uses + 1 "
-                "WHERE id = %s AND (max_uses = 0 OR current_uses < max_uses) RETURNING id",
-                (body.coupon_id,)
-            )
-            if not cur.fetchone():
-                raise HTTPException(status_code=400, detail="Coupon usage limit reached")
-            conn.commit()
-            return {"status": "incremented", "coupon_id": body.coupon_id}
+        increment_coupon_usage_atomic(conn, body.coupon_id)
+        conn.commit()
+        return {"status": "incremented", "coupon_id": body.coupon_id}
     except HTTPException:
         raise
     except Exception as e:
