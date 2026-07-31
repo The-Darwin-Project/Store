@@ -9,7 +9,11 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from ..models import (
     Coupon, CouponCreate, CouponUpdate,
     CouponValidateRequest, CouponValidationResult,
+    CouponRedeemRequest, CouponRedeemResult,
 )
+from .internal import increment_coupon_usage_atomic
+
+_TERMINAL_INELIGIBLE_ORDER_STATUSES = ("cancelled", "returned")
 
 logger = logging.getLogger(__name__)
 
@@ -237,5 +241,78 @@ async def validate_coupon(body: CouponValidateRequest, request: Request) -> Coup
             discount_amount=0.0,
             final_total=body.cart_total,
         )
+    finally:
+        pool.putconn(conn)
+
+
+@router.post("/redeem", response_model=CouponRedeemResult)
+async def redeem_coupon(body: CouponRedeemRequest, request: Request) -> CouponRedeemResult:
+    """Validate a coupon and record its usage against an order.
+
+    Requires order_id to reference a real, non-cancelled/returned order,
+    guarding against fabricated order_ids. Redemption is idempotent per
+    (coupon, order): a retried request for an order that was already
+    redeemed is rejected instead of incrementing usage again -- the
+    coupon_redemptions row is inserted under a unique (coupon_id, order_id)
+    constraint before the usage counter is touched, so only the request that
+    wins that race proceeds. The usage increment itself reuses the guarded
+    atomic UPDATE from the internal coupon-use endpoint (see
+    increment_coupon_usage_atomic in internal.py) instead of a separate
+    check-then-write, so this endpoint can't exceed max_uses under
+    concurrent redemptions the way the internal-only endpoint already
+    doesn't.
+    """
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT status FROM orders WHERE id = %s", (body.order_id,))
+            order_row = cur.fetchone()
+
+        if not order_row:
+            raise HTTPException(status_code=404, detail="Order not found")
+        if order_row[0] in _TERMINAL_INELIGIBLE_ORDER_STATUSES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Order is {order_row[0]} and not eligible for coupon redemption"
+            )
+
+        coupon, discount_amount = validate_coupon_for_cart(conn, body.code, body.cart_total)
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO coupon_redemptions (id, coupon_id, order_id, discount_amount) "
+                "VALUES (%s, %s, %s, %s) "
+                "ON CONFLICT (coupon_id, order_id) DO NOTHING "
+                "RETURNING id",
+                (str(uuid.uuid4()), coupon.id, body.order_id, discount_amount)
+            )
+            redemption_row = cur.fetchone()
+
+        if not redemption_row:
+            raise HTTPException(status_code=409, detail="Coupon already redeemed for this order")
+
+        coupon.current_uses = increment_coupon_usage_atomic(conn, coupon.id)
+        conn.commit()
+
+        final_total = round(body.cart_total - discount_amount, 2)
+        logger.info("Coupon %s redeemed for order %s", coupon.code, body.order_id)
+        return CouponRedeemResult(
+            redeemed=True,
+            coupon=coupon,
+            discount_amount=discount_amount,
+            final_total=final_total,
+        )
+    except HTTPException as e:
+        conn.rollback()
+        return CouponRedeemResult(
+            redeemed=False,
+            error=e.detail,
+            discount_amount=0.0,
+            final_total=body.cart_total,
+        )
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Coupon redemption failed: {str(e)}")
     finally:
         pool.putconn(conn)

@@ -199,6 +199,16 @@ async def startup_event():
                 )
             ''')
             cur.execute('''
+                CREATE TABLE IF NOT EXISTS coupon_redemptions (
+                    id UUID PRIMARY KEY,
+                    coupon_id UUID NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+                    order_id UUID NOT NULL,
+                    discount_amount REAL NOT NULL DEFAULT 0.0,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(coupon_id, order_id)
+                )
+            ''')
+            cur.execute('''
                 CREATE TABLE IF NOT EXISTS reviews (
                     id UUID PRIMARY KEY,
                     product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
