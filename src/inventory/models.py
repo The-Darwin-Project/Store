@@ -209,6 +209,22 @@ class CouponValidationResult(BaseModel):
     error: Optional[str] = None
 
 
+class CouponRedeemRequest(BaseModel):
+    """Schema for redeeming a coupon against a completed order."""
+    code: str
+    cart_total: float = Field(gt=0)
+    order_id: str
+
+
+class CouponRedeemResult(BaseModel):
+    """Result of redeeming a coupon (validates + records usage)."""
+    redeemed: bool
+    coupon: Optional[Coupon] = None
+    discount_amount: float = 0.0
+    final_total: float = 0.0
+    error: Optional[str] = None
+
+
 class ReviewCreate(BaseModel):
     """Schema for creating a product review."""
     customer_id: str

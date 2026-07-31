@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from ..models import (
     Coupon, CouponCreate, CouponUpdate,
     CouponValidateRequest, CouponValidationResult,
+    CouponRedeemRequest, CouponRedeemResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -233,6 +234,45 @@ async def validate_coupon(body: CouponValidateRequest, request: Request) -> Coup
     except HTTPException as e:
         return CouponValidationResult(
             valid=False,
+            error=e.detail,
+            discount_amount=0.0,
+            final_total=body.cart_total,
+        )
+    finally:
+        pool.putconn(conn)
+
+
+@router.post("/redeem", response_model=CouponRedeemResult)
+async def redeem_coupon(body: CouponRedeemRequest, request: Request) -> CouponRedeemResult:
+    """Validate a coupon and record its usage against an order.
+
+    Increments current_uses so max_uses enforcement stays accurate for
+    future validate_coupon_for_cart calls.
+    """
+    pool = request.app.state.db_pool
+    conn = pool.getconn()
+    try:
+        coupon, discount_amount = validate_coupon_for_cart(conn, body.code, body.cart_total)
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE coupons SET current_uses = current_uses + 1 WHERE id = %s",
+                (coupon.id,)
+            )
+        conn.commit()
+
+        final_total = round(body.cart_total - discount_amount, 2)
+        logger.info("Coupon %s redeemed for order %s", coupon.code, body.order_id)
+        return CouponRedeemResult(
+            redeemed=True,
+            coupon=coupon,
+            discount_amount=discount_amount,
+            final_total=final_total,
+        )
+    except HTTPException as e:
+        conn.rollback()
+        return CouponRedeemResult(
+            redeemed=False,
             error=e.detail,
             discount_amount=0.0,
             final_total=body.cart_total,
