@@ -6,7 +6,7 @@
 image:
   frontend:
     repository: ghcr.io/the-darwin-project/store-frontend
-    tag: "198f88f"
+    tag: "d5ededf"
     pullPolicy: IfNotPresent
   inventory:
     repository: ghcr.io/the-darwin-project/store-inventory
@@ -18,7 +18,7 @@ image:
     pullPolicy: IfNotPresent
   chaos:
     repository: ghcr.io/the-darwin-project/store-chaos
-    tag: "198f88f"
+    tag: "d5ededf"
     pullPolicy: IfNotPresent
 # -- Image pull secrets (if using private registry)
 imagePullSecrets: []
